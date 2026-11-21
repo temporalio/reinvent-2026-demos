@@ -1,0 +1,32 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="1814.85" height="1355.62" viewBox="0 0 1814.85 1355.62" fill="none" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<g id="Rectangle 1739332712" filter="url(#filter0_fn_0_73)">
+<use xlink:href="#stroke0_0_73" fill="#D9D9D9"/>
+<use xlink:href="#stroke0_0_73" fill="url(#paint0_linear_0_73)"/>
+<use xlink:href="#stroke0_0_73" fill="black" fill-opacity="0.2"/>
+</g>
+<defs>
+<filter id="filter0_fn_0_73" x="0" y="0" width="1814.85" height="1355.62" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+<feGaussianBlur stdDeviation="90" result="effect1_foregroundBlur_0_73"/>
+<feTurbulence type="fractalNoise" baseFrequency="3.3333332538604736 3.3333332538604736" stitchTiles="stitch" numOctaves="3" result="noise" seed="7910" />
+<feColorMatrix in="noise" type="luminanceToAlpha" result="alphaNoise" />
+<feComponentTransfer in="alphaNoise" result="coloredNoise1">
+<feFuncA type="discrete" tableValues="1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 "/>
+</feComponentTransfer>
+<feComposite operator="in" in2="effect1_foregroundBlur_0_73" in="coloredNoise1" result="noise1Clipped" />
+<feFlood flood-color="rgba(0, 0, 0, 0.25)" result="color1Flood" />
+<feComposite operator="in" in2="noise1Clipped" in="color1Flood" result="color1" />
+<feMerge result="effect2_noise_0_73">
+<feMergeNode in="effect1_foregroundBlur_0_73" />
+<feMergeNode in="color1" />
+</feMerge>
+</filter>
+<linearGradient id="paint0_linear_0_73" x1="-162.388" y1="391.548" x2="1569.4" y2="973.102" gradientUnits="userSpaceOnUse">
+<stop offset="0.363908" stop-color="#434CE7"/>
+<stop offset="0.620139" stop-color="#CFFF0D"/>
+<stop offset="0.78077" stop-color="#F291C7"/>
+</linearGradient>
+<path id="stroke0_0_73" d="M180 180L1007.36 678.203L1634.85 448.547L1492.73 1053.26L1002.65 1175.62L180 180Z"/>
+</defs>
+</svg>

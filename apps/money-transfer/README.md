@@ -1,0 +1,258 @@
+> These updates are only for AWS re:Invent 2026. This repository's main branch is the re:Invent demo version.
+> Contact Ian Douglas or Tomas Josovsky with questions.
+
+# Banking Transfer Demo — Temporal Money Transfer
+
+A live, interactive demo showing how [Temporal](https://temporal.io) handles money transfers with durable execution. Send money through an iPhone-style banking app, watch the behind-the-scenes workflow execute in real time, and explore six different scenarios — from happy path to API downtime to human-in-the-loop approval.
+
+![App demo gif](./.images/app-demo.gif)
+
+## Quick Start
+
+**Prerequisites:** Docker with Compose, and `make`. Everything else, including the Temporal dev server, runs in containers.
+
+```bash
+make demo                                  # Local Temporal dev server
+make demo ENCRYPT=1                        # Local + payload encryption
+make demo CLOUD_ENV=cloud.env              # Temporal Cloud
+make demo CLOUD_ENV=cloud.env ENCRYPT=1    # Cloud + encryption
+make demo WORKER=go                        # Run the Worker in another SDK
+make down                                  # Stop it
+```
+
+Open http://localhost:5173 once it's running. Temporal UI at http://localhost:8233. `make help` lists the other targets: `dev` for an edit loop with reload, `worker` to rebuild the Worker alone, `reset` to terminate running transfers and clear the API's state, `test`, and `logs`.
+
+`./scripts/start.sh` (with `--encrypt` and `--cloud-env <path>`) still works for running without Docker. It needs the [Temporal CLI](https://docs.temporal.io/cli), [uv](https://docs.astral.sh/uv/) and [Node.js](https://nodejs.org/) on the host.
+
+To present the demo, follow [RUNBOOK.md](RUNBOOK.md): the walkthrough beat by beat, and where in the code each part happens.
+
+## The Demo
+
+### 1. Send a transfer (Happy Path)
+
+Browse your accounts, pick a sender and recipient, enter an amount, and confirm. The behind-the-scenes panel shows each workflow activity executing. The code panel on the right shows the actual workflow code lighting up in real time. Drag the dividers between the three panels to resize them (double-click a divider to reset it), or fold a panel away with the button in its corner. The tabs under the code panel switch SDK language.
+
+### 2. Explore the six scenarios
+
+Click the **Scenario:** button in the top-right corner to switch scenarios:
+
+| Scenario | What Happens | Key Temporal Feature |
+|---|---|---|
+| **Happy Path** | Validate, Withdraw, Deposit, Notify — all succeed | Basic workflow orchestration |
+| **Advanced Visibility** | Same as happy path + search attribute updates at each step | Search attributes, observability |
+| **Human-in-the-Loop** | Pauses for bank employee approval (30s timeout) | Signals, wait_condition, timeout |
+| **API Downtime** | Deposit fails ~5 times, retries with backoff, then recovers | Retry policies, exponential backoff |
+| **Bug in Workflow** | Intentional error after withdraw — compensation runs | Saga compensation, versioning concept |
+| **Invalid Account** | Validation fails immediately, non-retryable | Non-retryable errors |
+
+### 3. Bank operations tab
+
+Switch to the **Bank operations** tab to act as a bank employee. When running the Human-in-the-Loop scenario, pending transfers appear here for approval or denial. You can also press **Approve transfer** in the **Waiting for approval** banner in the behind-the-scenes panel without leaving the customer app. If no one approves within 30 seconds, the workflow fails with `ApprovalTimeout`.
+
+### 4. Inspect real workflows
+
+The Temporal UI at http://localhost:8233 shows actual workflow executions with full event history.
+
+## Every SDK
+
+The same Workflow is implemented in all eight languages with a Temporal SDK, and the code panel has a tab for each. Pick the Worker with `WORKER`, which defaults to `python`:
+
+```bash
+make demo WORKER=typescript
+make worker WORKER=typescript    # Rebuild and restart it alone
+```
+
+| Language | `WORKER=` | SDK | How one Worker serves six Workflow Types |
+|---|---|---|---|
+| Python | `python` | `temporalio` | `AccountTransferWorkflow`, plus a dynamic Workflow for the other five |
+| Go | `go` | `go.temporal.io/sdk` | The same function registered under each name |
+| TypeScript | `typescript` | `@temporalio/*` | A dynamic Workflow, the default export |
+| Java | `java` | `io.temporal:temporal-sdk` | `DynamicWorkflow` |
+| .NET | `dotnet` | `Temporalio` | `[Workflow(Dynamic = true)]` |
+| Ruby | `ruby` | `temporalio` | `workflow_dynamic` |
+| PHP | `php` | `temporal/sdk` on RoadRunner | A small subclass per name, because the SDK has no dynamic Workflows |
+| Rust | `rust` | `temporalio-sdk` | A small type per name, because the SDK has no dynamic Workflows |
+
+The API starts Workflows and sends Signals by name, so it works with any of them. They share the `MoneyTransfer` Task Queue, the `approveTransfer` Signal, the `transferStatus` Query, the step events and the codec format, so `ENCRYPT=1` works with every language and one codec server decrypts them all. Run one Worker at a time: they poll the same queue and their Activity names differ, so a second language would pick up tasks it can't run.
+
+With `CLOUD_ENV`, the Workers read the same address, Namespace, API key and certificate settings, but only the Python Worker has been run against Temporal Cloud. The PHP Worker can't connect yet: RoadRunner takes its TLS settings from `.rr.yaml`, which doesn't set them.
+
+The catalog runs the Python Worker. The AWS Lambda image below is Python only.
+
+## Payload Encryption
+
+Launch with `ENCRYPT=1` to enable AES-GCM encryption on all workflow and activity payloads:
+
+```bash
+make demo ENCRYPT=1
+```
+
+This starts the worker with an encryption codec and a codec server on http://localhost:8081. The worker encrypts all payloads before they reach the Temporal server and decrypts them when they come back — the Temporal server never sees plaintext data.
+
+**What you'll see in the Temporal UI:**
+- All activity inputs/outputs show as `binary/encrypted` — unreadable
+- To decrypt, click the 3D glasses icon in the Temporal UI and set the codec endpoint to `http://localhost:8081`
+- Payloads are decrypted client-side in your browser — nothing goes back through the Temporal server
+
+The backend does not use the codec. It starts workflows and sends signals to Temporal, but all sensitive data flows through the worker which handles encryption/decryption. The worker communicates results back to the backend via plain HTTP (internal API), outside of Temporal's data path.
+
+## Temporal Cloud
+
+To connect to Temporal Cloud instead of a local dev server:
+
+```bash
+cp cloud.env.example cloud.env
+# Edit cloud.env with your namespace, address, and auth credentials
+make demo CLOUD_ENV=cloud.env
+```
+
+The env file supports two authentication methods:
+
+| Method | Variables |
+|---|---|
+| **API Key** (preferred) | `TEMPORAL_ADDRESS`, `TEMPORAL_NAMESPACE`, `TEMPORAL_API_KEY` |
+| **mTLS certificates** | `TEMPORAL_ADDRESS`, `TEMPORAL_NAMESPACE`, `TEMPORAL_CERT_PATH`, `TEMPORAL_KEY_PATH` |
+
+With `CLOUD_ENV`, no local Temporal server is started. The worker and backend connect directly to your Cloud namespace. Combine with `ENCRYPT=1` for encrypted payloads on Cloud.
+
+## AWS Lambda Worker Container
+
+The normal worker remains available through `uv run --package banking-demo-workflows worker` and `docker/worker-python.Dockerfile`. For Temporal Serverless Workers on AWS Lambda, build the Lambda-specific image:
+
+```bash
+docker build -f docker/worker-python-lambda.Dockerfile -t banking-demo-lambda-worker .
+```
+
+The image uses the AWS Lambda Python runtime and exposes this handler:
+
+```text
+banking_workflows.lambda_worker.lambda_handler
+```
+
+Set these Lambda environment variables when deploying the image:
+
+| Variable | Purpose |
+|---|---|
+| `TEMPORAL_ADDRESS` | Temporal Cloud address, including port |
+| `TEMPORAL_NAMESPACE` | Temporal namespace |
+| `TEMPORAL_API_KEY` | API key auth, preferred for Lambda |
+| `TEMPORAL_TASK_QUEUE` | Defaults to `MoneyTransfer` |
+| `TEMPORAL_WORKER_DEPLOYMENT_NAME` | Worker Deployment name, defaults to `banking-transfer-demo` |
+| `TEMPORAL_WORKER_BUILD_ID` | Worker Deployment Version build ID; must match the version registered in Temporal |
+| `TEMPORAL_WORKER_VERSIONING_BEHAVIOR` | `PINNED` by default; can be `AUTO_UPGRADE` |
+| `BANKING_BACKEND_URL` | Reachable backend URL for UI events and approvals |
+| `BANKING_ENCRYPT` | Set to `1` to keep payload encryption enabled |
+
+For mTLS, the handler also supports the existing `TEMPORAL_CERT_PATH` / `TEMPORAL_KEY_PATH` variables and the SDK names `TEMPORAL_TLS_CLIENT_CERT_PATH` / `TEMPORAL_TLS_CLIENT_KEY_PATH`, as long as the cert and key files are available inside the Lambda runtime.
+
+When creating the Temporal Worker Deployment Version, use the same deployment name, build ID, task queue, and Lambda function ARN that you deployed in AWS.
+
+## Architecture
+
+```
+Browser (React + Vite + Tailwind)
+    | REST + SSE
+FastAPI Backend (Python)
+    |-- Mock Bank Services (validate, withdraw, deposit)
+    |-- Browser sessions (scenario, transfers, approvals per browser)
+    |-- Internal API (Worker events and approvals, by Workflow ID)
+    +-- Temporal client (starts workflows, sends signals)
+           |
+Temporal Dev Server (container, local profile)
+           |
+Worker in any SDK [encrypts/decrypts payloads when ENCRYPT=1]
+    |-- The account transfer Workflow (six Workflow Types, one per scenario)
+    +-- Activities -> Backend internal API
+
+Codec Server (optional, ENCRYPT=1 only)
+    |-- POST /encode — encrypts payloads
+    +-- POST /decode — decrypts payloads for Temporal UI
+```
+
+The Python Worker has two workflow classes:
+- **`AccountTransferWorkflow`** — clean happy path
+- **`AccountTransferWorkflowScenarios`** — `@workflow.defn(dynamic=True)`, branches on workflow type name for the other 5 scenarios
+
+The other Workers use one Workflow for all six scenarios, branching the same way.
+
+## Transfer Flow
+
+1. **Validate** — check accounts exist and amount is valid
+2. **Withdraw** — remove funds from source account (register compensation first)
+3. **[Approval]** — wait for bank employee signal (Human-in-the-Loop only)
+4. **Deposit** — add funds to destination account (retries on API Downtime)
+5. **Notify** — send success notification
+
+**Compensation (saga pattern):** If any step after withdrawal fails, the workflow reverses the withdrawal automatically and notifies the customer. No manual intervention needed.
+
+## Sessions and crashable workspaces
+
+Each browser gets its own demo, so presenters sharing a deployment don't see or reset each other's work:
+
+- The API sets an HttpOnly `banking_session` cookie holding a random ID it minted. It keeps that browser's scenario, transfers, events and pending approvals in memory. A cookie the API didn't mint, or doesn't remember, gets a new session.
+- A new session starts on **Happy Path**. Sessions idle for two hours are dropped, and an API restart drops them all.
+- Workflow IDs are `transfer-<task queue>-<session tag>-<transfer id>`. The session tag is a hash of the session ID, so the ID itself never reaches Temporal.
+- Activities report progress and approvals to `/api/internal/*` by Workflow ID, and the API routes each report to the session that started the transfer. nginx doesn't expose `/api/internal`.
+
+The demo supports the tmprl-demo.cloud catalog's crashable workspaces. A crashable workspace sets `TEMPORAL_TASK_QUEUE` to `MoneyTransfer-<workspace id>` on the API and the Worker, and the Workflow ID carries the queue, so workspaces sharing a Namespace don't collide. The catalog can then delete the Worker, or scale it to zero, while the app and API stay up. Every Activity has a 5-second start-to-close timeout and unlimited retries, so a transfer waits out a missing Worker and carries on when one returns.
+
+## Project Structure
+
+```
+├── frontend/              # React 19 + Vite + TypeScript + Tailwind 4
+│   └── src/components/    # PhoneFrame, TransferTracker, BankOperations, etc.
+├── backend/               # FastAPI + mock bank services (Python)
+├── workflows/
+│   ├── python/            # Python worker — two workflow classes + activities
+│   │   └── src/banking_workflows/
+│   │       ├── codec.py           # AES-GCM PayloadCodec (used when ENCRYPT=1)
+│   │       └── codec_server.py    # HTTP codec server for Temporal UI decryption
+│   ├── go/                # Go worker
+│   ├── typescript/        # TypeScript worker
+│   ├── java/              # Java worker
+│   ├── dotnet/            # .NET worker
+│   ├── ruby/              # Ruby worker
+│   ├── php/               # PHP worker, run by RoadRunner
+│   └── rust/              # Rust worker
+├── docker/                # Dockerfiles (with test stages) + nginx config
+├── docker-compose.yml     # Dev server (local profile), backend, worker, frontend, codec-server (encrypt profile)
+├── docker-compose.dev.yml # Source mounts for make dev
+├── Makefile               # make help lists the targets
+└── scripts/start.sh       # Launcher for running without Docker
+```
+
+## Development
+
+```bash
+make dev     # The stack with source mounts: the API and frontend reload on save
+make test    # Ruff and pytest on the Python packages; type-check, ESLint and build the frontend
+```
+
+`make test` doesn't cover the other Workers. `make worker WORKER=<language>` compiles one in its image. The excerpts in `frontend/src/data/workflowCode.ts` are copied by hand, so update them when a Workflow changes.
+
+The Worker doesn't reload in `make dev`. Restart the Python Worker after an edit with `docker compose restart worker-python`, and rebuild the others with `make worker WORKER=<language>`.
+
+### Without Docker
+
+```bash
+# Install dependencies
+uv sync --all-packages && cd frontend && npm install
+
+# Run individual services
+temporal server start-dev                                                                # Temporal on :7233
+uv run --package banking-demo-backend server                                             # FastAPI on :8000
+BANKING_BACKEND_URL=http://localhost:8000 uv run --package banking-demo-workflows worker  # Python worker
+cd frontend && npm run dev                                                               # Vite on :5173
+
+# With encryption
+BANKING_ENCRYPT=1 BANKING_BACKEND_URL=http://localhost:8000 uv run --package banking-demo-workflows worker
+uv run python -m banking_workflows.codec_server                                          # Codec server on :8081
+```
+
+`./scripts/start.sh --worker <language>` picks the Worker. Without Docker that needs the language's own toolchain: Go 1.26, Node 22, JDK 21 with Gradle, .NET 8, Ruby 3.4 with Bundler, PHP 8.4 with Composer and RoadRunner, or Rust 1.92 with `protoc`.
+
+## Settings
+
+Click the **Scenario:** button in the top-right corner to configure:
+- **Scenario**: Happy Path, Advanced Visibility, Human-in-the-Loop, API Downtime, Bug in Workflow, Invalid Account
+- **Presentation**: Simple (each step's service and attempt count) or Detailed (adds each step's result and error messages)

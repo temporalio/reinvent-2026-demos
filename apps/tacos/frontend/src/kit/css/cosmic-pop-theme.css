@@ -1,0 +1,269 @@
+/* cosmic-pop-theme.css — "Cosmic Pop" (Direction 02), from the REinvent roughs in Figma:
+   fbSWlm7bLNikbn6ezCAHNn, frames 219:103883 (cover), 186:15121 (colour, texture) and
+   186:15238 (typography). Load it after temporal-theme.css:
+
+     <link rel="stylesheet" href="assets/css/temporal-theme.css">
+     <link rel="stylesheet" href="assets/css/temporal-components.css">
+     <link rel="stylesheet" href="assets/css/cosmic-pop-theme.css">
+
+   It re-points the existing tokens, so every component follows without new markup.
+   Each value is a Figma swatch, a Figma variable, or a colour the frames use; the
+   comment on each line names its source. New in this theme: --sage, the
+   --dot-* colours, .grid-floor.dots, the colours the components use outside the
+   palette, and the alpha steps. Every colour token here has a variable of the same
+   name in Figma's "color tokens" collection. See guides/02-visual-theme.md. */
+
+/* ---------- Fonts (Aeonik is commercial; Inter is the Figma's stand-in) ---------- */
+@font-face {
+  font-family: "Inter";
+  src: url("../fonts/inter-latin.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Space Mono";
+  src: url("../fonts/space-mono-latin-400.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Space Mono";
+  src: url("../fonts/space-mono-latin-700.woff2") format("woff2");
+  font-weight: 700;
+  font-display: swap;
+}
+
+/* ---------- Tokens ----------
+   Semantic names, one per role. Each has a variable of the same name in Figma's
+   "color tokens" collection (Figma groups with "/": surface/page is --surface-page). */
+:root {
+  /* Surfaces */
+  --surface-page:    #141414;   /* Space Black (Core/Space Black) */
+  --surface-hero:    #1f203f;   /* Deep Space; the hero gradient's start */
+  --surface-overlay: #0a0a0e;   /* demo panels, drawer and dialog backdrops */
+  --surface-shade:   #000000;   /* shadows, overlays, hidden borders */
+
+  /* Text */
+  --text-primary:   #f7fafa;   /* Moonlight White */
+  --text-secondary: #dadfbf;   /* Moondust Sage */
+  --text-muted:     #bcbcbc;   /* eyebrow and subtitle grey */
+  --text-link:      #f6baf5;   /* Stardust Lilac */
+  --text-bright:    #ffffff;   /* secondary button labels */
+
+  /* Borders */
+  --border-default:  #63789c;   /* same value as border-control */
+  --border-subtle:   #374761;   /* Gray/800; dim borders, inactive */
+  --border-hover:    #6562d9;   /* Nebula Violet; hover borders, grid */
+  --border-emphasis: #f7fafa;   /* Moonlight White */
+  --border-control:  #63789c;   /* inputs, segmented controls, chips */
+  --border-table:    #243349;   /* data table rows */
+
+  /* Brand */
+  --brand-primary:   #434ce7;   /* Neptune Blue */
+  --brand-tint:      #444ce7;   /* pressed and selected tints */
+  --brand-accent:    #f6baf5;   /* Stardust Lilac; start of the ultraviolet gradient */
+  --brand-highlight: #cfff0d;   /* Aurora Lime */
+  --brand-neutral:   #dadfbf;   /* Moondust Sage */
+
+  /* Status (the vocabulary in temporal-components.css) */
+  --status-active:    #4fd8ff;   /* cyan */
+  --status-completed: #11c0bf;   /* texture teal; good / live, flow lines */
+  --status-waiting:   #ffe44a;   /* Solar Yellow */
+  --status-retrying:  #f291c7;   /* Supernova Pink; leaving / draining */
+  --status-failed:    #f86d43;   /* Mars Orange; RESERVED for real errors only */
+
+  --focus-ring: #59fda0;   /* every control's keyboard focus */
+
+  /* Decoration: the grid texture and the backdrop glow */
+  --decoration-glow:       #db4f90;
+  --decoration-dot-teal:   #11c0bf;
+  --decoration-dot-pink:   #db4f90;
+  --decoration-dot-orange: #f5784a;
+  --decoration-dot-yellow: #fdc14e;
+
+  /* Code */
+  --code-text:     #f7fafa;   /* Moonlight White */
+  --code-keyword:  #f6baf5;   /* Stardust Lilac */
+  --code-function: #dadfbf;   /* Moondust Sage */
+  --code-string:   #ffe44a;   /* Solar Yellow */
+  --code-literal:  #cfff0d;   /* Aurora Lime */
+  --code-comment:  #bcbcbc;
+
+  /* Component colours */
+  --window-dot-red:          #df2f08;
+  --window-dot-yellow:       #fda110;
+  --window-dot-green:        #03a963;
+  --timeline-bar-active:     #264f5a;   /* status-active 30% over surface-page */
+  --timeline-bar-completed:  #134847;   /* status-completed 30% over surface-page */
+  --timeline-bar-retrying:   #57394a;   /* status-retrying 30% over surface-page */
+  --timeline-bar-failed:     #582f22;   /* status-failed 30% over surface-page */
+  --button-chaos-fill:       #2b1d19;   /* status-failed 10% over surface-page */
+  --banner-waiting:          #fecb2f;
+  --banner-error:            #ff5555;
+  --picker-sample:           #1ff1a5;   /* the colour picker's sample value */
+  --phone-chrome:            #3a3a3e;
+  --phone-screen:            #f8fafc;
+
+  /* Crew card personas */
+  --persona-captain:      #f86d43;   /* Mars Orange */
+  --persona-mech:         #b4ff0d;   /* Chartreuse */
+  --persona-envoy:        #a75eff;   /* Violet */
+  --persona-solarian:     #11c074;   /* Emerald */
+  --persona-space-wizard: #4378ff;   /* Cobalt */
+  --persona-meter-track:  #302b52;   /* empty meter box */
+
+  /* Alpha steps, in 5% increments. Figma names them "<token> / Alpha / <pct>" and
+     keeps the values in "color primitives" as "<colour> / Alpha / <pct>". */
+  --surface-shade-alpha-0:     color-mix(in srgb, var(--surface-shade) 0%, transparent);
+  --surface-shade-alpha-30:    color-mix(in srgb, var(--surface-shade) 30%, transparent);
+  --surface-shade-alpha-35:    color-mix(in srgb, var(--surface-shade) 35%, transparent);
+  --surface-shade-alpha-45:    color-mix(in srgb, var(--surface-shade) 45%, transparent);
+  --surface-overlay-alpha-55:  color-mix(in srgb, var(--surface-overlay) 55%, transparent);
+  --surface-page-alpha-40:     color-mix(in srgb, var(--surface-page) 40%, transparent);
+  --surface-page-alpha-60:     color-mix(in srgb, var(--surface-page) 60%, transparent);
+  --surface-page-alpha-70:     color-mix(in srgb, var(--surface-page) 70%, transparent);
+  --surface-page-alpha-80:     color-mix(in srgb, var(--surface-page) 80%, transparent);
+  --text-bright-alpha-5:       color-mix(in srgb, var(--text-bright) 5%, transparent);
+  --text-bright-alpha-75:      color-mix(in srgb, var(--text-bright) 75%, transparent);
+  --text-primary-alpha-40:     color-mix(in srgb, var(--text-primary) 40%, transparent);
+  --text-primary-alpha-50:     color-mix(in srgb, var(--text-primary) 50%, transparent);
+  --brand-tint-alpha-10:       color-mix(in srgb, var(--brand-tint) 10%, transparent);
+  --brand-tint-alpha-20:       color-mix(in srgb, var(--brand-tint) 20%, transparent);
+  --brand-tint-alpha-35:       color-mix(in srgb, var(--brand-tint) 35%, transparent);
+  --border-hover-alpha-30:     color-mix(in srgb, var(--border-hover) 30%, transparent);
+  --border-table-alpha-60:     color-mix(in srgb, var(--border-table) 60%, transparent);
+  --banner-waiting-alpha-10:   color-mix(in srgb, var(--banner-waiting) 10%, transparent);
+  --banner-error-alpha-10:     color-mix(in srgb, var(--banner-error) 10%, transparent);
+  --status-completed-alpha-5:  color-mix(in srgb, var(--status-completed) 5%, transparent);
+  --status-completed-alpha-10: color-mix(in srgb, var(--status-completed) 10%, transparent);
+  --status-retrying-alpha-10:  color-mix(in srgb, var(--status-retrying) 10%, transparent);
+  --status-failed-alpha-55:    color-mix(in srgb, var(--status-failed) 55%, transparent);
+  --persona-captain-alpha-40:      color-mix(in srgb, var(--persona-captain) 40%, transparent);
+  --persona-mech-alpha-40:         color-mix(in srgb, var(--persona-mech) 40%, transparent);
+  --persona-envoy-alpha-40:        color-mix(in srgb, var(--persona-envoy) 40%, transparent);
+  --persona-solarian-alpha-40:     color-mix(in srgb, var(--persona-solarian) 40%, transparent);
+  --persona-space-wizard-alpha-40: color-mix(in srgb, var(--persona-space-wizard) 40%, transparent);
+
+  /* The kit's own names, kept as aliases so temporal-theme.css, temporal-components.css,
+     Tailwind and existing demos pick up Cosmic Pop unchanged. Not variables in Figma. */
+  --space-black:  var(--surface-page);
+  --off-white:    var(--text-primary);
+  --uv:           var(--brand-primary);
+  --uv-light:     var(--border-hover);
+  --indigo-100:   var(--text-secondary);
+  --indigo-200:   var(--text-link);
+  --indigo-300:   var(--border-emphasis);
+  --purple:       var(--brand-accent);
+  --pink:         var(--status-retrying);
+  --green:        var(--status-completed);
+  --green-soft:   var(--focus-ring);
+  --lime:         var(--brand-highlight);
+  --yellow:       var(--status-waiting);
+  --cyan:         var(--status-active);
+  --slate-300:    var(--text-muted);
+  --slate-500:    var(--border-subtle);
+  --border:       var(--border-default);
+  --red:          var(--status-failed);
+  --glow-magenta: var(--decoration-glow);
+  --control-edge: var(--border-control);
+  --phone-bg:     var(--phone-screen);
+
+  /* Gradients, rebuilt from the tokens */
+  --grad-uv:    linear-gradient(45deg, var(--brand-accent) 0%, var(--brand-primary) 100%);
+  --grad-green: linear-gradient(255deg, var(--status-completed) 0%, var(--brand-highlight) 100%);
+  --grad-hero:  linear-gradient(254deg, var(--surface-hero) 27.97%, var(--surface-page) 100%);
+  --grad-mist:  linear-gradient(255deg, var(--status-retrying) 0%, var(--brand-highlight) 100%);
+  --grad-pink:  linear-gradient(255deg, var(--status-failed) 0%, var(--brand-accent) 100%);   /* ends in error orange */
+  --grad-uv-edge:    linear-gradient(45deg, var(--brand-primary), var(--brand-accent));
+  --grad-green-edge: linear-gradient(45deg, var(--status-completed), var(--brand-highlight));
+  --grad-mist-edge:  linear-gradient(45deg, var(--status-retrying), var(--brand-highlight));
+  --grad-pink-edge:  linear-gradient(45deg, var(--status-failed), var(--brand-accent));
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Space Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+/* ---------- Type (frame 186:15238) ----------
+   Headlines are Inter Light at 1.15 with no tracking; eyebrows are mono, grey,
+   tracked .15em. Space Mono ships in 400 and 700 only, so mono labels use 400. */
+.display { line-height: 1.15; letter-spacing: 0; }
+.eyebrow, .mono { font-weight: 400; letter-spacing: 0; }
+.eyebrow { color: var(--text-muted); letter-spacing: .15em; }
+.button, .facts dt, .facts dd, .speech { font-weight: 400; }
+.text-gradient-ultraviolet { background-image: linear-gradient(255deg, var(--brand-accent) 0%, var(--brand-primary) 100%); }
+.text-gradient-green { background-image: linear-gradient(90deg, var(--status-completed) 0%, var(--brand-highlight) 100%); }
+
+/* ---------- Colours the base theme writes as raw hex ---------- */
+.pill.alt { background: linear-gradient(255deg, var(--status-retrying) 0%, var(--brand-accent) 100%); color: var(--surface-page); }
+.button.ghost.pink { color: var(--status-retrying); }
+.button.ghost.mist { background: linear-gradient(90deg, var(--brand-highlight) 0%, var(--status-retrying) 100%); -webkit-background-clip: text; background-clip: text; }
+.button.primary.ultraviolet:disabled, .button.primary.ultraviolet[aria-disabled="true"],
+.button.primary.pink:disabled, .button.primary.pink[aria-disabled="true"] { color: var(--text-primary-alpha-40); }
+.button.primary.pink { color: var(--surface-page); }
+.button.primary.pink:active { color: var(--surface-page); }
+@media (hover: hover) {
+  .button.primary.ultraviolet:hover { box-shadow: 0 0 0 4px color-mix(in srgb, var(--brand-primary) 70%, transparent); }
+  .button.primary.green:hover { box-shadow: 0 0 0 4px color-mix(in srgb, var(--status-completed) 70%, transparent); }
+  .button.primary.mist:hover, .button.primary.pink:hover { box-shadow: 0 0 0 4px color-mix(in srgb, var(--status-retrying) 70%, transparent); }
+  .button.primary.off-white:hover { box-shadow: 0 0 0 4px color-mix(in srgb, var(--brand-neutral) 70%, transparent); }
+  .button.secondary.ultraviolet:hover { border-color: var(--border-hover); }
+  .button.secondary.green:hover { border-color: var(--status-completed); }
+  .button.secondary.mist:hover, .button.secondary.pink:hover { border-color: var(--status-retrying); }
+}
+.glass, .window { background: linear-gradient(to top right, var(--surface-page-alpha-80), color-mix(in srgb, var(--surface-hero) 60%, transparent)); }
+.facts > div { border-top-color: var(--border-hover-alpha-30); }
+.window-dots i { background: var(--window-dot-red); }
+.window-dots i:nth-child(2) { background: var(--window-dot-yellow); }
+.window-dots i:nth-child(3) { background: var(--window-dot-green); }
+.quote { border-color: var(--border-default); }
+.ziggy-stage[data-phase="busy"] .ziggy-orbit { --glow: color-mix(in srgb, var(--status-completed) 50%, transparent); }
+.ziggy-stage[data-highlight="true"] .ziggy-orbit { --glow: color-mix(in srgb, var(--status-retrying) 60%, transparent); }
+
+/* ---------- Alpha steps on the base theme and components ----------
+   Translucent colours from temporal-theme.css and temporal-components.css, moved onto
+   the alpha tokens above so they land on the 5% scale. Where a rule mixes in the
+   status colour, the step applies to whatever colour --status is. */
+.card { background-color: var(--surface-page-alpha-80); }
+.button.primary.green:disabled, .button.primary.green[aria-disabled="true"] { color: var(--surface-page-alpha-40); }
+.button.primary.off-white:disabled, .button.primary.off-white[aria-disabled="true"] { background-color: var(--surface-page-alpha-70); }
+.button.secondary:disabled, .button.secondary[aria-disabled="true"] { color: var(--text-bright-alpha-75); }
+.segmented { background: var(--surface-page-alpha-70); }
+.segmented button[aria-current] { background: var(--brand-tint-alpha-35); }
+.chip[aria-pressed="true"] { background: var(--brand-tint-alpha-20); }
+.scenario { background: var(--text-bright-alpha-5); }
+.scenario[aria-pressed="true"] { background: var(--brand-tint-alpha-10); }
+input, select, textarea, .listbox-button,
+input[type="checkbox"], input[type="radio"] { background-color: var(--text-bright-alpha-5); }
+input[type="checkbox"]:checked, input[type="radio"]:checked { background: var(--status-completed-alpha-10); }
+.state-banner { background: var(--banner-waiting-alpha-10); }
+.state-banner.is-error { background: var(--banner-error-alpha-10); }
+.codeview { background: var(--surface-shade-alpha-35); }
+.codeview .ln.hl { background: color-mix(in srgb, var(--status, var(--status-completed)) 10%, transparent); }
+.callout { background: color-mix(in srgb, var(--status, var(--status-completed)) 5%, transparent); }
+.data-table td { border-bottom-color: var(--border-table-alpha-60); }
+@media (max-width: 900px) { .data-table tr { background: var(--text-bright-alpha-5); } }
+dialog::backdrop { background: var(--surface-overlay-alpha-55); }
+.button.chaos { background: var(--button-chaos-fill); border-color: var(--status-failed-alpha-55); }
+.tl-bar[data-status="completed"] { background: var(--timeline-bar-completed); }
+.tl-bar[data-status="active"] { background: var(--timeline-bar-active); }
+.tl-bar[data-status="failed"] { background: var(--timeline-bar-failed); }
+.tl-bar[data-status="retrying"] { background: var(--timeline-bar-retrying); }
+.phone { box-shadow: 0 0 0 2px var(--phone-chrome), 0 0 0 4px #1a1a1e, 0 20px 60px rgba(0, 0, 0, .6); }
+.phone::before, .phone::after { background: var(--phone-chrome); }
+
+/* ---------- Texture (frame 186:15121) ----------
+   The grid floor in white lines at 35%. Add .dots for the coloured squares on the
+   intersections, in the repeating teal / pink / orange / yellow order.
+     <div class="grid-floor dots"></div> */
+.grid-floor {
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, .35) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, .35) 1px, transparent 1px);
+}
+/* One 2×2-cell tile; the hex values are the --dot-* tokens (a data URI can't read them). */
+.grid-floor.dots {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='128'%3E%3Cg stroke='%23fff' stroke-opacity='.35'%3E%3Cpath d='M3.5 0v128M67.5 0v128M0 3.5h128M0 67.5h128'/%3E%3C/g%3E%3Crect width='6' height='6' fill='%2311c0bf'/%3E%3Crect x='64' width='6' height='6' fill='%23db4f90'/%3E%3Crect y='64' width='6' height='6' fill='%23f5784a'/%3E%3Crect x='64' y='64' width='6' height='6' fill='%23fdc14e'/%3E%3C/svg%3E");
+  background-size: 128px 128px;
+}
+.grid-floor.dots { animation-name: floor-scroll-dots; }
+@keyframes floor-scroll-dots { to { background-position: 0 128px; } }

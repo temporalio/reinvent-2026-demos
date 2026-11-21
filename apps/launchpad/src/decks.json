@@ -1,0 +1,306 @@
+[
+  {
+    "id": "transporter",
+    "name": "Transporter Room",
+    "side": "left",
+    "audience": "Builders shipping AI agents on AWS",
+    "finds": "Durable AI agents running on Amazon Bedrock AgentCore, powered by Temporal.",
+    "color": "sky",
+    "demos": [
+      {
+        "id": "beam-aboard",
+        "name": "Beam Aboard",
+        "blurb": "Serverless Workers: no worker fleet. Pads beam in when crew are waiting and leave when the queue is empty.",
+        "port": 5701,
+        "path": "/"
+      },
+      {
+        "id": "shore-leave-agentcore",
+        "name": "Shore Leave on AgentCore",
+        "blurb": "The travel agent on AgentCore Runtime, Gateway and Memory, with Claude on Bedrock. Temporal keeps every turn durable.",
+        "port": 5303,
+        "path": "/",
+        "online": true
+      },
+      {
+        "id": "starbase-treasury",
+        "name": "Starbase Treasury",
+        "blurb": "A Strands multi-agent advisor made durable. Transfers wait for your approval; crash it and no credit moves twice.",
+        "port": 5703,
+        "path": "/",
+        "online": true
+      },
+      {
+        "id": "colony-loan",
+        "name": "Colony Loan Office",
+        "blurb": "AWS’s agentic loan blueprint: document, credit, income and fraud agents in parallel, a human for the hard calls.",
+        "port": 5704,
+        "path": "/",
+        "online": true
+      },
+      {
+        "id": "transporter-lock",
+        "name": "Transporter Lock",
+        "blurb": "An agent’s MCP tools behind AgentCore Gateway: it acts as you, and protected calls wait for a named officer.",
+        "port": 5705,
+        "path": "/",
+        "online": true
+      },
+      {
+        "id": "interstellar-arbitration",
+        "name": "Interstellar Arbitration",
+        "blurb": "Three organizations, three namespaces, one durable dispute. Their agents negotiate over Nexus; you arbitrate.",
+        "port": 5706,
+        "path": "/",
+        "online": true
+      }
+    ]
+  },
+  {
+    "id": "bridge",
+    "name": "The Bridge",
+    "side": "right",
+    "audience": "Executives, managers, decision makers",
+    "finds": "What Temporal does for your business. Break a system and watch the process wait and recover. No code.",
+    "color": "gold",
+    "demos": [
+      {
+        "id": "space-tacos-bridge",
+        "name": "Ziggy's Space Tacos",
+        "blurb": "The replicator loses power mid-order. The order waits, retries, and finishes when power is back.",
+        "port": 5301,
+        "path": "/?view=bridge"
+      },
+      {
+        "id": "galactic-credits-bridge",
+        "name": "Galactic Credits",
+        "blurb": "A credit transfer survives an interstellar relay outage. Every credit accounted for.",
+        "port": 5302,
+        "path": "/?view=bridge"
+      },
+      {
+        "id": "launch-countdown-bridge",
+        "name": "Launch Countdown",
+        "blurb": "A product launch as one durable process: at-risk status, days of slack, and what is blocking, live.",
+        "port": 5504,
+        "path": "/?view=bridge"
+      },
+      {
+        "id": "keep-business-moving",
+        "name": "Keep Business Moving",
+        "blurb": "Bad data pauses the process instead of breaking it. Fix it, and it resumes exactly where it stopped.",
+        "port": 5201,
+        "path": "/"
+      },
+      {
+        "id": "shore-leave-bridge",
+        "name": "Shore Leave Planner",
+        "blurb": "An AI agent your business can trust: it plans a trip, waits for approval, and survives crashes.",
+        "port": 5303,
+        "path": "/",
+        "online": true
+      },
+      {
+        "id": "colony-loan-bridge",
+        "name": "Colony Loan Office",
+        "blurb": "Routine loans decided in seconds by AI agents; people decide the ones that need judgment. Nothing lost on failure.",
+        "port": 5704,
+        "path": "/?view=bridge",
+        "online": true
+      }
+    ]
+  },
+  {
+    "id": "engineering",
+    "name": "Engineering",
+    "side": "left",
+    "audience": "Developers, architects, hands-on engineers",
+    "finds": "Payments, AI agents, and order systems with the live code on screen and the running line highlighted.",
+    "color": "orange",
+    "demos": [
+      {
+        "id": "ships-log",
+        "name": "Ship's Log",
+        "blurb": "What is a workflow? Watch the event history grow, crash the worker, and see a fresh one replay the log.",
+        "port": 5305,
+        "path": "/"
+      },
+      {
+        "id": "space-tacos",
+        "name": "Ziggy's Space Tacos",
+        "blurb": "Order management with retries, signals, and saga compensation. Watch the code light up.",
+        "port": 5301,
+        "path": "/"
+      },
+      {
+        "id": "galactic-credits",
+        "name": "Galactic Credits",
+        "blurb": "Money transfers: relay outages, quartermaster approval, saga refunds, encrypted payloads.",
+        "port": 5302,
+        "path": "/"
+      },
+      {
+        "id": "cargo-pipeline",
+        "name": "Cargo Manifest Pipeline",
+        "blurb": "A fan-out data pipeline. Kill the worker, rows still load exactly once. The code in all 8 SDKs, highlighted live.",
+        "port": 5304,
+        "path": "/"
+      },
+      {
+        "id": "interstellar-nexus",
+        "name": "Interstellar Nexus",
+        "blurb": "Two teams, two namespaces, one durable Nexus call. Take the other team’s worker offline; the caller just waits.",
+        "port": 5306,
+        "path": "/"
+      },
+      {
+        "id": "shore-leave",
+        "name": "Shore Leave Planner",
+        "blurb": "An AI travel agent as a Temporal workflow. Plan a beach getaway; crash the worker mid-research.",
+        "port": 5303,
+        "path": "/",
+        "online": true
+      }
+    ]
+  },
+  {
+    "id": "arboretum",
+    "name": "Observation Arboretum",
+    "side": "right",
+    "audience": "Marketing, content, creative, and growth teams",
+    "finds": "The creative systems your campaigns run on, made durable. Remix an image with the ship’s AI.",
+    "color": "green",
+    "demos": [
+      {
+        "id": "holo-gallery",
+        "name": "Holo-Gallery Image Lab",
+        "blurb": "Pick a picture, swap its colors, ask the AI to repaint it. Every version saved, every step durable.",
+        "port": 5501,
+        "path": "/",
+        "online": true
+      },
+      {
+        "id": "launch-countdown",
+        "name": "Launch Countdown",
+        "blurb": "Run a product launch: team sign-offs, deadlines that escalate on their own, and a press relay that retries.",
+        "port": 5504,
+        "path": "/"
+      },
+      {
+        "id": "beacon-campaign",
+        "name": "Beacon Campaign",
+        "blurb": "A multi-week campaign with one workflow per recipient. Play a recipient; knock a channel offline; never a duplicate send.",
+        "port": 5502,
+        "path": "/"
+      },
+      {
+        "id": "ad-studio",
+        "name": "Holo-Ad Studio",
+        "blurb": "Brief the AI copywriter, approve a variant, and publish ads everywhere. Outages retry; no channel posts twice.",
+        "port": 5503,
+        "path": "/",
+        "online": true
+      },
+      {
+        "id": "crew-journeys",
+        "name": "Crew Journeys",
+        "blurb": "Author a customer journey with tap-and-drop blocks, publish it, and change it mid-flight without breaking anyone.",
+        "port": 5505,
+        "path": "/"
+      },
+      {
+        "id": "signal-archive",
+        "name": "Signal Archive",
+        "blurb": "Documents and audio logs through OCR and AI. Messy ones go to an agent that asks you; nothing is read twice.",
+        "port": 5506,
+        "path": "/",
+        "online": true
+      }
+    ]
+  },
+  {
+    "id": "sickbay",
+    "name": "Sick Bay",
+    "side": "left",
+    "audience": "DevOps, SRE, platform, and security teams",
+    "finds": "Crash it and heal it. Outages, replay, AI guardrails, and agents acting on your behalf.",
+    "color": "blue",
+    "demos": [
+      {
+        "id": "reactor-breach",
+        "name": "Reactor Breach",
+        "blurb": "Kill the workers mid-jump, drag the parts back, and watch Temporal replay to the exact step.",
+        "port": 5401,
+        "path": "/"
+      },
+      {
+        "id": "shuttle-refit",
+        "name": "Shuttle Refit Rollout",
+        "blurb": "Safe deploys with Worker Versioning: ramp a new build, catch a bad one, roll back, move stuck runs. Zero non-determinism.",
+        "port": 5404,
+        "path": "/"
+      },
+      {
+        "id": "triage-queue",
+        "name": "Triage Queue",
+        "blurb": "Task queue priority and fairness: critical cases first, and one flooding tenant can’t starve the rest.",
+        "port": 5405,
+        "path": "/"
+      },
+      {
+        "id": "security-clearance",
+        "name": "Security Clearance",
+        "blurb": "Short-lived keys, live mTLS rotation, and encrypted payloads. Revoke a leaked key; the work carries on.",
+        "port": 5406,
+        "path": "/"
+      },
+      {
+        "id": "airlock",
+        "name": "Airlock Protocol",
+        "blurb": "AI guardrails as durable steps: injection screening, policy, two-officer approval. Fails closed.",
+        "port": 5402,
+        "path": "/"
+      },
+      {
+        "id": "proxy-authority",
+        "name": "Proxy Authority",
+        "blurb": "Let an agent spend on your behalf with a scoped, expiring grant. Step-up, re-auth, revoke.",
+        "port": 5403,
+        "path": "/"
+      }
+    ]
+  },
+  {
+    "id": "holodeck",
+    "name": "Holodeck",
+    "side": "right",
+    "audience": "Everyone",
+    "finds": "Games and fun AI experiences, all powered by Temporal.",
+    "color": "lavender",
+    "demos": [
+      {
+        "id": "flight-deck",
+        "name": "Flight Deck",
+        "blurb": "Fly, dodge, repair broken systems, and deploy Temporal. Reload mid-game and it resumes.",
+        "port": 5600,
+        "path": "/flight.html"
+      },
+      {
+        "id": "holo-booth",
+        "name": "Holo-Booth",
+        "blurb": "One photo becomes a four-frame sci-fi strip, sent to your inbox.",
+        "port": 5600,
+        "path": "/photobooth.html",
+        "online": true
+      },
+      {
+        "id": "jukebox",
+        "name": "Jukebox",
+        "blurb": "Pick your job, your chaos, and a genre. Get your own Temporal song.",
+        "port": 5600,
+        "path": "/jukebox.html",
+        "online": true
+      }
+    ]
+  }
+]

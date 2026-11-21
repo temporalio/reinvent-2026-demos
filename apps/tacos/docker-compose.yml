@@ -1,0 +1,165 @@
+# Temporal dev server runs locally via CLI (not containerized).
+# Start it first: temporal server start-dev
+#
+# Then: docker compose --profile python up --build
+# Or:   docker compose --profile go up --build
+# Profiles: python, go, typescript, java, dotnet, rust, php, ruby
+
+services:
+  # ── Backend API (FastAPI) ──
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - TEMPORAL_ADDRESS=host.docker.internal:7233
+      - DEJAVU_WORKER_LANGUAGE=${DEJAVU_WORKER_LANGUAGE:-python}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 2s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  # ── Worker (Python) ──
+  worker-python:
+    build:
+      context: .
+      dockerfile: docker/worker-python.Dockerfile
+    environment:
+      - TEMPORAL_ADDRESS=host.docker.internal:7233
+      - DEJAVU_BACKEND_URL=http://backend:8000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      backend:
+        condition: service_healthy
+    profiles:
+      - python
+
+  # ── Worker (Go) ──
+  worker-go:
+    build:
+      context: .
+      dockerfile: docker/worker-go.Dockerfile
+    environment:
+      - TEMPORAL_ADDRESS=host.docker.internal:7233
+      - DEJAVU_BACKEND_URL=http://backend:8000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      backend:
+        condition: service_healthy
+    profiles:
+      - go
+
+  # ── Worker (TypeScript) ──
+  worker-typescript:
+    build:
+      context: .
+      dockerfile: docker/worker-typescript.Dockerfile
+    environment:
+      - TEMPORAL_ADDRESS=host.docker.internal:7233
+      - DEJAVU_BACKEND_URL=http://backend:8000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      backend:
+        condition: service_healthy
+    profiles:
+      - typescript
+
+  # ── Worker (Java) ──
+  worker-java:
+    build:
+      context: .
+      dockerfile: docker/worker-java.Dockerfile
+    environment:
+      - TEMPORAL_ADDRESS=host.docker.internal:7233
+      - DEJAVU_BACKEND_URL=http://backend:8000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      backend:
+        condition: service_healthy
+    profiles:
+      - java
+
+  # ── Worker (.NET) ──
+  worker-dotnet:
+    build:
+      context: .
+      dockerfile: docker/worker-dotnet.Dockerfile
+    environment:
+      - TEMPORAL_ADDRESS=host.docker.internal:7233
+      - DEJAVU_BACKEND_URL=http://backend:8000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      backend:
+        condition: service_healthy
+    profiles:
+      - dotnet
+
+  # ── Worker (Rust) ──
+  worker-rust:
+    build:
+      context: .
+      dockerfile: docker/worker-rust.Dockerfile
+    environment:
+      - TEMPORAL_ADDRESS=host.docker.internal:7233
+      - DEJAVU_BACKEND_URL=http://backend:8000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      backend:
+        condition: service_healthy
+    profiles:
+      - rust
+
+  # ── Worker (PHP) ──
+  worker-php:
+    build:
+      context: .
+      dockerfile: docker/worker-php.Dockerfile
+    environment:
+      - TEMPORAL_ADDRESS=host.docker.internal:7233
+      - DEJAVU_BACKEND_URL=http://backend:8000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      backend:
+        condition: service_healthy
+    profiles:
+      - php
+
+  # ── Worker (Ruby) ──
+  worker-ruby:
+    build:
+      context: .
+      dockerfile: docker/worker-ruby.Dockerfile
+    environment:
+      - TEMPORAL_ADDRESS=host.docker.internal:7233
+      - DEJAVU_BACKEND_URL=http://backend:8000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      backend:
+        condition: service_healthy
+    profiles:
+      - ruby
+
+  # ── Frontend (nginx + static build) ──
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend.Dockerfile
+    ports:
+      - "5173:5173"
+    depends_on:
+      backend:
+        condition: service_healthy

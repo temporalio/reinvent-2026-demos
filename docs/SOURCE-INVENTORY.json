@@ -1,0 +1,71 @@
+[
+  {
+    "app": "tacos",
+    "source": "iandouglas/temporal-demo-dejavu-tacos",
+    "commit": "a370588ee3797b9a36332a42056abb9a9e44fd1d",
+    "modified_paths_at_import": [],
+    "initial_files_copied": 172
+  },
+  {
+    "app": "money-transfer",
+    "source": "iandouglas/temporal-demo-banking-app-money-transfer",
+    "commit": "8b40de78342f2d304615a9d8e3b2237250b6f4ab",
+    "modified_paths_at_import": [],
+    "initial_files_copied": 162
+  },
+  {
+    "app": "data-pipeline",
+    "source": "iandouglas/temporal-demo-data-pipeline",
+    "commit": "7f049de676f3a690ebcd7d05c8cd214564339f14",
+    "modified_paths_at_import": [],
+    "initial_files_copied": 23
+  },
+  {
+    "app": "loan",
+    "source": "iandouglas/temporal-demo-loan-underwriting",
+    "commit": "0ba68285ccacd899d3e8e28c82942e153f7b1c25",
+    "modified_paths_at_import": [],
+    "initial_files_copied": 21
+  },
+  {
+    "app": "no-roads",
+    "source": "iandouglas/temporal-demo-serverless-no-roads",
+    "commit": "5b5b26c24e44c14e2a644f815e898b6d910b2ef6",
+    "modified_paths_at_import": [],
+    "initial_files_copied": 35
+  },
+  {
+    "app": "agent-harness",
+    "source": "iandouglas/temporal-demo-agent-harness",
+    "commit": "ccc419d3bd6bbe9f97c869480c597ae0aed88521",
+    "modified_paths_at_import": [],
+    "initial_files_copied": 81
+  },
+  {
+    "app": "agentic-sdlc",
+    "source": "iandouglas/temporal-demo-agentic-sdlc",
+    "commit": "e370580022995d681601cdf4b6d1aac2cac3a7ee",
+    "modified_paths_at_import": [],
+    "initial_files_copied": 113
+  },
+  {
+    "app": "flight-simulator",
+    "source": "iandouglas/temporal-demo-space-flightsim",
+    "commit": "f0394f24ab3869ff37c29c9d0ddc65e353270fb4",
+    "modified_paths_at_import": [],
+    "initial_files_copied": 84
+  },
+  {
+    "app": "photo-booth",
+    "source": "iandouglas/temporal-demo-ai-photo-booth",
+    "commit": "ef76de2f48aa8aa5fc3d2711598010914782b3f5",
+    "modified_paths_at_import": [],
+    "initial_files_copied": 81
+  },
+  {
+    "app": "launchpad",
+    "source": "iandouglas/temporal-reinvent-2026-demos",
+    "commit": "a5156f8ab164fc803bc8d9382b8227f1d1a54fca",
+    "initial_files_copied": 91
+  }
+]

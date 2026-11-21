@@ -1,0 +1,15 @@
+# Overlay on compose.booth.yml. Local Temporal stays available as the fallback.
+# Secrets are runtime environment values, never build arguments or browser config.
+services:
+  backend:
+    environment: &cloud
+      TEMPORAL_ENDPOINT: ${TEMPORAL_ENDPOINT:?Set the Cloud namespace endpoint}
+      TEMPORAL_NAMESPACE: ${TEMPORAL_NAMESPACE:?Set the Cloud namespace}
+      TEMPORAL_API_KEY: ${TEMPORAL_API_KEY:?Set a Cloud API key in a private env file}
+      TEMPORAL_TLS: "true"
+      TEMPORAL_UI_URL: https://cloud.temporal.io
+      TEMPORAL_TASK_QUEUE: ${TACOS_TASK_QUEUE:?Set a unique task queue for this station}
+  worker:
+    environment:
+      <<: *cloud
+      DEJAVU_BACKEND_URL: http://backend:8000

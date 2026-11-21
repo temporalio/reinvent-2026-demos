@@ -1,0 +1,131 @@
+// The story the console tells, shared with the deck (deck/outline.md) and docs/story.md.
+// Every number here has a source; live numbers on screen come from the running system.
+
+import type { Criterion } from "./api";
+
+export interface Source { label: string; url: string }
+
+export const SOURCES = {
+  octoverse: {
+    label: "GitHub Octoverse (Oct 28, 2026)",
+    url: "https://github.blog/news-insights/octoverse/octoverse-commits-pushes-reach-new-highs-in-2026-as-developers-build-with-agents/",
+  },
+  forrester: {
+    label: "Diego Lo Giudice, Forrester (June 8, 2026)",
+    url: "https://www.forrester.com/blogs/agentic-software-development-takes-the-lead-from-code-assistants-to-orchestrated-sdlc-agents/",
+  },
+  dora: {
+    label: "DORA 2025 State of AI-assisted Software Development, Google Cloud (Sept 23, 2025)",
+    url: "https://cloud.google.com/blog/products/ai-machine-learning/announcing-the-2025-dora-report",
+  },
+  duolingo: { label: "Jesse Welch, Duolingo Engineering (Dec 4, 2025)", url: "https://blog.duolingo.com/buildingaiagents" },
+  port: { label: "Zohar Einy, Port (2026)", url: "https://www.port.io/blog/agentic-sdlc-software-lifecycle-rebuilt-around-agents" },
+} satisfies Record<string, Source>;
+
+export const ACTS = [
+  { key: "result", label: "The result" },
+  { key: "why", label: "Why agentic SDLC" },
+  { key: "hard", label: "Why it's hard" },
+  { key: "live", label: "Live run" },
+  { key: "change", label: "Change the pipeline" },
+  { key: "proof", label: "Proof" },
+] as const;
+export type ActKey = (typeof ACTS)[number]["key"];
+
+export const STATS = [
+  {
+    value: "17% → over 40%",
+    claim: "By September 2026, more than 40% of pull requests on GitHub started with an agent's first draft, up from 17% in March.",
+    source: SOURCES.octoverse,
+  },
+  {
+    value: "30–40% → under 10%",
+    claim: "Coding may improve by 30% to 40%, but if planning, testing, and release remain manual, overall team productivity often increases by less than 10%.",
+    source: SOURCES.forrester,
+  },
+  {
+    value: "Faster, and less stable",
+    claim: "90% of respondents use AI at work. AI adoption now raises delivery throughput, and it “does continue to have a negative relationship with software delivery stability.”",
+    source: SOURCES.dora,
+  },
+];
+
+export const LIFECYCLE = ["Plan", "Code", "Test", "Review", "Release", "Operate"];
+
+export interface CriterionInfo {
+  id: Criterion;
+  title: string; // what a team needs proven, in its words
+  problem: string; // what goes wrong without it
+  quote?: { text: string; source: Source };
+  beat: string; // what the audience sees in the live run
+  temporal: string; // the Temporal feature that resolves it
+}
+
+export const CRITERIA: CriterionInfo[] = [
+  {
+    id: "D1",
+    title: "An agent crash loses no work and re-spends no tokens",
+    problem: "A coding agent dies 15 minutes into a task. You start over and pay for every model call again.",
+    quote: {
+      text: "Even a well prompted agent may go off the rails and crash, fail to produce any changes, hang/freeze, or otherwise fail to complete, and need to be retried.",
+      source: SOURCES.duolingo,
+    },
+    beat: "The worker crashes while an agent fixes a broken upgrade. The agent continues on a new worker from its last completed step.",
+    temporal: "Model and tool calls are Activities; Event History keeps the ones that finished",
+  },
+  {
+    id: "D2",
+    title: "Humans stay accountable without babysitting",
+    problem: "Approvals take hours. A script holding a process open for a reviewer is a process waiting to crash.",
+    quote: { text: "A deploy agent might run free in staging but need approval in production, or run on its own at noon but check with a human at 3 a.m.", source: SOURCES.port },
+    beat: "The run waits for a reviewer to approve its deployments in GitHub's UI, for minutes or days, using no compute. GitHub decides who may; the agent's required check holds each PR.",
+    temporal: "Durable waits answered by Signals from GitHub's webhooks",
+  },
+  {
+    id: "D3",
+    title: "Parallel agents, flaky APIs and spend stay under control",
+    problem: "Four agents cost four times as much, and every provider and API rate limits you.",
+    beat: "Coding agents run in parallel. One is rate limited and retries while the others keep going. The run stops at its budget until someone replies /continue.",
+    temporal: "Child Workflows, Retry Policies, and a budget the Workflow enforces",
+  },
+  {
+    id: "D4",
+    title: "A bad change in production is caught and undone",
+    problem: "Agents ship more changes, faster. Without a canary and a way back, a bad one reaches every customer.",
+    quote: { text: "An ungoverned one makes change failure rate and MTTR worse, because nothing is there to catch a bad change before it spreads.", source: SOURCES.port },
+    beat: "The canary fails its checks. The pipeline stops its traffic, reverts the merge and reopens the issue.",
+    temporal: "Durable timers and a saga of compensations",
+  },
+  {
+    id: "D5",
+    title: "The pipeline can change while runs are in flight",
+    problem: "Teams change agents, prompts and stages every week. A run that started yesterday mustn't pick up today's change halfway.",
+    beat: "A v2 rollout adds a security agent. Running work finishes on v1; new runs, in every session, get the new stage.",
+    temporal: "Worker Versioning with Pinned Workflows",
+  },
+  {
+    id: "D6",
+    title: "Every agent action is auditable",
+    problem: "Agent sprawl, inherited credentials, no record of which agent did what.",
+    quote: { text: "What you get is agent sprawl: agents taking destructive actions with no audit trail, no respect for PII, and no scoped credentials.", source: SOURCES.port },
+    beat: "A dependency repair in Temporal shows the diagnosis, every model and tool call, the fix, the PR rewrite and the review, in order.",
+    temporal: "Event History",
+  },
+  {
+    id: "D7",
+    title: "People can steer agents mid-flight without starting over",
+    problem: "An approve-or-reject button makes a person a gatekeeper. Developers need to redirect agents where they already work, and a new requirement mustn't mean starting from scratch.",
+    beat: "People answer the planner on the issue, steer the coders with an issue comment while they work, and comment on the PR. Feedback is fixed on the spot; a new requirement sends the run back to planning.",
+    temporal: "Signals from GitHub's webhooks; the Workflow routes each comment to the right agent",
+  },
+];
+
+export const RECAP = [
+  "A crashed worker cost seconds, not the agent's work.",
+  "People approved the plan and the release, on their own schedule.",
+  "Agents worked in parallel and retried through rate limits, inside a budget the Workflow enforces.",
+  "A bad canary was rolled back and reported without anyone paging in.",
+  "The pipeline itself changed while work was in flight.",
+  "Developers steered the agents in GitHub comments, and nobody had to start over.",
+  "Every step is on the record.",
+];

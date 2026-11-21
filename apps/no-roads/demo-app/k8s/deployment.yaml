@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: serverless-webinar-app
+  labels:
+    app: serverless-webinar-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: serverless-webinar-app
+  template:
+    metadata:
+      labels:
+        app: serverless-webinar-app
+    spec:
+      serviceAccountName: serverless-webinar-app  # IRSA — annotated in service.yaml
+      containers:
+        - name: serverless-webinar-app
+          image: <your-account>.dkr.ecr.<region>.amazonaws.com/serverless-webinar-app:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: LAMBDA_FUNCTION_NAME
+              value: "serverless-webinar-worker"
+            - name: LAMBDA_REGION
+              value: "us-east-1"  
+            - name: TEMPORAL_ADDRESS
+              valueFrom:
+                secretKeyRef:
+                  name: temporal-serverless-webinar
+                  key: serverless-webinar-temporal-address
+            - name: TEMPORAL_NAMESPACE
+              valueFrom:
+                secretKeyRef:
+                  name: temporal-serverless-webinar
+                  key: serverless-webinar-temporal-namespace
+            - name: TEMPORAL_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: temporal-serverless-webinar
+                  key: serverless-webinar-temporal-api-key
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          readinessProbe:
+            httpGet:
+              path: /api/metrics
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10

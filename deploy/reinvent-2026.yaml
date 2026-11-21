@@ -1,0 +1,441 @@
+# Single Fieldkit project. NOT deployment-ready: see docs/DEPLOYMENT.md.
+# Pinned platform validation: 69e7fa0f4faa3a08e25cb8462269ef215efe4544.
+apiVersion: registry.tmprl-demo.cloud/v1alpha1
+kind: DemoProject
+metadata:
+  name: reinvent-2026
+  annotations:
+    registry.tmprl-demo.cloud/operator: v2
+spec:
+  registry:
+    title: AWS re:Invent 2026
+    summary: Portrait booth launchpad, nine themed Temporal demos, and same-origin demo routes. Initial migration;
+      see deployment readiness notes.
+    tags:
+    - AWS
+    - AI Agents
+    - Durable Execution
+    temporalSdks:
+    - Python
+    - Go
+  source:
+    repo: https://github.com/temporalio/reinvent-2026-demos
+    branch: main
+  builds:
+    launchpad:
+      context: apps/launchpad
+      dockerfile: apps/launchpad/Dockerfile
+    gateway:
+      context: apps/gateway
+      dockerfile: apps/gateway/Dockerfile
+    tacos-web:
+      context: apps/tacos
+      dockerfile: apps/tacos/docker/frontend.Dockerfile
+    tacos-api:
+      context: apps/tacos
+      dockerfile: apps/tacos/docker/backend.Dockerfile
+    tacos-worker:
+      context: apps/tacos
+      dockerfile: apps/tacos/docker/worker-python.Dockerfile
+    banking-web:
+      context: apps/money-transfer
+      dockerfile: apps/money-transfer/docker/frontend.Dockerfile
+    banking-api:
+      context: apps/money-transfer
+      dockerfile: apps/money-transfer/docker/backend.Dockerfile
+    banking-worker:
+      context: apps/money-transfer
+      dockerfile: apps/money-transfer/docker/worker-python.Dockerfile
+    pipeline:
+      context: apps/data-pipeline
+      dockerfile: apps/data-pipeline/Dockerfile
+    travel:
+      context: apps/agent-harness
+      dockerfile: apps/agent-harness/Dockerfile
+    flightsim:
+      context: apps/flight-simulator
+      dockerfile: apps/flight-simulator/Dockerfile
+    photobooth:
+      context: apps/photo-booth
+      dockerfile: apps/photo-booth/Dockerfile
+    no-roads-app:
+      context: apps/no-roads
+      dockerfile: apps/no-roads/demo-app/Dockerfile
+    no-roads-worker:
+      context: apps/no-roads
+      dockerfile: apps/no-roads/lambda-worker/Dockerfile
+    loan-web:
+      context: apps/loan
+      dockerfile: apps/loan/docker/web.Dockerfile
+    loan-worker:
+      context: apps/loan
+      dockerfile: apps/loan/docker/lambda.Dockerfile
+    sdlc:
+      context: apps/agentic-sdlc
+      dockerfile: apps/agentic-sdlc/docker/app.Dockerfile
+  temporal:
+    auth:
+      mode: apiKey
+    publicUI: false
+    searchAttributes:
+      Step:
+        type: keyword
+      AgenticSdlcGitHubRefs:
+        type: keywordList
+  secrets:
+    openai:
+      requiredProperties:
+      - OPENAI_API_KEY
+    gemini:
+      requiredProperties:
+      - GEMINI_API_KEY
+    github:
+      requiredProperties:
+      - GITHUB_TOKEN
+    email:
+      requiredProperties:
+      - SENDGRID_API_KEY
+      - HOLODECK_EMAIL_FROM
+    runtime:
+      requiredProperties:
+      - REDIS_PASSWORD
+      - GITHUB_WEBHOOK_SECRET
+      - GITHUB_SANDBOX_REPO
+  components:
+    launchpad:
+      build: launchpad
+      ports:
+      - name: http
+        containerPort: 8080
+        servicePort: 8080
+    gateway:
+      build: gateway
+      ports:
+      - name: http
+        containerPort: 8080
+        servicePort: 8080
+    tacos-web:
+      build: tacos-web
+      ports:
+      - name: http
+        containerPort: 5173
+        servicePort: 5173
+    tacos-api:
+      build: tacos-api
+      ports:
+      - name: http
+        containerPort: 8000
+        servicePort: 8000
+      temporalAccess: true
+      env:
+      - name: TEMPORAL_TASK_QUEUE
+        value: ri26-tacos
+      - name: DEJAVU_WORKER_LANGUAGE
+        value: python
+    tacos-worker:
+      build: tacos-worker
+      worker: true
+      env:
+      - name: TEMPORAL_TASK_QUEUE
+        value: ri26-tacos
+      - name: DEJAVU_BACKEND_URL
+        value: http://tacos-api:8000
+    banking-web:
+      build: banking-web
+      ports:
+      - name: http
+        containerPort: 5173
+        servicePort: 5173
+    banking-api:
+      build: banking-api
+      ports:
+      - name: http
+        containerPort: 8000
+        servicePort: 8000
+      temporalAccess: true
+      env:
+      - name: TEMPORAL_TASK_QUEUE
+        value: ri26-banking
+    banking-worker:
+      build: banking-worker
+      worker: true
+      env:
+      - name: TEMPORAL_TASK_QUEUE
+        value: ri26-banking
+      - name: BANKING_BACKEND_URL
+        value: http://banking-api:8000
+    pipeline-web:
+      build: pipeline
+      ports:
+      - name: http
+        containerPort: 8080
+        servicePort: 8080
+      temporalAccess: true
+      env:
+      - name: TEMPORAL_TASK_QUEUE
+        value: ri26-pipeline
+    pipeline-worker:
+      build: pipeline
+      worker: true
+      env:
+      - name: TEMPORAL_TASK_QUEUE
+        value: ri26-pipeline
+      command:
+      - python
+      - worker.py
+      replicas: 1
+    travel-web:
+      build: travel
+      ports:
+      - name: http
+        containerPort: 8000
+        servicePort: 8000
+      env:
+      - name: TRUST_AUTH_HEADERS
+        value: 'false'
+      args:
+      - web
+      temporalAccess: true
+    travel-worker:
+      build: travel
+      worker: true
+      env:
+      - name: TEMPORAL_TASK_QUEUE
+        value: ri26-travel
+      args:
+      - worker
+      secrets:
+      - gemini
+    flightsim-web:
+      build: flightsim
+      ports:
+      - name: http
+        containerPort: 8080
+        servicePort: 8080
+      temporalAccess: true
+      env:
+      - name: TEMPORAL_TASK_QUEUE
+        value: ri26-flightsim
+      - name: PUBLIC_PATH
+        value: /flightsim
+      - name: HOLODECK_PUBLIC_BASE_URL
+        value: https://reinvent-booth.tmprl-demo.cloud/flightsim
+      - name: HOLODECK_STATION
+        value: booth
+      - name: HOLODECK_CHAOS_RATE
+        value: '0'
+      replicas: 1
+      disruption: never
+    photobooth-web:
+      build: photobooth
+      ports:
+      - name: http
+        containerPort: 8080
+        servicePort: 8080
+      temporalAccess: true
+      env:
+      - name: TEMPORAL_TASK_QUEUE
+        value: ri26-photobooth
+      - name: PUBLIC_PATH
+        value: /photobooth
+      - name: HOLODECK_PUBLIC_BASE_URL
+        value: https://reinvent-booth.tmprl-demo.cloud/photobooth
+      - name: HOLODECK_STATION
+        value: booth
+      - name: HOLODECK_CHAOS_RATE
+        value: '0'
+      - name: HOLODECK_IMAGE_PROVIDER
+        value: openai
+      - name: HOLODECK_EMAIL_PROVIDER
+        value: sendgrid
+      replicas: 1
+      disruption: never
+      secrets:
+      - openai
+      - email
+    no-roads-web:
+      build: no-roads-app
+      ports:
+      - name: http
+        containerPort: 8080
+        servicePort: 8080
+      temporalAccess: true
+      env:
+      - name: TEMPORAL_TASK_QUEUE
+        value: ri26-no-roads
+      - name: TEMPORAL_WORKER_DEPLOYMENT_NAME
+        value: ri26-no-roads
+      - name: TEMPORAL_DEPLOYMENT_NAME
+        value: ri26-no-roads
+      - name: TEMPORAL_WORKER_BUILD_ID
+        value: 1.0.0
+    no-roads-worker:
+      build: no-roads-worker
+      serverless:
+        provider: aws-lambda
+        packageType: image
+        architecture: x86_64
+        memoryMb: 512
+        timeoutSeconds: 600
+        workerDeployment:
+          deploymentName: ri26-no-roads
+          buildId: 1.0.0
+      env:
+      - name: TEMPORAL_TASK_QUEUE
+        value: ri26-no-roads
+    loan-web:
+      build: loan-web
+      ports:
+      - name: http
+        containerPort: 8000
+        servicePort: 8000
+      temporalAccess: true
+      env:
+      - name: TEMPORAL_TASK_QUEUE
+        value: ri26-loan
+    loan-worker:
+      build: loan-worker
+      serverless:
+        provider: aws-lambda
+        packageType: image
+        architecture: x86_64
+        memoryMb: 2048
+        timeoutSeconds: 600
+        workerDeployment:
+          deploymentName: ri26-loan
+          buildId: build-1
+      env:
+      - name: TEMPORAL_TASK_QUEUE
+        value: ri26-loan
+      - name: TEMPORAL_WORKER_DEPLOYMENT_NAME
+        value: ri26-loan
+      - name: TEMPORAL_WORKER_BUILD_ID
+        value: build-1
+      - name: TEMPORAL_ENV
+        value: cloud
+    sdlc-web:
+      build: sdlc
+      command:
+      - uvicorn
+      - agentic_sdlc.web.app:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - '8000'
+      - --root-path
+      - /agentic-sdlc
+      temporalAccess: true
+      replicas: 1
+      ports:
+      - name: http
+        containerPort: 8000
+        servicePort: 8000
+      env:
+      - name: TEMPORAL_TASK_QUEUE
+        value: ri26-sdlc
+      - name: BASE_TASK_QUEUE
+        value: ri26-sdlc
+      - name: PUBLIC_URL
+        value: https://reinvent-booth.tmprl-demo.cloud/agentic-sdlc
+      - name: ENABLED_PROVIDERS
+        value: openai
+      - name: GITHUB_WEBHOOK_SECRET
+        valueFrom:
+          inputRef: secrets.runtime.GITHUB_WEBHOOK_SECRET
+      - name: GITHUB_SANDBOX_REPO
+        valueFrom:
+          inputRef: secrets.runtime.GITHUB_SANDBOX_REPO
+    sdlc-worker-v1:
+      build: sdlc
+      command:
+      - python
+      - -m
+      - agentic_sdlc.worker
+      worker: true
+      terminationGracePeriodSeconds: 600
+      secrets:
+      - openai
+      - github
+      env:
+      - name: TEMPORAL_TASK_QUEUE
+        value: ri26-sdlc
+      - name: BASE_TASK_QUEUE
+        value: ri26-sdlc
+      - name: TEMPORAL_WORKER_BUILD_ID
+        value: v1
+      - name: PIPELINE_VERSION
+        value: v1
+      - name: WEB_INTERNAL_URL
+        value: http://sdlc-web:8000
+      - name: GITHUB_SANDBOX_REPO
+        valueFrom:
+          inputRef: secrets.runtime.GITHUB_SANDBOX_REPO
+      - name: RUN_BUDGET_USD
+        value: '3.00'
+    sdlc-worker-v2:
+      build: sdlc
+      command:
+      - python
+      - -m
+      - agentic_sdlc.worker
+      worker: true
+      terminationGracePeriodSeconds: 600
+      secrets:
+      - openai
+      - github
+      env:
+      - name: TEMPORAL_TASK_QUEUE
+        value: ri26-sdlc
+      - name: BASE_TASK_QUEUE
+        value: ri26-sdlc
+      - name: TEMPORAL_WORKER_BUILD_ID
+        value: v2
+      - name: PIPELINE_VERSION
+        value: v2
+      - name: WEB_INTERNAL_URL
+        value: http://sdlc-web:8000
+      - name: GITHUB_SANDBOX_REPO
+        valueFrom:
+          inputRef: secrets.runtime.GITHUB_SANDBOX_REPO
+      - name: RUN_BUDGET_USD
+        value: '3.00'
+  redis:
+    version: '7'
+    password: secrets.runtime.REDIS_PASSWORD
+    components:
+    - sdlc-web
+    - sdlc-worker-v1
+    - sdlc-worker-v2
+  aws:
+    components:
+    - travel-web
+    - travel-worker
+    - photobooth-web
+    s3:
+      buckets:
+        payloads:
+          env: PAYLOAD_BUCKET
+          expirationDays: 7
+        photos:
+          env: PHOTO_MEDIA_BUCKET
+          expirationDays: 7
+    bedrock:
+      models:
+        loan:
+          id: us.anthropic.claude-sonnet-4-5-20250929-v1:0
+          env: BEDROCK_MODEL_ID
+  ingress:
+    subdomain: reinvent-booth
+    auth: required
+    routes:
+    - pathPrefix: /agentic-sdlc/webhooks/github
+      component: gateway
+      port: http
+      public: true
+    - pathPrefix: /
+      component: gateway
+      port: http
+  smokeCheck:
+    path: /healthz
+    expectedStatus: 200
+    timeoutSeconds: 15

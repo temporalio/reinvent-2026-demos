@@ -1,0 +1,191 @@
+# The Makefile wraps these; see `make help`.
+#
+# Each Worker language is a profile, and only one should run: they share a Task Queue.
+#
+# Local:       docker compose --profile local --profile python up --build
+# Encryption:  BANKING_ENCRYPT=1 docker compose --profile local --profile python --profile encrypt up --build
+# Cloud:       docker compose --profile python --env-file cloud.env up --build (no local profile, so no dev server)
+#
+# Profiles:    python, go, typescript, java, dotnet, ruby, php, rust
+
+x-worker: &worker
+  # These SDKs read an empty value as a setting, so the TLS paths and the API key
+  # are left out entirely unless they're in use.
+  env_file:
+    - path: docker/worker${TEMPORAL_CERT_PATH:+-mtls}.env
+      required: false
+  environment:
+    - TEMPORAL_ADDRESS=${TEMPORAL_ADDRESS:-host.docker.internal:7233}
+    - TEMPORAL_NAMESPACE=${TEMPORAL_NAMESPACE:-default}
+    - TEMPORAL_API_KEY
+    - TEMPORAL_TASK_QUEUE=${TEMPORAL_TASK_QUEUE:-}
+    - BANKING_BACKEND_URL=http://backend:8000
+    - BANKING_ENCRYPT=${BANKING_ENCRYPT:-}
+  volumes:
+    - ${TEMPORAL_CERT_PATH:-/dev/null}:/certs/client.pem:ro
+    - ${TEMPORAL_KEY_PATH:-/dev/null}:/certs/client.key:ro
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+  depends_on:
+    temporal:
+      condition: service_healthy
+      required: false
+    backend:
+      condition: service_healthy
+
+services:
+  # -- Temporal dev server (local profile only) --
+  temporal:
+    image: temporalio/temporal:1.9.1
+    command: ["--disable-config-file", "server", "start-dev", "--ip", "0.0.0.0", "--log-level", "warn", "--search-attribute", "Step=Keyword"]
+    ports:
+      - "7233:7233"
+      - "8233:8233"
+    healthcheck:
+      test: ["CMD", "temporal", "--disable-config-file", "operator", "cluster", "health", "--address", "localhost:7233"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+      start_period: 3s
+    profiles:
+      - local
+
+  # -- Backend API (FastAPI) --
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - TEMPORAL_ADDRESS=${TEMPORAL_ADDRESS:-host.docker.internal:7233}
+      - TEMPORAL_NAMESPACE=${TEMPORAL_NAMESPACE:-default}
+      - TEMPORAL_API_KEY=${TEMPORAL_API_KEY:-}
+      - TEMPORAL_CERT_PATH=${TEMPORAL_CERT_PATH:+/certs/client.pem}
+      - TEMPORAL_KEY_PATH=${TEMPORAL_KEY_PATH:+/certs/client.key}
+      - TEMPORAL_TASK_QUEUE=${TEMPORAL_TASK_QUEUE:-}
+    volumes:
+      - ${TEMPORAL_CERT_PATH:-/dev/null}:/certs/client.pem:ro
+      - ${TEMPORAL_KEY_PATH:-/dev/null}:/certs/client.key:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      temporal:
+        condition: service_healthy
+        required: false
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 2s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  # -- Worker (Python) --
+  worker-python:
+    build:
+      context: .
+      dockerfile: docker/worker-python.Dockerfile
+    environment:
+      - TEMPORAL_ADDRESS=${TEMPORAL_ADDRESS:-host.docker.internal:7233}
+      - TEMPORAL_NAMESPACE=${TEMPORAL_NAMESPACE:-default}
+      - TEMPORAL_API_KEY=${TEMPORAL_API_KEY:-}
+      - TEMPORAL_CERT_PATH=${TEMPORAL_CERT_PATH:+/certs/client.pem}
+      - TEMPORAL_KEY_PATH=${TEMPORAL_KEY_PATH:+/certs/client.key}
+      - TEMPORAL_TASK_QUEUE=${TEMPORAL_TASK_QUEUE:-}
+      - BANKING_BACKEND_URL=http://backend:8000
+      - BANKING_ENCRYPT=${BANKING_ENCRYPT:-}
+    volumes:
+      - ${TEMPORAL_CERT_PATH:-/dev/null}:/certs/client.pem:ro
+      - ${TEMPORAL_KEY_PATH:-/dev/null}:/certs/client.key:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      temporal:
+        condition: service_healthy
+        required: false
+      backend:
+        condition: service_healthy
+    profiles:
+      - python
+
+  # -- Workers in the other SDKs: pick one with `make demo WORKER=<language>` --
+  worker-go:
+    <<: *worker
+    build:
+      context: .
+      dockerfile: docker/worker-go.Dockerfile
+    profiles:
+      - go
+
+  worker-typescript:
+    <<: *worker
+    build:
+      context: .
+      dockerfile: docker/worker-typescript.Dockerfile
+    profiles:
+      - typescript
+
+  worker-java:
+    <<: *worker
+    build:
+      context: .
+      dockerfile: docker/worker-java.Dockerfile
+    profiles:
+      - java
+
+  worker-dotnet:
+    <<: *worker
+    build:
+      context: .
+      dockerfile: docker/worker-dotnet.Dockerfile
+    profiles:
+      - dotnet
+
+  worker-ruby:
+    <<: *worker
+    build:
+      context: .
+      dockerfile: docker/worker-ruby.Dockerfile
+    profiles:
+      - ruby
+
+  worker-php:
+    <<: *worker
+    build:
+      context: .
+      dockerfile: docker/worker-php.Dockerfile
+    profiles:
+      - php
+
+  worker-rust:
+    <<: *worker
+    build:
+      context: .
+      dockerfile: docker/worker-rust.Dockerfile
+    profiles:
+      - rust
+
+  # -- Codec Server (only when BANKING_ENCRYPT=1) --
+  codec-server:
+    build:
+      context: .
+      dockerfile: docker/worker-python.Dockerfile
+    command: ["uv", "run", "--package", "banking-demo-workflows", "python", "-m", "banking_workflows.codec_server"]
+    ports:
+      - "8081:8081"
+    profiles:
+      - encrypt
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  # -- Frontend (nginx + static build) --
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend.Dockerfile
+    ports:
+      - "5173:5173"
+    depends_on:
+      backend:
+        condition: service_healthy

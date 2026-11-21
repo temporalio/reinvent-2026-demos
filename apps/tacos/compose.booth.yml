@@ -1,0 +1,69 @@
+# Isolated Python booth stack. Existing language profiles remain in docker-compose.yml.
+# All demo processes, including local Temporal, run in containers.
+services:
+  temporal:
+    image: temporalio/temporal:1.8.3
+    command: ["server", "start-dev", "--ip", "0.0.0.0", "--db-filename", "/home/temporal/temporal.db", "--ui-public-path", "/temporal-ui", "--ui-disable-news-fetch"]
+    volumes:
+      - temporal-home:/home/temporal
+    ports:
+      - "127.0.0.1:${TACOS_TEMPORAL_PORT:-17233}:7233"
+      - "127.0.0.1:${TACOS_TEMPORAL_UI_PORT:-18233}:8233"
+    healthcheck:
+      test: ["CMD", "temporal", "operator", "cluster", "health", "--address", "127.0.0.1:7233"]
+      interval: 3s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+    environment:
+      TEMPORAL_ENDPOINT: temporal:7233
+      TEMPORAL_NAMESPACE: default
+      TEMPORAL_API_KEY: ""
+      TEMPORAL_TLS: "false"
+      TEMPORAL_UI_URL: http://localhost:${TACOS_UI_PORT:-15310}/temporal-ui
+      TEMPORAL_TASK_QUEUE: ziggy-tacos
+      DEJAVU_WORKER_LANGUAGE: python
+    ports:
+      - "127.0.0.1:${TACOS_API_PORT:-18310}:8000"
+    depends_on:
+      temporal:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+  worker:
+    build:
+      context: .
+      dockerfile: docker/worker-python.Dockerfile
+    environment:
+      TEMPORAL_ENDPOINT: temporal:7233
+      TEMPORAL_NAMESPACE: default
+      TEMPORAL_API_KEY: ""
+      TEMPORAL_TLS: "false"
+      TEMPORAL_TASK_QUEUE: ziggy-tacos
+      DEJAVU_BACKEND_URL: http://backend:8000
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend.Dockerfile
+      args:
+        NGINX_CONF: docker/nginx.booth.conf
+    ports:
+      - "127.0.0.1:${TACOS_UI_PORT:-15310}:5173"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+volumes:
+  temporal-home:

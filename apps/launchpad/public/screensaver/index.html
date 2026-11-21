@@ -1,0 +1,564 @@
+<!doctype html>
+<!-- Screensaver: the attract loop a portrait kiosk shows between visitors.
+     Built from the "0 Screensaver" frame (1080 x 1920) in the REinvent roughs file.
+
+     The screen is a fixed 1080 x 1920 stage laid out in Figma pixels, scaled to fit
+     the window and centred. Behind it, the kit's animated starfield fills the whole
+     window, the same background as the demo catalog's sign-in page.
+
+     Two logo marquees run edge to edge across the window, 40 Figma pixels in from its
+     top and bottom: the top one scrolls right to left, the bottom one left to right.
+     They show the customer logos from temporal.io's home page, kept in
+     assets/brand/customer-logos/ and listed in LOGOS in the script. The script
+     repeats the list until the strip is covered twice over, then the strip slides by
+     exactly one copy so the loop never shows a seam.
+
+     The six planets are the six Launchpad decks. Each one circles its orbit, growing
+     as it swings to the front and shrinking as it passes behind. Tap a planet to open
+     its deck's lead demo on the card; DECKS in the script holds that copy and each
+     demo's link. The card's Launch outline fills over CARD_SECONDS, then the card
+     closes and only the orbits stay until the next planet is tapped. A tap anywhere
+     else goes on to the crew select screen (CREW_SELECT_URL, not built yet).
+
+     Point the asset paths at your copy of assets/. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>Screensaver</title>
+  <meta name="theme-color" content="#141414">
+  <link rel="icon" href="../../assets/brand/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../../assets/css/temporal-theme.css">
+  <link rel="stylesheet" href="../../assets/css/temporal-components.css">
+  <link rel="stylesheet" href="../../assets/css/cosmic-pop-theme.css">
+  <style>
+    html, body { height: 100%; overflow: hidden; }
+    /* Built for a 65" portrait multitouch screen: no pinch zoom, panning, text
+       selection, long-press menus or tap flashes, so stray touches change nothing. */
+    html {
+      touch-action: none; user-select: none; -webkit-user-select: none;
+      -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;
+    }
+    img { -webkit-user-drag: none; }
+    body { background: var(--surface-page); }
+
+    /* The stage: every size inside it is in Figma pixels. --s is set by the script. */
+    .screensaver {
+      position: fixed; left: 50%; top: 50%;
+      width: 1080px; height: 1920px;
+      transform: translate(-50%, -50%) scale(var(--s, 1));
+      overflow: hidden;
+    }
+    .screensaver > * { position: absolute; }
+    .stage-art { inset: 0; width: 100%; height: 100%; overflow: visible; }
+    .lines { pointer-events: none; }
+
+    /* Background art */
+    .glow { left: -868px; top: -494.7px; width: 1814.85px; height: 1355.62px; rotate: -42.34deg; scale: 1 -1; }
+    .comet-ring { fill: none; stroke: var(--status-retrying); stroke-width: .5; opacity: .7; }
+    .link { stroke: var(--accent); stroke-width: 2; stroke-dasharray: 2 10; }
+    /* The big asteroid starts where Figma puts it; the script then arcs it off the bottom. */
+    .asteroid { left: 0; top: 0; width: 94.26px; height: 70.88px; transform: translate(1032.5px, 1529.2px) rotate(149.13deg); }
+    /* Little asteroids that drift through a corner now and then; the script moves them. */
+    .drifter { left: 0; top: 0; height: auto; pointer-events: none; opacity: 0; }
+
+    /* Orbit system. --accent is the selected planet's colour. */
+    .screensaver { --accent: var(--persona-captain); }
+    .orbits { pointer-events: none; }
+    .orbit { fill: none; stroke: var(--text-primary); stroke-opacity: .2; }
+    .orbit.current { stroke: var(--accent); stroke-opacity: 1; }
+    .mark { fill: var(--text-primary); }
+    .planet { pointer-events: auto; cursor: pointer; outline: none; }
+    .planet .hit { fill: transparent; stroke: none; }
+    .planet:focus-visible .hit { stroke: var(--focus-ring); stroke-width: .05; }
+    .planet .halo { fill: none; stroke: currentColor; stroke-width: .037; stroke-dasharray: .037 .184; visibility: hidden; }
+    .planet[aria-pressed="true"] .halo { visibility: visible; }
+
+    /* Header */
+    .header { left: 90px; top: 160px; width: 890px; color: var(--text-primary); }
+    .header-row { display: flex; justify-content: space-between; align-items: center; }
+    .header-row .logo { width: 155.19px; height: 30px; }
+    .header-row .rule { width: 485.375px; height: 40px; }
+    .title {
+      display: grid; padding-bottom: 20px; margin: 0;
+      font: 400 200px/1 var(--font-mono); letter-spacing: -2px; text-transform: uppercase;
+    }
+    /* One filled layer under three hollow ones, each nudged a few pixels. */
+    .title span { grid-area: 1 / 1; width: 890px; }
+    .title .fill { margin: 3px 0 0; }
+    .title .outline { color: transparent; -webkit-text-stroke: 1px var(--text-primary); }
+    .title .outline:nth-child(3) { margin: 10px 0 0 6px; }
+    .title .outline:nth-child(4) { margin: 4px 0 0 12px; }
+    .tagline { display: flex; align-items: center; gap: 17.28px; margin: 0; font: 400 40px/1 var(--font-mono); letter-spacing: 2px; text-transform: uppercase; }
+    .tagline i { flex: 1; height: 2px; background: var(--text-primary); opacity: .6; }
+
+    /* Demo card, coloured by the selected planet. */
+    .card-overview { left: 180px; top: 1378px; width: 720px; }
+    .card-overview.is-swapping { animation: card-in .35s cubic-bezier(.2, 1.4, .4, 1); }
+    @keyframes card-in { from { opacity: 0; transform: translateY(12px) scale(.97); } }
+    .card-row { display: flex; }
+    .card {
+      flex: 1; display: flex; flex-direction: column; gap: 30px; padding: 30px;
+      background: var(--surface-page); border: 2px solid var(--accent); color: var(--text-primary);
+      transition: none;
+    }
+    /* The base theme turns a card's border violet on hover; on a touch kiosk it only flickers. */
+    .card:hover { border-color: var(--accent); }
+    .card-content { display: flex; flex-direction: column; gap: 10px; }
+    .card .badge {
+      align-self: flex-start; padding: 5px; border: 2px solid var(--accent); color: var(--accent);
+      font: 700 16px/18px var(--font-mono); letter-spacing: 2px; text-transform: uppercase;
+    }
+    .card h2 { margin: 0; font: 700 50px/1.3 var(--font-mono); letter-spacing: -1px; text-transform: uppercase; }
+    .card p { margin: 0; font: 400 24px/32px var(--font-sans); }
+    .card .keep { white-space: nowrap; }
+    .card mark { padding: 0 5px; background: var(--accent); color: var(--surface-page); font-weight: 700; }
+    .card .stop { color: var(--accent); margin-left: 5px; }
+    /* Launch is an outline that fills from the left while the card is open; when it is
+       full the card closes. The filled copy of the label sits on top, clipped to the
+       elapsed time, so the text stays readable over both halves. */
+    .card .launch {
+      position: relative; display: block; height: 44px; border: 2px solid var(--accent);
+      color: var(--accent); text-decoration: none;
+      font: 700 18px/24px var(--font-mono); text-transform: uppercase;
+    }
+    .launch .label { display: flex; justify-content: space-between; align-items: center; height: 100%; padding: 0 18px; }
+    .launch .label.filled { position: absolute; inset: 0; background: var(--accent); color: var(--surface-page); clip-path: inset(0 100% 0 0); }
+    .launch[aria-disabled="true"] { cursor: default; }
+    .card-overview.is-closed { visibility: hidden; }
+    .screensaver.is-idle .link { visibility: hidden; }
+    .card-edge {
+      width: 20px; border: 2px solid var(--accent);
+      background: repeating-linear-gradient(30deg, var(--accent) 0 2px, transparent 2px 8px);
+    }
+    .card-foot { height: 20px; background: var(--accent); }
+
+    /* Logo marquees: 40 Figma pixels in from the window's top and bottom, edge to edge across it. */
+    .marquee { position: fixed; left: 0; right: 0; overflow: hidden; height: calc(32px * var(--s, 1)); }
+    .marquee.top { top: calc(40px * var(--s, 1)); }
+    .marquee.bottom { bottom: calc(40px * var(--s, 1)); }
+    .marquee-track { display: flex; width: max-content; height: 100%; }
+    .marquee-track.is-running { animation: marquee-left var(--marquee-duration, 30s) linear infinite; }
+    .marquee.bottom .marquee-track.is-running { animation-name: marquee-right; }
+    .marquee img { display: block; height: 100%; width: auto; margin-right: calc(56px * var(--s, 1)); opacity: .5; flex: none; }
+    /* The track holds the logo set twice, so sliding by half of it lands on an identical frame. */
+    @keyframes marquee-left  { from { transform: translateX(0); }    to { transform: translateX(-50%); } }
+    @keyframes marquee-right { from { transform: translateX(-50%); } to { transform: translateX(0); } }
+    @media (prefers-reduced-motion: reduce) {
+      .marquee-track.is-running, .card-overview.is-swapping { animation: none; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="stars" aria-hidden="true"></canvas>
+
+  <main class="screensaver" aria-label="Crash Course: no lost state">
+    <img class="glow" src="art/glow.svg" alt="">
+
+    <svg class="stage-art lines" viewBox="0 0 1080 1920" aria-hidden="true">
+      <ellipse class="comet-ring" cx="540.11" cy="959.75" rx="2949.2" ry="855.28" transform="rotate(25.1 540.11 959.75)"/>
+    </svg>
+
+    <img class="asteroid" src="art/asteroid.png" alt="">
+
+    <svg class="stage-art orbits" viewBox="0 0 1080 1920">
+      <defs>
+        <!-- One wireframe planet, radius 1; each <use> scales and colours it.
+             Styles live on the shapes: page CSS does not reach inside a <use> copy. -->
+        <g id="planet-body" fill="none" stroke="currentColor">
+          <circle r="1" stroke-width=".07" style="fill: var(--surface-page)"/>
+          <g stroke-width=".036" opacity=".85">
+            <ellipse rx="1" ry=".28"/>
+            <ellipse cy="-.45" rx=".88" ry=".22"/>
+            <ellipse cy=".45" rx=".88" ry=".22"/>
+            <ellipse rx=".35" ry="1"/>
+            <ellipse rx=".72" ry="1"/>
+            <line y1="-1" y2="1"/>
+          </g>
+        </g>
+        <ellipse id="planet-ring" fill="none" stroke="currentColor" stroke-width=".036" rx="1.73" ry=".5" transform="rotate(-14)"/>
+      </defs>
+
+      <!-- Drawn at the coordinates first read from Figma, then moved down 120px: 60px
+           with the header and card for room under the top marquee, and 60px more for
+           room under the heading. The card may overlap the bottom of the orbits. -->
+      <g transform="translate(0 120)">
+      <line class="link" x2="529" y2="1414.5"/>
+
+      <!-- Orbits from the inside out, centred where the Figma frame puts them. -->
+      <ellipse class="orbit" cx="460" cy="857.88" rx="180" ry="109.76"/>
+      <ellipse class="orbit" cx="478" cy="866.67" rx="248" ry="145.13"/>
+      <ellipse class="orbit" cx="486" cy="886.4" rx="306" ry="180.5"/>
+      <ellipse class="orbit" cx="504" cy="916.14" rx="354" ry="225.86"/>
+      <ellipse class="orbit" cx="532" cy="940.87" rx="422" ry="266.23"/>
+      <ellipse class="orbit" cx="540" cy="970.6" rx="470" ry="311.6"/>
+
+      <!-- The Temporal mark, centred on the inner orbit. -->
+      <path class="mark" transform="translate(82 602.88)" d="M397.804 235.195C395.135 215.195 388.378 198.5 378 198.5C367.623 198.5 360.865 215.195 358.196 235.195C338.195 237.865 321.5 244.622 321.5 255C321.5 265.377 338.199 272.135 358.196 274.804C360.865 294.801 367.623 311.5 378 311.5C388.378 311.5 395.135 294.801 397.804 274.804C417.805 272.135 434.5 265.377 434.5 255C434.5 244.622 417.802 237.865 397.804 235.195ZM357.544 268.978C338.389 266.212 327.217 259.879 327.217 255C327.217 250.119 338.389 243.788 357.544 241.021C357.122 245.632 356.902 250.339 356.902 255C356.902 259.66 357.122 264.371 357.544 268.978ZM378 204.217C382.881 204.217 389.212 215.388 391.979 234.542C387.371 234.122 382.66 233.901 378 233.901C373.34 233.901 368.629 234.122 364.022 234.542C366.788 215.388 373.121 204.217 378 204.217ZM398.458 268.978C397.515 269.116 393.647 269.569 392.669 269.666C392.573 270.647 392.116 274.511 391.982 275.454C389.215 294.608 382.883 305.779 378.003 305.779C373.123 305.779 366.791 294.608 364.024 275.454C363.89 274.511 363.433 270.643 363.337 269.666C362.891 265.126 362.622 260.249 362.622 255C362.622 249.751 362.891 244.873 363.337 240.331C367.877 239.885 372.754 239.616 378.003 239.616C383.252 239.616 388.129 239.885 392.669 240.331C393.651 240.427 397.515 240.883 398.458 241.018C417.612 243.785 428.786 250.119 428.786 254.996C428.786 259.874 417.612 266.212 398.458 268.978Z"/>
+
+      <g class="planets"></g>
+      </g>
+    </svg>
+
+    <header class="header">
+      <div class="header-row">
+        <img class="logo" src="art/temporal-logo.svg" alt="Temporal">
+        <img class="rule" src="art/header-rule.svg" alt="">
+      </div>
+      <h1 class="title">
+        <span class="fill">Crash<br>Course</span>
+        <span class="outline" aria-hidden="true">Crash<br>Course</span>
+        <span class="outline" aria-hidden="true">Crash<br>Course</span>
+        <span class="outline" aria-hidden="true">Crash<br>Course</span>
+      </h1>
+      <p class="tagline">No <i></i> Lost <i></i> State</p>
+    </header>
+
+    <section class="card-overview" aria-live="polite">
+      <div class="card-row">
+        <div class="card">
+          <div class="card-content">
+            <span class="badge"></span>
+            <h2></h2>
+            <p></p>
+          </div>
+          <a class="launch">
+            <span class="label"><span>Launch</span><span aria-hidden="true">→</span></span>
+            <span class="label filled" aria-hidden="true"><span>Launch</span><span>→</span></span>
+          </a>
+        </div>
+        <div class="card-edge" aria-hidden="true"></div>
+      </div>
+      <div class="card-foot" aria-hidden="true"></div>
+    </section>
+  </main>
+
+  <!-- The script fills both strips with the customer logos in LOGOS. -->
+  <div class="marquee top" aria-hidden="true"><div class="marquee-track"></div></div>
+  <div class="marquee bottom" aria-hidden="true"><div class="marquee-track"></div></div>
+
+  <script src="../../assets/js/starfield.js"></script>
+  <script>
+    Starfield.start(document.getElementById("stars"));
+    // No long-press menu on the touch screen.
+    addEventListener("contextmenu", e => e.preventDefault());
+    const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    // ---------- Stage fit and logo marquees ----------
+
+    // Both marquees move at the same speed, in Figma pixels per second.
+    const SPEED = 15;
+
+    // The customer logos from temporal.io's home-page marquee, in its order. The
+    // bottom strip starts halfway through the list, so the two strips never show the
+    // same logos at once.
+    const LOGO_DIR = "../../assets/brand/customer-logos/";
+    const LOGOS = [
+      "qualtrics.svg", "rea-group.svg", "snap.svg", "macquarie.svg", "anz.png", "openai.svg",
+      "yum-brands.svg", "kotak.png", "vodafone.svg", "cloudflare.svg", "gitlab.svg", "remitly.svg",
+      "alaska-airlines.png", "bentley-systems.svg", "bestseller.svg", "deloitte.svg", "godaddy.png",
+      "doordash.svg", "retool.png", "checkr.svg", "turo.svg", "mollie.svg", "lovable.svg",
+      "abridge.svg", "hebbia.svg",
+    ];
+
+    const tracks = [...document.querySelectorAll(".marquee-track")];
+    const logoImages = LOGOS.map(file => {
+      const img = new Image();
+      img.src = LOGO_DIR + file;
+      img.alt = "";
+      return img;
+    });
+    const half = Math.ceil(LOGOS.length / 2);
+    // The logos each marquee repeats, in order, on every fill.
+    const sources = new Map([
+      [tracks[0], logoImages],
+      [tracks[1], [...logoImages.slice(half), ...logoImages.slice(0, half)]],
+    ]);
+    let scale = 1;
+
+    // Fit the 1080 x 1920 stage inside the window.
+    function fit() {
+      scale = Math.min(innerWidth / 1080, innerHeight / 1920);
+      document.documentElement.style.setProperty("--s", scale);
+    }
+
+    function fill(track) {
+      const source = sources.get(track);
+      track.classList.remove("is-running");
+      track.replaceChildren();
+      if (!source.length) return;
+      // Repeat the logos until one set covers the strip...
+      const strip = track.parentElement.getBoundingClientRect().width;
+      do source.forEach(img => track.append(img.cloneNode()));
+      while (track.getBoundingClientRect().width < strip);
+      const set = track.getBoundingClientRect().width;
+      // ...then add a second set for the loop to slide into.
+      [...track.children].forEach(img => track.append(img.cloneNode()));
+      track.style.setProperty("--marquee-duration", `${set / (SPEED * scale)}s`);
+      track.classList.add("is-running");
+    }
+
+    function start() {
+      fit();
+      tracks.forEach(fill);
+    }
+
+    fit();
+    // Wait for every logo to load so the measured widths are real; a logo that fails
+    // to load is left out rather than holding up the strips.
+    Promise.allSettled(logoImages.map(img => img.decode())).then(results => {
+      results.forEach((r, i) => { if (r.status === "rejected") console.warn("Logo did not load:", LOGOS[i]); });
+      for (const [track, list] of sources) sources.set(track, list.filter(img => img.naturalWidth));
+      start();
+      addEventListener("resize", start);
+    });
+
+    // ---------- Orbiting planets ----------
+
+    const SVG = "http://www.w3.org/2000/svg";
+    const orbitEls = [...document.querySelectorAll(".orbit")];
+    const ORBITS = orbitEls.map(el => ["cx", "cy", "rx", "ry"].map(a => +el.getAttribute(a)));
+
+    // One planet per Launchpad deck. orbit, angle and r place it where the Figma frame
+    // does (angle in degrees, 90 = front); pace scales its lap time (under 1 is faster,
+    // over 1 slower); the card copy is each deck's lead demo, and
+    // url is where its Launch button goes. Until a url is set, Launch does nothing.
+    const DECKS = [{"badge": "orbit_01", "deck": "Ziggy Space Taqueria", "color": "--persona-captain", "orbit": 5, "angle": 30, "r": 42, "pace": 0.8, "title": "Ziggy Space Taqueria", "lead": "Order tacos from orbit, then", "mark": "cut the kitchen uplink", "rest": " and recover the order.", "url": "/dejavutacos/"}, {"badge": "orbit_02", "deck": "Money Transfer", "color": "--persona-mech", "orbit": 4, "angle": 71, "r": 39, "pace": 0.89, "title": "Money Transfer", "lead": "Move credits between accounts.", "mark": "Interrupt the transfer", "rest": " and inspect compensation.", "url": "/banking/"}, {"badge": "orbit_03", "deck": "Data Pipeline", "color": "--persona-envoy", "orbit": 3, "angle": 112, "r": 36, "pace": 0.98, "title": "Data Pipeline", "lead": "Validate and transform mission data.", "mark": "Recover a failed step", "rest": " without starting over.", "url": "/data-pipeline/"}, {"badge": "orbit_04", "deck": "Loan Underwriting", "color": "--persona-solarian", "orbit": 2, "angle": 153, "r": 33, "pace": 1.07, "title": "Loan Underwriting", "lead": "Assess an application with Strands agents.", "mark": "Pause for human review", "rest": " before the decision.", "url": "/loans/"}, {"badge": "orbit_05", "deck": "No Roads", "color": "--persona-wizard", "orbit": 1, "angle": 194, "r": 30, "pace": 1.1600000000000001, "title": "No Roads", "lead": "Send jobs to serverless workers.", "mark": "Watch backlog and concurrency", "rest": " on AWS Lambda.", "url": "/no-roads/"}, {"badge": "orbit_06", "deck": "Travel Agent / Temporal Agent Harness", "color": "--brand-accent", "orbit": 0, "angle": 235, "r": 27, "pace": 1.25, "title": "Travel Agent / Temporal Agent Harness", "lead": "Build a trip with an AI agent.", "mark": "Approve the next booking", "rest": " and follow each durable tool call.", "url": "/travel-agent/"}, {"badge": "orbit_07", "deck": "Agentic SDLC (tentative)", "color": "--persona-captain", "orbit": 5, "angle": 276, "r": 24, "pace": 1.34, "title": "Agentic SDLC (tentative)", "lead": "GitHub-driven development agents.", "mark": "Staff setup required", "rest": " before this mission can launch.", "url": null}, {"badge": "orbit_08", "deck": "Flight Simulator", "color": "--persona-mech", "orbit": 4, "angle": 317, "r": 21, "pace": 1.4300000000000002, "title": "Flight Simulator", "lead": "Take the controls for a flight mission.", "mark": "Explore the galaxy", "rest": " with Temporal behind the scenes.", "url": "/flightsim/"}, {"badge": "orbit_09", "deck": "Photo Booth", "color": "--persona-envoy", "orbit": 3, "angle": 358, "r": 18, "pace": 1.52, "title": "Photo Booth", "lead": "Step into the Photo Booth.", "mark": "Become a space explorer", "rest": " and create an AI photo strip.", "url": "/photobooth/"}];
+
+    // How far round the front a planet is: 0 at the back of its orbit, 1 at the front.
+    const depthAt = deg => (1 + Math.sin(deg * Math.PI / 180)) / 2;
+    // Planets shrink to 40% of their front size at the back.
+    const sizeAt = depth => .4 + .6 * depth;
+    // Seconds per lap: outer orbits are slower, and each planet's pace stretches or
+    // shrinks its own lap so no two move at quite the same speed.
+    const lapFor = (rx, pace) => 40 * (rx / 180) ** 1.5 * pace;
+    // A finger-sized target, in Figma pixels, however small the planet is: on a 65"
+    // portrait screen 60px is about 45mm, roomy enough to catch a moving planet.
+    const MIN_HIT = 60;
+
+    const planetLayer = document.querySelector(".planets");
+    const link = document.querySelector(".link");
+    const stage = document.querySelector(".screensaver");
+    const card = document.querySelector(".card-overview");
+
+    const planets = DECKS.map(deck => {
+      const g = document.createElementNS(SVG, "g");
+      g.classList.add("planet");
+      g.setAttribute("role", "button");
+      g.setAttribute("tabindex", "0");
+      g.setAttribute("aria-label", `${deck.deck}: ${deck.title}`);
+      g.style.color = `var(${deck.color})`;
+      g.innerHTML = `<circle class="hit"/><circle class="halo" r="1.45"/>`
+        + (deck.ring ? `<use href="#planet-ring"/>` : "") + `<use href="#planet-body"/>`;
+      // Select on touch-down: the planet keeps moving, so waiting for the finger to
+      // lift could land the tap on something else. Each touch is its own pointer, so
+      // several people can tap at once.
+      g.addEventListener("pointerdown", () => select(planet));
+      g.addEventListener("keydown", e => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); select(planet); }
+      });
+      planetLayer.append(g);
+      const planet = { deck, g, hit: g.querySelector(".hit"), front: deck.r / sizeAt(depthAt(deck.angle)), x: 0, y: 0, depth: 0 };
+      return planet;
+    });
+
+    // How long a card stays open before it closes on its own, in seconds.
+    const CARD_SECONDS = 15;
+    // The screen a tap on the background leads to. The crew select screen is not
+    // built yet: until it is, a background tap only fires a "screensaver:next" event.
+    const CREW_SELECT_URL = null;
+
+    const launch = card.querySelector(".launch");
+    let selected = null;
+    let timer = null;
+
+    function select(planet) {
+      selected = planet;
+      const { deck } = planet;
+      stage.classList.remove("is-idle");
+      card.classList.remove("is-closed");
+      stage.style.setProperty("--accent", `var(${deck.color})`);
+      planets.forEach(p => p.g.setAttribute("aria-pressed", p === planet));
+      orbitEls.forEach((el, i) => el.classList.toggle("current", i === deck.orbit));
+
+      card.querySelector(".badge").textContent = deck.badge;
+      card.querySelector("h2").textContent = deck.title;
+      const p = card.querySelector("p");
+      p.replaceChildren(deck.lead ? deck.lead + " " : "");
+      const keep = document.createElement("span");
+      keep.className = "keep";
+      const mark = document.createElement("mark");
+      mark.textContent = deck.mark;
+      keep.append(mark);
+      // A closing full stop takes the accent colour, as in the Figma card.
+      if (deck.rest === ".") {
+        const stop = document.createElement("span");
+        stop.className = "stop";
+        stop.textContent = ".";
+        keep.append(stop);
+        p.append(keep);
+      } else {
+        p.append(keep, deck.rest);
+      }
+      launch.setAttribute("aria-label", `Launch ${deck.title}`);
+      if (deck.url) {
+        launch.href = deck.url;
+        launch.target = "_top";
+        launch.removeAttribute("aria-disabled");
+      } else {
+        launch.removeAttribute("href");
+        launch.setAttribute("aria-disabled", "true");
+      }
+      card.classList.remove("is-swapping");
+      void card.offsetWidth;
+      card.classList.add("is-swapping");
+      place(planet);
+
+      // Fill the Launch outline over CARD_SECONDS, then close the card. Picking a
+      // planet again starts a fresh fill.
+      timer?.cancel();
+      timer = launch.querySelector(".filled").animate(
+        [{ clipPath: "inset(0 100% 0 0)" }, { clipPath: "inset(0 0 0 0)" }],
+        { duration: CARD_SECONDS * 1000, easing: "linear", fill: "forwards" },
+      );
+      timer.finished.then(close, () => {});
+    }
+
+    // Close the card and clear the selection: only the orbits stay until the next tap.
+    function close() {
+      selected = null;
+      timer = null;
+      planets.forEach(p => p.g.setAttribute("aria-pressed", false));
+      orbitEls.forEach(el => el.classList.remove("current"));
+      stage.classList.add("is-idle");
+      const hide = () => card.classList.add("is-closed");
+      if (reduceMotion) return hide();
+      card.animate([{ opacity: 1 }, { opacity: 0, transform: "translateY(12px) scale(.97)" }], { duration: 300, easing: "ease-in" })
+        .finished.then(() => { if (!selected) hide(); });
+    }
+
+    // A tap anywhere but a planet or the open card moves on to the crew select screen.
+    addEventListener("pointerdown", e => {
+      if (e.target.closest(".planet, .card-overview")) return;
+      if (CREW_SELECT_URL) location.href = CREW_SELECT_URL;
+      else document.dispatchEvent(new CustomEvent("reinvent:exit"));
+    });
+
+    function place(planet) {
+      link.setAttribute("x1", planet.x);
+      link.setAttribute("y1", planet.y);
+    }
+
+    function draw(seconds) {
+      for (const planet of planets) {
+        const { deck } = planet;
+        const [cx, cy, rx, ry] = ORBITS[deck.orbit];
+        const deg = deck.angle + 360 * seconds / lapFor(rx, deck.pace);
+        const rad = deg * Math.PI / 180;
+        planet.x = cx + rx * Math.cos(rad);
+        planet.y = cy + ry * Math.sin(rad);
+        planet.depth = depthAt(deg);
+        const size = planet.front * sizeAt(planet.depth);
+        planet.g.setAttribute("transform", `translate(${planet.x.toFixed(2)} ${planet.y.toFixed(2)}) scale(${size.toFixed(3)})`);
+        planet.g.setAttribute("opacity", (.65 + .35 * planet.depth).toFixed(3));
+        planet.hit.setAttribute("r", Math.max(1.6, MIN_HIT / size).toFixed(3));
+      }
+      // Draw the planets nearest the front last, so they pass over the ones behind.
+      const order = [...planets].sort((a, b) => a.depth - b.depth);
+      if (order.some((p, i) => planetLayer.children[i] !== p.g)) planetLayer.append(...order.map(p => p.g));
+      if (selected) place(selected);
+    }
+
+    const t0 = performance.now();
+    function frame(now) {
+      draw((now - t0) / 1000);
+      requestAnimationFrame(frame);
+    }
+    draw(0);
+    select(planets[0]);
+    if (!reduceMotion) requestAnimationFrame(frame);
+
+    // ---------- Asteroids ----------
+
+    // Every asteroid is always on the move along a slight arc, never parked. With
+    // reduced motion they are not shown at all.
+    const between = (min, max) => min + Math.random() * (max - min);
+
+    // Keyframes for a curved trip from one point to another. The path bows out
+    // towards `toward` (a corner of the screen) by 12-22% of its length, and the rock
+    // turns slowly on the way. `fade` fades it in and out at the ends.
+    function arc([fromX, fromY], [toX, toY], [towardX, towardY], { turn, spin, fade }) {
+      const midX = (fromX + toX) / 2, midY = (fromY + toY) / 2;
+      const len = Math.hypot(toX - fromX, toY - fromY);
+      let nx = (toY - fromY) / len, ny = -(toX - fromX) / len;
+      if (nx * (towardX - midX) + ny * (towardY - midY) < 0) { nx = -nx; ny = -ny; }
+      const bend = between(.12, .22) * len;
+      const ctrlX = midX + nx * bend, ctrlY = midY + ny * bend;
+      const frames = [];
+      for (let i = 0; i <= 24; i++) {
+        const t = i / 24, u = 1 - t;
+        const x = u * u * fromX + 2 * u * t * ctrlX + t * t * toX;
+        const y = u * u * fromY + 2 * u * t * ctrlY + t * t * toY;
+        const frame = { transform: `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) rotate(${(turn + spin * t).toFixed(1)}deg)` };
+        if (fade) frame.opacity = Math.min(1, t / .15, (1 - t) / .15) * .9;
+        frames.push(frame);
+      }
+      return frames;
+    }
+
+    // Little asteroids: every so often one slides in past one edge, cuts across that
+    // corner of the screen and leaves past the neighbouring edge.
+    const CORNERS = [[0, 0], [1080, 0], [0, 1920], [1080, 1920]];
+    let drifting = 0;
+
+    function drift() {
+      if (drifting < 2) {
+        const corner = CORNERS[Math.floor(Math.random() * CORNERS.length)];
+        const [cx, cy] = corner;
+        const size = between(36, 80);
+        const off = size + 20;
+        // Enter through the side edge, leave through the top or bottom edge, so the
+        // path cuts across the corner, between 150 and 600px in from it.
+        const side = [cx === 0 ? -off : 1080 + off - size, cy === 0 ? between(150, 600) : 1920 - between(150, 600)];
+        const end = [cx === 0 ? between(150, 600) : 1080 - between(150, 600), cy === 0 ? -off : 1920 + off - size];
+        const [from, to] = Math.random() < .5 ? [side, end] : [end, side];
+
+        const rock = document.createElement("img");
+        rock.className = "drifter";
+        rock.src = "art/asteroid.png";
+        rock.alt = "";
+        rock.style.width = `${size}px`;
+        stage.insertBefore(rock, stage.querySelector(".orbits"));
+        drifting++;
+        const frames = arc(from, to, corner, { turn: between(0, 360), spin: between(-1, 1) * between(40, 140), fade: true });
+        rock.animate(frames, { duration: between(30, 50) * 1000, easing: "linear" }).finished.then(() => {
+          rock.remove();
+          drifting--;
+        });
+      }
+      setTimeout(drift, between(8, 18) * 1000);
+    }
+
+    // The big asteroid: it falls away off the bottom of the screen along an arc that
+    // bows towards the bottom-right corner. The first fall starts at once from its
+    // Figma spot at the right edge; after a pause off screen it comes back in from a
+    // random height on the right and leaves at a random point along the bottom.
+    const asteroid = document.querySelector(".asteroid");
+
+    function fall(from) {
+      const to = [between(250, 950), 1920 + 120];
+      const frames = arc(from, to, [1080, 1920], { turn: 149.13, spin: between(30, 90) });
+      asteroid.animate(frames, { duration: between(25, 40) * 1000, easing: "linear", fill: "forwards" }).finished.then(() => {
+        setTimeout(() => fall([1080 + 40, between(700, 1650)]), between(15, 45) * 1000);
+      });
+    }
+
+    if (reduceMotion) {
+      asteroid.hidden = true;
+    } else {
+      fall([1032.5, 1529.2]);
+      setTimeout(drift, between(2, 5) * 1000);
+    }
+  </script>
+</body>
+</html>

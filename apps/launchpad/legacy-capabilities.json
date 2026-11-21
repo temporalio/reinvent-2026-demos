@@ -1,0 +1,130 @@
+{
+  "tacos": {
+    "internet": "optional",
+    "offline": "local",
+    "camera": false,
+    "default_enabled": true,
+    "category": "primitives",
+    "note": "Orders, kitchen controls, and mock payments run locally with local Temporal.",
+    "evidence": [
+      "temporal-demo-dejavu-tacos/compose.booth.yml",
+      "temporal-demo-dejavu-tacos/docs/REINVENT-2026-VERIFICATION.md"
+    ],
+    "services": []
+  },
+  "money-transfer": {
+    "internet": "optional",
+    "offline": "local",
+    "camera": false,
+    "default_enabled": true,
+    "category": "primitives",
+    "note": "Mock bank Activities can run against local Temporal. Offline booth rehearsal remains unverified.",
+    "evidence": [
+      "temporal-demo-banking-app-money-transfer/RUNBOOK.md"
+    ],
+    "services": []
+  },
+  "data-pipeline": {
+    "internet": "optional",
+    "offline": "local",
+    "camera": false,
+    "default_enabled": true,
+    "category": "primitives",
+    "note": "Pipeline Activities read and write local files. Offline booth rehearsal remains unverified.",
+    "evidence": [
+      "temporal-data-pipeline-demo/activities.py"
+    ],
+    "services": []
+  },
+  "loan": {
+    "internet": "required",
+    "offline": "none",
+    "camera": false,
+    "default_enabled": true,
+    "category": "aws-ai",
+    "note": "Moving the worker locally does not replace the hosted Strands model. AWS/model access is still required.",
+    "evidence": [
+      "temporal-demo-loan-underwriting/workflow.py",
+      "temporal-demo-loan-underwriting/specialist_agents.py"
+    ],
+    "services": [
+      "aws",
+      "models"
+    ]
+  },
+  "no-roads": {
+    "internet": "conditional",
+    "offline": "reduced",
+    "camera": false,
+    "default_enabled": true,
+    "category": "aws",
+    "note": "Local mode uses a local worker. It does not demonstrate AWS Lambda scaling.",
+    "evidence": [
+      "bundle.py",
+      "temporal-demo-serverless-no-roads/RUNBOOK.md"
+    ],
+    "services": [
+      "aws"
+    ]
+  },
+  "agent-harness": {
+    "internet": "required",
+    "offline": "manual-script",
+    "camera": false,
+    "default_enabled": true,
+    "category": "ai",
+    "note": "Conversation needs Gemini. The separate scripted-trip preview is not an automatic fallback for this launcher.",
+    "evidence": [
+      "temporal-demo-agent-harness/RUNBOOK.md",
+      "temporal-demo-agent-harness/scripts/preview_trip.py"
+    ],
+    "services": [
+      "models"
+    ]
+  },
+  "agentic-sdlc": {
+    "internet": "required",
+    "offline": "none",
+    "camera": false,
+    "default_enabled": false,
+    "category": "ai",
+    "note": "Needs a booth GitHub account, GitHub token/CLI and webhook setup, Redis, and a model provider. Disabled by default.",
+    "evidence": [
+      "temporal-demo-agentic-sdlc/RUNBOOK.md",
+      "temporal-demo-agentic-sdlc/scripts/dev.py"
+    ],
+    "services": [
+      "github",
+      "models"
+    ]
+  },
+  "flight-simulator": {
+    "internet": "optional",
+    "offline": "local",
+    "camera": false,
+    "default_enabled": true,
+    "category": "holodeck",
+    "note": "Flight Activities and leaderboard run locally with local Temporal. Hardware/offline rehearsal remains unverified.",
+    "evidence": [
+      "temporal-demo-flight-simulator/backend/holodeck/flight/activities.py"
+    ],
+    "services": []
+  },
+  "photo-booth": {
+    "internet": "conditional",
+    "offline": "reduced",
+    "camera": true,
+    "default_enabled": true,
+    "category": "holodeck",
+    "note": "Local mode forces mock images and a local email outbox. Live image generation and email delivery need internet.",
+    "evidence": [
+      "bundle.py",
+      "temporal-demo-photo-booth/backend/holodeck/config.py",
+      "temporal-demo-photo-booth/web/src/photobooth/camera.ts"
+    ],
+    "services": [
+      "image",
+      "email"
+    ]
+  }
+}

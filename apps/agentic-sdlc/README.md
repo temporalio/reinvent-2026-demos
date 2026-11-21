@@ -1,0 +1,142 @@
+> These updates are only for AWS re:Invent 2026. This repository's main branch is the re:Invent demo version.
+> Contact Ian Douglas or Tomas Josovsky with questions.
+
+# Agentic SDLC on Temporal
+
+Agents now write much of the code. GitHub measured that over 40% of pull requests in September 2026 started with an agent's draft, up from 17% in March.[^1] Shipping hasn't kept pace. Forrester's estimate: "Coding may improve by 30% to 40%, but if planning, testing, and release remain manual, overall team productivity often increases by less than 10%."[^2] DORA finds AI adoption raising throughput while still hurting delivery stability.[^3] And the agents that take on the rest of the lifecycle are long-running processes with the usual problems. Duolingo's team notes that "even a well prompted agent may go off the rails and crash, fail to produce any changes, hang/freeze, or otherwise fail to complete, and need to be retried."[^4]
+
+"Agentic SDLC" is the name for agents working across planning, build, review and release, with people still accountable for the result. This demo shows Temporal running the process around those agents in a real GitHub repo, with the agents on Anthropic, OpenAI or Gemini. Three scenarios, from everyday to full lifecycle: a dependency bump that breaks the build, a pull request that needs review, and an issue taken all the way to production.
+
+What you'll see go wrong, and what happens next:
+
+- The worker dies while an agent is fixing the broken upgrade. A new worker continues from the agent's last finished call, and the token meter doesn't jump.
+- The run waits for a reviewer to approve the plan and production in GitHub's UI. It can wait minutes or days, costs nothing while it waits, and the approval resumes it.
+- The canary fails in production. The pipeline stops its traffic, reverts the merge through a PR and reopens the issue.
+
+Everything is driven by GitHub's webhooks and everyone talks to the agents on GitHub. The console is a window onto what the agents are doing.
+
+- **Agents are Workflows.** Each planner, coder and reviewer is a [temporal-agent-harness](https://github.com/temporal-sa/temporal-agent-harness) agent running [Pydantic AI](https://ai.pydantic.dev/durable_execution/temporal/) on Anthropic, OpenAI or Gemini. Every model call and tool call is an [Activity](https://docs.temporal.io/activities), so a crash loses nothing that already finished.
+- **Each scenario is one Workflow** that reads top to bottom as its lifecycle: [`DependencyRepair`](agentic_sdlc/pipeline/dependency.py), [`PullRequestReview`](agentic_sdlc/pipeline/review.py) and [`IssueToProduction`](agentic_sdlc/pipeline/workflow.py), sharing [`pipeline/base.py`](agentic_sdlc/pipeline/base.py). They start agents as [Child Workflows](https://docs.temporal.io/child-workflows), with one coder per subtask in parallel.
+- **GitHub drives it, with no polling.** The web server verifies each webhook's signature, starts a run for a new issue or PR, and delivers every comment to the runs watching that issue or PR as a [Signal](https://docs.temporal.io/develop/python/workflows/message-passing), found with a Visibility query on a search attribute. A run waiting for people costs nothing.
+- **Promotions are approvals on GitHub, not comments.** At the plan, the merge (when supervised) and production, the run dispatches the storefront's [`release.yml`](sandbox-template/.github/workflows/release.yml), whose job waits on a GitHub Environment (`plan-approval`, `merge-approval`, `production`) with required reviewers. A reviewer opens the waiting run in Actions and chooses *Review deployments*; the `workflow_run` webhook (the run succeeding, failing or being cancelled) carries the answer back as a Signal. Who may promote is GitHub's decision: the Environment's reviewers, and no one else, whatever they type.
+- **People steer the agents on GitHub, if they have write access.** Only people with write access to the repo are heard: the webhook drops comments from people with no association to the repo, and the run checks everyone else's permission with GitHub before an agent sees what they said (failing closed). `/skip` and `/continue` answer the clarify and budget gates. Any other comment is conversation: an answer to the planner, steering for coders at work, feedback fixed on the PR branch and re-reviewed, or a new requirement that sends the run back to planning.
+- **The agent gates PRs** with a required commit status, `agentic-sdlc/agent-review`, pending until it's done.
+- **Retries come from [Retry Policies](https://docs.temporal.io/encyclopedia/retry-policies),** including GitHub's `Retry-After`. A per-run budget is enforced by the Workflow before every agent turn.
+- **The canary bakes on a durable timer.** If its checks fail, a saga stops the traffic, reverts the merge through a PR and reopens the issue.
+- **[Worker Versioning](https://docs.temporal.io/worker-versioning)** with Pinned Workflows lets the pipeline change (v2 adds a security-review agent) while runs are in flight.
+- **Agent events stream through Redis** with the harness's `RedisEventStream`, so live streaming costs no Actions. The console reads run progress with Describe.
+
+## How it works
+
+```mermaid
+%%{init: {"theme": "base", "flowchart": {"nodeSpacing": 40, "rankSpacing": 50, "padding": 18}, "themeVariables": {
+  "fontSize": "15px", "primaryColor": "#141414", "primaryTextColor": "#f8fafc", "primaryBorderColor": "#444ce7",
+  "lineColor": "#1ff1a5", "textColor": "#f8fafc", "clusterBkg": "#1a1830", "clusterBorder": "#465a78",
+  "titleColor": "#cacbf9", "edgeLabelBackground": "#141414"
+}}}%%
+flowchart LR
+  subgraph card[" "]
+    direction LR
+    github["GitHub<br/>issues · PRs · comments"]:::keda
+    browser["Console (view only)<br/>(React)"]:::pods
+    web["web<br/>FastAPI · SSE · storefront envs"]:::pods
+    temporal["Temporal"]:::temporal
+    subgraph w["worker"]
+      direction TB
+      pipeline["DependencyRepair · PullRequestReview<br/>IssueToProduction Workflows"]:::controller
+      agents["Planner · Coders · Reviewer<br/>agent Workflows"]:::controller
+    end
+    redis[("Redis<br/>agent events")]:::resource
+    llm["Anthropic · OpenAI · Gemini"]:::keda
+    github -- webhooks --> web
+    browser --> web --> temporal --> w
+    agents --> llm
+    pipeline -- comments · commits · statuses --> github
+    agents -- events --> redis --> web
+  end
+  classDef card fill:#141414,stroke:#141414,color:#141414
+  class card card
+  classDef temporal fill:#141414,stroke:#444ce7,stroke-width:2px,color:#f8fafc
+  classDef controller fill:#141414,stroke:#b664ff,stroke-width:2px,color:#f8fafc
+  classDef keda fill:#141414,stroke:#1ff1a5,stroke-width:2px,color:#f8fafc
+  classDef resource fill:#141414,stroke:#7f86f1,stroke-width:1px,stroke-dasharray:4 3,color:#cacbf9
+  classDef pods fill:#141414,stroke:#4fd8ff,stroke-width:2px,color:#f8fafc
+```
+
+All of it happens on [temporal-sa/agentic-sdlc-storefront](https://github.com/temporal-sa/agentic-sdlc-storefront), a small storefront whose `main` stays locked: the agents get PRs ready to merge, and nothing merges into the shared repo.
+
+**Dependency repair.** The repo's *Dependency bump* Action pushes a Dependabot-style branch that upgrades [orbit-money](https://github.com/temporal-sa/orbit-money) from 1.0 to 2.0, which has breaking changes, and the console hands you GitHub's prefilled "Open a pull request" page for it. (The `temporal-sa` org doesn't let Actions open PRs, and a person opening it is the developer's part of the story.) Opening the PR starts the run.
+
+1. The agent's required check goes pending. The run tests the bump branch; if it passes, the check goes green and that's it.
+2. If it fails, a coding agent diagnoses it from the test output, the diff and the package's changelog, and posts the diagnosis.
+3. It fixes our code on the bump branch until the tests pass, and the PR description is rewritten: the bump, what changed in the package, what broke, what we changed and why, how to verify.
+4. A reviewer agent on another model family reviews the combined change; the check goes green ("ready to merge") or says what's wrong.
+5. The run listens to the PR: a comment goes to a coder, who pushes, and the reviewer looks again. It ends when the PR closes, or after a quiet day.
+
+**PR review.** Someone opens a PR. The check goes pending, the reviewer posts a review with inline comments, the check passes or fails, and a reply asking for a change sends a coder to push it to the PR branch (PRs from forks get suggestions instead).
+
+**Issue to production.** Someone opens an issue labeled `agent`.
+
+1. The planner asks on the issue about anything it leaves open, then posts a plan of one to three subtasks. A reviewer approving the plan on GitHub starts the build; any reply revises the plan.
+2. One coding agent per subtask works on its own branch, and every edit is committed and pushed, so the branch is the durable workspace. A comment on the issue while they work becomes their next instruction. The pipeline runs the tests itself and sends failures back.
+3. Branches merge into a PR against the run's own base branch. A reviewer agent reviews it, then people comment on the PR: the planner triages each comment as feedback (a coder fixes it, the reviewer looks again) or a scope change (the PR closes and the run re-plans). On auto merge it merges after a quiet minute; supervised waits for a reviewer to approve the merge on GitHub.
+4. It deploys to staging, checks it and asks for a reviewer to approve production on GitHub (rejecting it stops the run, with their note). The canary takes 20% of production traffic for 90 seconds of checks, then it's promoted, or rolled back by a saga that also reverts the merge and reopens the issue.
+
+The storefront environments are served by the web server straight from the commits GitHub holds, so agent-written code only runs in the visitor's browser and in the worker's sandboxed test run.
+
+## Run it
+
+Prerequisites: [uv](https://docs.astral.sh/uv/), Node 20+, the [Temporal CLI](https://docs.temporal.io/cli), Redis (`brew install redis`), and a `.env.local` with at least one LLM key plus the GitHub token:
+
+```
+ANTHROPIC_API_KEY=...
+OPENAI_API_KEY=...
+GEMINI_API_KEY=...
+GITHUB_TOKEN=github_pat_...        # fine-grained PAT for the storefront repo
+GITHUB_SANDBOX_REPO=temporal-sa/agentic-sdlc-storefront
+```
+
+```bash
+uv sync && npm --prefix web ci && npm --prefix web run build
+uv run python scripts/dev.py
+```
+
+Open the console at http://localhost:8000 and the Temporal UI at http://localhost:8233. To present it, follow [RUNBOOK.md](RUNBOOK.md).
+
+`dev.py` relays the repo's webhooks to your laptop with `gh webhook forward` (it installs the extension; your gh login needs `admin:repo_hook`). Your laptop is its own copy of the demo: task queue `local-<your GitHub login>`, acting only on issues and PRs labeled `agentic-sdlc:local-<login>`, which "Start a scenario" adds. GitHub allows one forwarder per repo at a time.
+
+| Command | What it does |
+|---|---|
+| `uv run python scripts/dev.py` | Temporal, Redis, the web server and a worker per pipeline version (v1, v2), with the console's kill-the-process and start controls |
+| `uv run python scripts/drive_run.py dependency` | A scenario from the command line (`dependency`, `review` or `issue`), answering on GitHub with `gh` |
+| `uv run python scripts/drive_conversation.py` | Rehearses every steering beat of the issue flow on GitHub |
+| `scripts/setup-github.sh --reviewers LOGIN[,LOGIN] [--webhook-url URL]` | Labels, rulesets, the template on `main`, the sample PR branch, the hosted webhook, and the approval Environments with their required reviewers |
+| `uv run pytest` | Pipeline tests against a local dev server, with fake agents |
+| `docker compose up --build` | The catalog's process layout on one machine |
+| `npm --prefix web run dev` | The console with hot reload on :5173, proxied to the API on :8000 |
+
+### Tuning knobs
+
+| Variable | Default | Effect |
+|---|---|---|
+| `RUN_BUDGET_USD` | `3.00` | Default per-run budget; the run pauses at a gate when estimated spend reaches it |
+| `MAX_ACTIVE_GITHUB_RUNS` | `3` | Runs one copy of the demo has in progress; past it, the agent says so on GitHub and starts nothing |
+| `GITHUB_WEBHOOK_SECRET` | (required) | Verifies GitHub's webhook signatures; `dev.py` makes one per session |
+| `AGENT_MODELS_<PROVIDER>` | see `agents/registry.py` | Comma-separated allowlist per provider; first is the default |
+| `ENABLED_PROVIDERS` | `anthropic,openai,google` | Providers the console offers |
+| `PIPELINE_VERSION` | `v1` | Set per worker with `TEMPORAL_WORKER_BUILD_ID`; `v2` adds the security-review agent |
+
+## Notes
+
+- **Harness fork.** This uses the temporal-sa fork of temporal-agent-harness, pinned to commit `f12f194` on its `pluggable-event-streams` branch, for `RedisEventStream`. `agents/harness_ext.py` holds the few workarounds it needs for Pydantic AI 2.53, each commented with why.
+- **Both pipeline versions run all the time,** one worker each, and the console makes one current through Temporal's Worker Deployment API (the pizza Worker Versioning demo's approach), so the rollout works live in the catalog. The v2 pipeline is the same code with `PIPELINE_VERSION=v2`. Each Worker Deployment Version always runs with one value, so a Pinned run replays against the path it started on. In a real project v2 would be the next commit.
+- **Agents never wait for tool approvals.** Every tool call is auto-approved, since nobody could approve one from GitHub; people gate the plan, the merge and the release instead.
+- **Agent-written tests** run in the worker with a clean environment and a timeout, not in an isolated sandbox. See [docs/catalog.md](docs/catalog.md).
+- **Costs are estimates** from token counts and the genai-prices database that ships with Pydantic AI, not provider bills.
+- **The GitHub token expires on 2027-10-22.** Rotation is in the RUNBOOK.
+- The story, the research and every source are in [docs/story.md](docs/story.md). Catalog decisions are in [docs/catalog.md](docs/catalog.md).
+
+[^1]: GitHub, [Octoverse 2026](https://github.blog/news-insights/octoverse/octoverse-commits-pushes-reach-new-highs-in-2026-as-developers-build-with-agents/), October 28, 2026.
+[^2]: Diego Lo Giudice, Forrester, [Agentic Software Development Takes The Lead](https://www.forrester.com/blogs/agentic-software-development-takes-the-lead-from-code-assistants-to-orchestrated-sdlc-agents/), June 8, 2026.
+[^3]: Google Cloud, [Announcing the 2025 DORA Report](https://cloud.google.com/blog/products/ai-machine-learning/announcing-the-2025-dora-report), September 23, 2025.
+[^4]: Jesse Welch, Duolingo Engineering, [Building an AI agent to remove feature flags](https://blog.duolingo.com/buildingaiagents), December 4, 2025.

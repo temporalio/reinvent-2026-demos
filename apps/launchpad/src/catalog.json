@@ -1,0 +1,65 @@
+[
+  {
+    "id": "tacos",
+    "title": "Ziggy Space Taqueria",
+    "path": "/dejavutacos/",
+    "internet": "optional",
+    "tentative": false
+  },
+  {
+    "id": "money-transfer",
+    "title": "Money Transfer",
+    "path": "/banking/",
+    "internet": "optional",
+    "tentative": false
+  },
+  {
+    "id": "data-pipeline",
+    "title": "Data Pipeline",
+    "path": "/data-pipeline/",
+    "internet": "optional",
+    "tentative": false
+  },
+  {
+    "id": "loan",
+    "title": "Loan Underwriting",
+    "path": "/loans/",
+    "internet": "required",
+    "tentative": false
+  },
+  {
+    "id": "no-roads",
+    "title": "No Roads",
+    "path": "/no-roads/",
+    "internet": "conditional",
+    "tentative": false
+  },
+  {
+    "id": "agent-harness",
+    "title": "Travel Agent / Temporal Agent Harness",
+    "path": "/travel-agent/",
+    "internet": "required",
+    "tentative": false
+  },
+  {
+    "id": "agentic-sdlc",
+    "title": "Agentic SDLC (tentative)",
+    "path": "/agentic-sdlc/",
+    "internet": "required",
+    "tentative": true
+  },
+  {
+    "id": "flight-simulator",
+    "title": "Flight Simulator",
+    "path": "/flightsim/",
+    "internet": "optional",
+    "tentative": false
+  },
+  {
+    "id": "photo-booth",
+    "title": "Photo Booth",
+    "path": "/photobooth/",
+    "internet": "conditional",
+    "tentative": false
+  }
+]
