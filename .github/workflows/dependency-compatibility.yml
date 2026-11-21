@@ -1,0 +1,193 @@
+name: Dependency compatibility
+on:
+  pull_request:
+    paths:
+      - 'deploy/reinvent-2026.yaml'
+      - 'apps/**/package*.json'
+      - 'apps/**/pyproject.toml'
+      - 'apps/**/uv.lock'
+      - 'apps/**/go.mod'
+      - 'apps/**/go.sum'
+      - 'apps/**/requirements*.txt'
+      - 'apps/**/Dockerfile'
+      - 'apps/**/*.Dockerfile'
+      - 'apps/tacos/workflows/typescript/**'
+      - 'apps/agentic-sdlc/agentic_sdlc/agents/runtime.py'
+      - 'apps/agentic-sdlc/tests/*durability*'
+      - 'scripts/*compatibility*'
+      - 'scripts/dependency-targets.py'
+      - 'scripts/ci-python.Dockerfile'
+      - 'tests/test_dependency_targets.py'
+      - '.github/workflows/dependency-compatibility.yml'
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  targets:
+    runs-on: ubuntu-latest
+    outputs:
+      npm: ${{ steps.select.outputs.npm }}
+      go: ${{ steps.select.outputs.go }}
+      python: ${{ steps.select.outputs.python }}
+      builds: ${{ steps.select.outputs.builds }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: pip install -r requirements-tooling.txt
+      - run: python -m unittest discover -s tests -p test_dependency_targets.py -v
+      - id: select
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          python - <<'PYTHON'
+          import importlib.util,json,os,pathlib,subprocess
+          root=pathlib.Path.cwd()
+          spec=importlib.util.spec_from_file_location('targets',root/'scripts/dependency-targets.py')
+          module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+          base=os.environ.get('BASE_SHA','')
+          if base and set(base)!={'0'}:
+              changed=subprocess.check_output(['git','diff','--name-only','-z',base,'HEAD','--']).decode().split('\0')
+          else:
+              changed=subprocess.check_output(['git','ls-files','-z','apps']).decode().split('\0')
+          tooling={'.github/workflows/dependency-compatibility.yml','scripts/dependency-targets.py','scripts/python-compatibility.py','scripts/ci-python.Dockerfile'}
+          if tooling.intersection(changed):
+              changed=subprocess.check_output(['git','ls-files','-z','apps']).decode().split('\0')
+          result=module.select_targets(root,changed)
+          print(json.dumps(result,indent=2))
+          with open(os.environ['GITHUB_OUTPUT'],'a') as output:
+              for key,value in result.items():output.write(key+'='+json.dumps(value)+'\n')
+          PYTHON
+  npm-projects:
+    needs: targets
+    if: needs.targets.outputs.npm != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        project: ${{ fromJSON(needs.targets.outputs.npm) }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Locked install, typecheck, build, tests, and audit
+        env:
+          CHECK_PROJECT: ${{ matrix.project }}
+        run: >-
+          docker run --rm -v "$PWD:/repo" -w "/repo/$CHECK_PROJECT" node:22-slim
+          sh -ec 'npm ci && npm run verify --if-present && npm run build --if-present && npm run check --if-present && npm run typecheck --if-present && npm run test --if-present && npm audit --audit-level=high'
+  python-projects:
+    needs: targets
+    if: needs.targets.outputs.python != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        project: ${{ fromJSON(needs.targets.outputs.python) }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -f scripts/ci-python.Dockerfile -t reinvent-python-compat scripts
+      - name: Prepare locked packages
+        env:
+          CHECK_PROJECT: ${{ matrix.project }}
+        run: docker run --rm -v "$PWD:/repo" -w "/repo/$CHECK_PROJECT" reinvent-python-compat prepare
+      - name: Check compatibility without network or provider credentials
+        env:
+          CHECK_PROJECT: ${{ matrix.project }}
+        run: docker run --rm --network none -e AWS_EC2_METADATA_DISABLED=true -v "$PWD:/repo" -w "/repo/$CHECK_PROJECT" reinvent-python-compat test
+  go-projects:
+    needs: targets
+    if: needs.targets.outputs.go != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        project: ${{ fromJSON(needs.targets.outputs.go) }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile and test changed Go modules
+        env:
+          CHECK_PROJECT: ${{ matrix.project }}
+        run: >-
+          docker run --rm -e GOWORK=off -v "$PWD:/repo" -w "/repo/$CHECK_PROJECT" golang:1.27
+          sh -ec 'go mod download && go mod verify && go test ./...'
+  affected-images:
+    needs: targets
+    if: needs.targets.outputs.builds != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        build: ${{ fromJSON(needs.targets.outputs.builds) }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the affected deployment image
+        env:
+          BUILD_NAME: ${{ matrix.build.name }}
+          BUILD_FILE: ${{ matrix.build.dockerfile }}
+          BUILD_CONTEXT: ${{ matrix.build.context }}
+        run: docker build -t "reinvent-check-$BUILD_NAME" -f "$BUILD_FILE" "$BUILD_CONTEXT"
+      - name: Verify Loan Lambda handler imports in its shipped runtime
+        if: matrix.build.name == 'loan-worker'
+        run: >-
+          docker run --rm --network none --entrypoint python
+          -e AWS_EC2_METADATA_DISABLED=true -e AWS_ACCESS_KEY_ID=synthetic -e AWS_SECRET_ACCESS_KEY=synthetic
+          -e AWS_REGION=us-east-1 reinvent-check-loan-worker
+          -c 'import lambda_function; assert callable(lambda_function.lambda_handler); print("Loan Lambda handler import passed")'
+  sdlc-durable-agent:
+    needs: targets
+    if: contains(fromJSON(needs.targets.outputs.python), 'apps/agentic-sdlc')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -f scripts/ci-python.Dockerfile -t reinvent-python-compat scripts
+      - name: Prepare locked SDLC runtime
+        run: docker run --rm -v "$PWD:/repo" -w /repo/apps/agentic-sdlc reinvent-python-compat prepare
+      - name: Start isolated Temporal OSS
+        run: |
+          docker run -d --name durability-temporal -p 127.0.0.1:7233:7233 temporalio/temporal:1.8.3 server start-dev --ip 0.0.0.0
+          for attempt in $(seq 1 60); do
+            if docker exec durability-temporal temporal operator cluster health --address localhost:7233; then exit 0; fi
+            sleep 1
+          done
+          exit 1
+      - name: Execute a real durable agent using TestModel only
+        run: >-
+          docker run --rm --network host -e TEMPORAL_TEST_ADDRESS=127.0.0.1:7233
+          -v "$PWD:/repo" -w /repo/apps/agentic-sdlc
+          --entrypoint /repo/apps/agentic-sdlc/.venv/bin/python reinvent-python-compat
+          tests/check_temporal_durability_execution.py
+      - name: Preserve Temporal diagnostics on failure
+        if: failure()
+        run: docker logs durability-temporal
+  tacos-typescript:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start isolated Temporal OSS
+        run: |
+          docker run -d --name compatibility-temporal -p 127.0.0.1:7233:7233 temporalio/temporal:1.8.3 server start-dev --ip 0.0.0.0
+          for attempt in $(seq 1 60); do
+            if docker exec compatibility-temporal temporal operator cluster health --address localhost:7233; then exit 0; fi
+            sleep 1
+          done
+          exit 1
+      - name: Install locked dependencies and exercise real workflows
+        run: >-
+          docker run --rm --network host -v "$PWD/apps/tacos/workflows/typescript:/app" -w /app node:22-slim
+          sh -ec 'npm ci && npm run test:compatibility && npm audit --audit-level=high'
+      - name: Preserve Temporal diagnostics on failure
+        if: failure()
+        run: docker logs compatibility-temporal

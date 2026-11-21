@@ -1,7 +1,7 @@
 """The durable Pydantic AI agents, one per role, built once when the worker imports this module.
 
-Pydantic AI's Temporal integration needs each ``TemporalAgent`` built at import time so its
-Activities (model requests) can be registered on the worker with ``AgentPlugin``. Every
+Pydantic AI's Temporal integration needs each agent's ``TemporalDurability`` capability
+built at import time so its Activities can be registered with ``AgentPlugin``. Every
 agent registers every model this worker has a key for; each run picks its model by key.
 Worker-only: building the registry constructs provider clients, which read API keys.
 """
@@ -12,7 +12,7 @@ from datetime import timedelta
 
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent
-from pydantic_ai.durable_exec.temporal import TemporalAgent
+from pydantic_ai.durable_exec.temporal import TemporalDurability
 from temporalio.common import RetryPolicy
 from temporalio.workflow import ActivityConfig
 
@@ -98,21 +98,25 @@ parties. Approve when there is nothing material; otherwise request changes with 
 actionable comments."""
 
 
-def _agent(name: str, *, instructions: str, output_type, tools) -> TemporalAgent:
+def _agent(name: str, *, instructions: str, output_type, tools) -> Agent:
     toolset, tool_config = harness_ext.workspace_toolset(tools, id=f"{name}-tools")
-    return TemporalAgent(
-        Agent(
-            MODELS[next(iter(MODELS))],
-            instructions=instructions,
-            output_type=output_type,
-            deps_type=harness_ext.DemoDeps,
-            toolsets=[toolset],
-        ),
+    # Harness tools do approval/dispatch in Workflow code; their bodies already run
+    # as harness Activities. Preserve the old per-tool opt-outs in the capability API.
+    for tool_name, config in tool_config[toolset.id].items():
+        tool = toolset.tools[tool_name]
+        tool.metadata = {**(tool.metadata or {}), "temporal": config}
+    return Agent(
+        MODELS[next(iter(MODELS))],
         name=name,
-        models=MODELS,
-        event_stream_handler=harness_ext.event_stream_handler,
-        model_activity_config=MODEL_ACTIVITY,
-        tool_activity_config=tool_config,
+        instructions=instructions,
+        output_type=output_type,
+        deps_type=harness_ext.DemoDeps,
+        toolsets=[toolset],
+        capabilities=[TemporalDurability(
+            models=MODELS,
+            event_stream_handler=harness_ext.event_stream_handler,
+            model_activity_config=MODEL_ACTIVITY,
+        )],
     )
 
 

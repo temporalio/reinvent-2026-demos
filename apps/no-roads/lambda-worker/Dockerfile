@@ -10,7 +10,7 @@
 #
 # Build context is the repo root: lambda-worker/go.mod references the shared
 # module via `replace => ../shared`, so both directories must be copied in.
-FROM --platform=linux/amd64 golang:1.24-alpine AS builder
+FROM --platform=linux/amd64 golang:1.27-alpine AS builder
 
 WORKDIR /build
 

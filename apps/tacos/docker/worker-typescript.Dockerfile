@@ -2,7 +2,7 @@ FROM node:22-slim AS build
 
 WORKDIR /app
 COPY workflows/typescript/package.json workflows/typescript/package-lock.json* ./
-RUN npm install
+RUN npm ci
 COPY workflows/typescript/ .
 RUN npm run build
 

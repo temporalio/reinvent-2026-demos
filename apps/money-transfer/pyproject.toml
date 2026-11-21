@@ -12,4 +12,5 @@ dev = [
     "pytest",
     "pytest-asyncio",
     "httpx>=0.28.1",
+    "httpx2>=2.16.2",
 ]

@@ -1,0 +1,21 @@
+{
+  "name": "reinvent-loan-browser-vendor",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
+  },
+  "scripts": {
+    "build": "node vendor.mjs",
+    "verify": "node vendor.mjs --check",
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "dompurify": "3.4.18",
+    "marked": "18.2.1"
+  },
+  "devDependencies": {
+    "jsdom": "31.0.1"
+  }
+}
