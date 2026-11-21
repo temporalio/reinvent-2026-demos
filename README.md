@@ -4,7 +4,7 @@ This repo is specifically for AWS re:Invent 2026. One monorepo for the portrait 
 
 App source is under apps/. The single Fieldkit definition is [deploy/reinvent-2026.yaml](deploy/reinvent-2026.yaml). The launchpad and demos share one core host, using /flightsim/, /photobooth/, /dejavutacos/, and the other routes in the launchpad catalog.
 
-The launchpad uses Ash's Cosmic Pop theme and 25 customer logos. Its top marquee moves right to left; the bottom moves left to right. The source archive at 2026-old is unchanged. Dependencies, credentials, attendee data, and nested Git histories were not imported.
+The launchpad uses Ash's Cosmic Pop theme and 25 customer logos, verified against [toolkit PR #5](https://github.com/iandouglas/temporal-toolkit-demo-buildkit/pull/5). Asset hashes and the source commit are recorded in [DESIGN-ASSETS.json](docs/DESIGN-ASSETS.json). Its top marquee moves right to left; the bottom moves left to right. The source archive at 2026-old is unchanged. Dependencies, credentials, attendee data, and nested Git histories were not imported.
 
 This is an initial migration, not a deployed booth release. See [deployment blockers](docs/DEPLOYMENT.md), the [four-station isolation plan](docs/STATION-ISOLATION.md), [migration plan](docs/PLAN.md), and [source inventory](docs/SOURCE-INVENTORY.json). The original per-app runbooks describe their prior standalone layouts/ports; use the root deployment notes for the monorepo.
 
