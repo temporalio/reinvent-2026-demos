@@ -2,14 +2,14 @@
 
 Initial migration checks, November 21, 2026. This is a reviewable source migration, not a deployed booth release.
 
-## Passed locally
+## Initial checks (superseded by the later checks below)
 
 - Repository structure and credential-pattern scan: nine demos, 17 builds, one YAML document containing one DemoProject. Pattern scanning is not exhaustive secret detection.
 - Three Python unit tests covering the manifest, same-origin demo catalog, local logo assets, and opposite marquee directions.
 - Docker builds for launchpad, gateway, Tacos frontend, and Photo Booth.
 - Gateway routing fixture covering all nine demo prefixes, forwarded prefixes, and query preservation. This did not exercise the nine real demo backends.
 
-## Blocked or unverified
+## Initial limitations (see later verification below)
 
 The real Fieldkit validator at commit 69e7fa0f4faa3a08e25cb8462269ef215efe4544 rejects the combined AWS/Lambda requirements:
 
@@ -19,7 +19,7 @@ spec.aws: is not supported for projects with aws-lambda components (component "l
 
 Remaining builds, actual Cloud workflows, Lambda invocation, provider integration, station routing/filtering, Temporal UI embedding, durable Photo Booth media, browser interaction, and physical TV/multitouch behavior are not verified by these checks. No infrastructure was applied. See DEPLOYMENT.md for release gates.
 
-## Local preview and shared portrait stage
+## First local preview and shared portrait stage
 
 Verified November 21, 2026 on the local Compose runner:
 
@@ -45,3 +45,7 @@ Verified November 21, 2026:
 - Loan's actual Bedrock factories and four agent constructors were tested with networking disabled. Model IDs are resolved by the worker plugin from BEDROCK_MODEL_ID, with optional isolated per-agent overrides. No inference was invoked. Native and Lambda workers share that configuration; the Lambda image now exports dependencies from the same lockfile.
 
 The single hosted YAML still fails the Fieldkit AWS/Lambda validator. Loan's worker is now explicitly selected for its declared Bedrock resource, but the platform must support that role/env combination before hosted validation can pass. Catalog onboarding has not started. Dependency updates and broader compatibility CI are reviewed in a separate PR.
+
+The combined portrait/dependency candidate was also built and exercised locally: all nine routes passed, the three provider-limited mutation guards returned 503, and all six synthetic Workflows completed. This includes the updated FastAPI/Starlette/AnyIO stack, native Go gRPC worker, and Pillow 13 image generation. The candidate is assembled from two independent review branches; this is not a claim that main or the hosted catalog already contains them.
+
+The platform was rechecked at main b3347fe on November 21. Its AWS/Lambda validation remains unchanged from the pinned commit. No hosted provisioning was attempted.

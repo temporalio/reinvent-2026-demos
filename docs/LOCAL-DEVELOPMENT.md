@@ -48,3 +48,7 @@ All nine demo entries use the portrait presentation path. Tacos retains its nati
 The shared frame and embedded apps load Ash's Cosmic Pop theme. Full native navigation preserves booth styling. The architecture tab is a labeled deployment overview, not live telemetry. The code tab displays actual repository excerpts in their native language; translated SDK examples remain future work. Local Temporal UI uses the local route; hosted publication remains a deployment gate. Parent navigation accepts only same-origin messages from the active application iframe.
 
 The local Ziggy controls are display preview controls, not the PIN-protected fleet control panel. Fleet configuration, touch keyboard, and panel-specific pinch gestures still need implementation and physical-screen testing.
+
+## Repeat the local smoke checks
+
+`python3 scripts/local/smoke.py` checks the selected local routes. Add `--execute-synthetic` to create synthetic orders, transfers, pipeline jobs, a flight, a mock photo strip, and a No Roads job, and confirm all six Workflows complete. It also checks provider-unavailable guards and real strip/GIF output. It refuses non-loopback URLs and hosted runtime modes. Use only synthetic data; this command writes local demo records and uses the local email outbox.

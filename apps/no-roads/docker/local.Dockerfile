@@ -1,5 +1,5 @@
 # Native local worker for UI/workflow rehearsal. This does not emulate Lambda.
-FROM golang:1.24-alpine AS builder
+FROM golang:1.27-alpine AS builder
 WORKDIR /build
 COPY shared/ ../shared/
 COPY demo-app/ ./
