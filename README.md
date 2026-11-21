@@ -8,6 +8,10 @@ The launchpad uses Ash's Cosmic Pop theme and 25 customer logos, verified agains
 
 This is an initial migration, not a deployed booth release. See [deployment blockers](docs/DEPLOYMENT.md), the [four-station isolation plan](docs/STATION-ISOLATION.md), [migration plan](docs/PLAN.md), and [source inventory](docs/SOURCE-INVENTORY.json). The original per-app runbooks describe their prior standalone layouts/ports; use the root deployment notes for the monorepo.
 
+## Run locally
+
+With Docker Desktop running, use `./scripts/local.sh up`, then open http://localhost:15101. This starts the launchpad, five supported local demos, Temporal OSS, and Moto. Photo Booth uses mock images and a local email outbox. See [local development](docs/LOCAL-DEVELOPMENT.md) for supported apps and limits.
+
 ## Local checks
 
 ```bash

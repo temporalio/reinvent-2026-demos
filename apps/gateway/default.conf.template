@@ -15,6 +15,9 @@ server {
     proxy_set_header Host $http_host;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_redirect ~^(/.*)$ /flightsim$1;
+    proxy_set_header Accept-Encoding "";
+    sub_filter_once on;
+    sub_filter '</head>' '<script src="/booth/embed.js"></script></head>';
     proxy_pass http://$target;
   }
   location = /photobooth { return 308 /photobooth/$is_args$args; }
@@ -25,6 +28,9 @@ server {
     proxy_set_header Host $http_host;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_redirect ~^(/.*)$ /photobooth$1;
+    proxy_set_header Accept-Encoding "";
+    sub_filter_once on;
+    sub_filter '</head>' '<script src="/booth/embed.js"></script></head>';
     proxy_pass http://$target;
   }
   location = /dejavutacos { return 308 /dejavutacos/$is_args$args; }
@@ -35,6 +41,9 @@ server {
     proxy_set_header Host $http_host;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_redirect ~^(/.*)$ /dejavutacos$1;
+    proxy_set_header Accept-Encoding "";
+    sub_filter_once on;
+    sub_filter '</head>' '<script src="/booth/embed.js"></script></head>';
     proxy_pass http://$target;
   }
   location = /banking { return 308 /banking/$is_args$args; }
@@ -45,6 +54,9 @@ server {
     proxy_set_header Host $http_host;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_redirect ~^(/.*)$ /banking$1;
+    proxy_set_header Accept-Encoding "";
+    sub_filter_once on;
+    sub_filter '</head>' '<script src="/booth/embed.js"></script></head>';
     proxy_pass http://$target;
   }
   location = /data-pipeline { return 308 /data-pipeline/$is_args$args; }
@@ -55,6 +67,9 @@ server {
     proxy_set_header Host $http_host;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_redirect ~^(/.*)$ /data-pipeline$1;
+    proxy_set_header Accept-Encoding "";
+    sub_filter_once on;
+    sub_filter '</head>' '<script src="/booth/embed.js"></script></head>';
     proxy_pass http://$target;
   }
   location = /loans { return 308 /loans/$is_args$args; }
@@ -65,6 +80,9 @@ server {
     proxy_set_header Host $http_host;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_redirect ~^(/.*)$ /loans$1;
+    proxy_set_header Accept-Encoding "";
+    sub_filter_once on;
+    sub_filter '</head>' '<script src="/booth/embed.js"></script></head>';
     proxy_pass http://$target;
   }
   location = /no-roads { return 308 /no-roads/$is_args$args; }
@@ -75,6 +93,9 @@ server {
     proxy_set_header Host $http_host;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_redirect ~^(/.*)$ /no-roads$1;
+    proxy_set_header Accept-Encoding "";
+    sub_filter_once on;
+    sub_filter '</head>' '<script src="/booth/embed.js"></script></head>';
     proxy_pass http://$target;
   }
   location = /travel-agent { return 308 /travel-agent/$is_args$args; }
@@ -85,6 +106,9 @@ server {
     proxy_set_header Host $http_host;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_redirect ~^(/.*)$ /travel-agent$1;
+    proxy_set_header Accept-Encoding "";
+    sub_filter_once on;
+    sub_filter '</head>' '<script src="/booth/embed.js"></script></head>';
     proxy_pass http://$target;
   }
   location = /agentic-sdlc { return 308 /agentic-sdlc/$is_args$args; }
@@ -95,6 +119,9 @@ server {
     proxy_set_header Host $http_host;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_redirect ~^(/.*)$ /agentic-sdlc$1;
+    proxy_set_header Accept-Encoding "";
+    sub_filter_once on;
+    sub_filter '</head>' '<script src="/booth/embed.js"></script></head>';
     proxy_pass http://$target;
   }
   location / {

@@ -3,7 +3,7 @@ FROM python:3.13-slim AS base
 WORKDIR /app
 
 # Install uv
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.12.19 /uv /usr/local/bin/uv
 
 # Copy workspace root + backend + workflow packages
 COPY pyproject.toml uv.lock ./
@@ -19,11 +19,11 @@ RUN uv sync --frozen --all-packages \
 FROM base
 
 # Install dependencies
-RUN uv sync --frozen --no-dev
+RUN uv sync --frozen --no-dev --all-packages
 
 # No hot reload in Docker
 ENV BANKING_RELOAD=0
 
 EXPOSE 8000
 
-CMD ["uv", "run", "--package", "banking-demo-backend", "server"]
+CMD ["uv", "run", "--no-sync", "--package", "banking-demo-backend", "server"]

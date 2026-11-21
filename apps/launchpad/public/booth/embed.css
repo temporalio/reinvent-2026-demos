@@ -1,0 +1,31 @@
+@import url('/assets/css/temporal-theme.css');
+@import url('/assets/css/cosmic-pop-theme.css');
+html[data-booth=true] {
+  color-scheme:dark;
+  --space-black:var(--surface-page); --off-white:var(--text-primary);
+  --bg:var(--surface-page); --bg-card:var(--surface-overlay); --bg-input:var(--surface-overlay);
+  --surface:var(--surface-overlay); --surface2:var(--surface-hero); --text:var(--text-primary);
+  --border:var(--border-default); --accent:var(--brand-highlight);
+  --green:var(--status-completed); --red:var(--status-failed); --blue:var(--brand-primary);
+}
+html[data-booth=true] body { background:var(--surface-page); color:var(--text-primary); font-family:var(--font-sans); }
+html[data-booth=true] :is(h1,h2,h3,.panel-title,.heading) { font-family:var(--font-mono); }
+html[data-booth=true] :is(button,input,select,textarea) { font-family:inherit; }
+html[data-booth=true] :is(button,select,input:not([type=checkbox]):not([type=radio])) { min-height:44px; }
+html[data-booth=true] :is(button,a):focus-visible { outline:3px solid var(--brand-highlight); outline-offset:3px; }
+/* Banking's native customer and backstage panes remain in one React session.
+   The shared lower panel supplies the code view, so remove only that duplicate. */
+html[data-booth=true][data-demo=banking] .pane[aria-label="Workflow code"] { display:none; }
+html[data-booth=true][data-demo=banking] .pane-layout { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; overflow:auto; }
+html[data-booth=true][data-demo=banking] .pane-layout > :is(.pane-handle,.pane-rail) { display:none; }
+html[data-booth=true][data-demo=banking] .pane { min-width:0 !important; width:100%; overflow:auto; }
+html[data-booth=true][data-demo=banking] .app-header { flex-wrap:wrap; }
+html[data-booth=true][data-demo=banking] .pane-collapse { display:none; }
+html[data-booth=true][data-demo=loans] .two-col { grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
+@media(prefers-reduced-motion:reduce) { html[data-booth=true] *,html[data-booth=true] *::before,html[data-booth=true] *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; } }
+/* The launchpad owns the outer title and navigation in embedded Tacos. */
+html[data-booth=true][data-demo=dejavutacos] .mission-header :is(.mission-brand,.eyebrow,h1,.mission-rule),
+html[data-booth=true][data-demo=dejavutacos] .mission-footer { display:none; }
+html[data-booth=true][data-demo=dejavutacos] .taqueria-shell { padding:1rem; grid-template-rows:auto minmax(0,1fr); }
+html[data-booth=true][data-demo=dejavutacos] .taqueria-shell:has(> .mission-notices) { grid-template-rows:auto auto minmax(0,1fr); }
+html[data-booth=true][data-demo=dejavutacos] .mission-options { margin-top:0; }
