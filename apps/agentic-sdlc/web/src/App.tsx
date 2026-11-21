@@ -12,6 +12,8 @@ const RUN_KIND: Record<string, string> = { issue: "Issue", dependency: "Bump", r
 
 export function App() {
   const [config, setConfig] = useState<Config | null>(null);
+  const [preview, setPreview] = useState<boolean | null>(null);
+  const [previewNotice, setPreviewNotice] = useState<string | null>(null);
   const { data: session, refresh } = usePoll<Overview>("/agentic-sdlc/api/overview", 3000);
   const [act, setAct] = useState<ActKey>("live");
   const [runId, setRunId] = useState<string | null>(() => {
@@ -31,6 +33,11 @@ export function App() {
   const hadSlot = useRef(false);
   const resetting = useRef(false);
 
+  useEffect(() => {
+    api<{preview:boolean;notice:string|null}>("/agentic-sdlc/api/local-preview")
+      .then(status => {setPreview(status.preview);setPreviewNotice(status.notice)})
+      .catch(() => setPreviewNotice("Demo capabilities could not be loaded. Starting scenarios is disabled."));
+  }, []);
   useEffect(() => { api<Config>("/agentic-sdlc/api/config").then(setConfig).catch((e) => setToast(e.message)); }, []);
   useEffect(() => {
     if (!runId && session?.runs.length) {
@@ -69,11 +76,11 @@ export function App() {
       if (["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName) || target.isContentEditable || e.metaKey || e.ctrlKey) return;
       const n = Number(e.key);
       if (n >= 1 && n <= ACTS.length) setAct(ACTS[n - 1].key);
-      if (e.key === "n") setDialog(true);
+      if (e.key === "n" && preview === false) setDialog(true);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [preview]);
 
   const fail = (message: string) => setToast(message);
   const control = (path: string, body?: unknown) =>
@@ -111,8 +118,9 @@ export function App() {
       </header>
 
       <div className="body no-rail">
-        <main className="stage">
-          {act === "result" && <ResultAct session={session} config={config} onOpenRun={(id) => { setRunId(id); setAct("live"); }} onStart={() => setDialog(true)} />}
+        <main className="stage" aria-label="Scenario results and live execution">
+          {previewNotice && <aside className="card booth-native-notice" role="status">{previewNotice}</aside>}
+          {act === "result" && <ResultAct session={session} config={config} onOpenRun={(id) => { setRunId(id); setAct("live"); }} canStart={preview === false} onStart={() => setDialog(true)} />}
           {act === "why" && <WhyAct />}
           {act === "hard" && <HardAct />}
           {act === "change" && <ChangeAct session={session} config={config} onError={fail} />}
@@ -123,15 +131,16 @@ export function App() {
               <p className="lede">
                 Agents answer on <span className="mono">{config.repo}</span>, and every step they take shows up here.
               </p>
-              <button className="button primary ultraviolet" onClick={() => setDialog(true)}>Start a scenario</button>
+              <button className="button primary ultraviolet" disabled={preview !== false} onClick={() => setDialog(true)}>Start a scenario</button>
             </div>
           ))}
         </main>
       </div>
 
-      <footer className="presenter-bar">
+      <aside className="presenter-bar" aria-label="Scenario and failure controls">
+        <fieldset className="presenter-controls-group" disabled={preview !== false}>
         <div className="bar-group">
-          <button className="button small primary ultraviolet" onClick={() => setDialog(true)} title="Shortcut: N">Start a scenario</button>
+          <button className="button small primary ultraviolet" disabled={preview !== false} onClick={() => setDialog(true)} title="Shortcut: N">Start a scenario</button>
           <select className="run-picker" value={runId ?? ""} onChange={(e) => { setRunId(e.target.value || null); setAct("live"); }} aria-label="Run">
             {session.runs.length === 0 && <option value="">No runs yet</option>}
             {session.runs.map((r) => <option key={r.run_id} value={r.run_id}>{RUN_KIND[r.kind]} · {r.title.slice(0, 44)} · {r.status.replace("_", " ")} · {r.version}</option>)}
@@ -141,14 +150,15 @@ export function App() {
         </div>
         <BreakThings session={session} config={config} view={view} live={live} refresh={refresh} notify={fail} />
         <div className="bar-group">
-          <button className="button small secondary ultraviolet" disabled={!session.slot} onClick={() => {
+          <button className="button small secondary ultraviolet" disabled={preview !== false || !session.slot} onClick={() => {
             if (confirm("Stop this session's runs and close its issues and PRs?")) {
               resetting.current = true;
               control("/agentic-sdlc/api/reset").then(() => { setIdleAfterReset(true); setRunId(null); });
             }
           }}>Reset</button>
         </div>
-      </footer>
+        </fieldset>
+      </aside>
 
       {dialog && <ScenarioDialog config={config} onClose={() => setDialog(false)} onStarted={(started) => {
         setDialog(false);

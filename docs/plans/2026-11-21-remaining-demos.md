@@ -7,3 +7,5 @@
 5. Integrate, run local workflows and browser checks, record exact limits, and push reviewable changes. Configure recurring dependency checks if the automation tools support the requested watch.
 
 No real AWS provisioning, provider calls, emails, GitHub sandbox mutations, or credential disclosure is required to validate the default local presentation. Provider-enabled modes need explicit configuration and must be reported separately from offline/mock previews.
+
+Local adapter and presentation implementation is complete: all nine routes run, seven native views use paired upper areas, and six demos execute local Temporal workflows. Loan/Travel/SDLC explicitly guard provider-dependent actions. Catalog constraints and intake prerequisites are in CATALOG-READINESS.md. Dependency compatibility is isolated on codex/dependency-compatibility; combined-version runtime validation and final review remain in progress.

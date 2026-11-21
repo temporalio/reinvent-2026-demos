@@ -1,7 +1,7 @@
 import os
 # lambda_function.py
 from temporalio.contrib.aws.lambda_worker import LambdaWorkerConfig, run_worker
-from temporalio.contrib.strands import StrandsPlugin
+from model_config import build_strands_plugin
 from temporalio.worker import WorkerDeploymentVersion
  
 from workflow import LoanUnderwritingWorkflow
@@ -38,7 +38,7 @@ def configure(config: LambdaWorkerConfig) -> None:
     # CRITICAL: attach the Strands plugin so the agent's invoke_model
     # activity is registered. Without this, the workflow fails with
     # "Activity function invoke_model ... is not registered on this worker".
-    config.client_connect_config["plugins"] = [StrandsPlugin()]
+    config.client_connect_config["plugins"] = [build_strands_plugin()]
  
  
 lambda_handler = run_worker(

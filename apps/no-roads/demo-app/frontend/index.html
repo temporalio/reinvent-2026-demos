@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Serverless Workers — Live Demo</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.47.0/tabler-icons.min.css" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -177,6 +176,34 @@
     <p class="header-sub">Submit your name to start a workflow. Watch Temporal scale Lambda workers in real time. 👇</p>
   </div>
 
+  <div class="no-roads-booth-grid">
+    <section class="no-roads-interaction" aria-label="Submit jobs and watch activity">
+    <h2 class="booth-panel-title">01 / Job station</h2>
+  <!-- Submit card -->
+  <div class="card">
+    <p class="card-label">Submit a workflow</p>
+    <div class="submit-row">
+      <input type="text" id="name-input" placeholder="Your name or handle" maxlength="64" autocomplete="off" />
+      <button class="btn" id="submit-btn" onclick="submitWorkflow()">
+        <i class="ti ti-player-play"></i> Start workflow
+      </button>
+    </div>
+    <p class="submit-msg" id="submit-msg"></p>
+  </div>
+
+  <!-- Activity feed -->
+  <div class="card">
+    <p class="card-label">Activity feed</p>
+    <div id="activity-feed">
+      <div class="feed-empty">
+        <i class="ti ti-radar-2"></i>
+        Waiting for submissions...
+      </div>
+    </div>
+  </div>
+    </section>
+    <section class="no-roads-controls" aria-label="Load controls and worker metrics">
+    <h2 class="booth-panel-title">02 / Mission control</h2>
   <!-- Presenter panel -->
   <div id="presenter-panel">
     <div class="presenter-header">
@@ -195,18 +222,6 @@
       </button>
     </div>
     <p class="seed-msg" id="seed-msg"></p>
-  </div>
-
-  <!-- Submit card -->
-  <div class="card">
-    <p class="card-label">Submit a workflow</p>
-    <div class="submit-row">
-      <input type="text" id="name-input" placeholder="Your name or handle" maxlength="64" autocomplete="off" />
-      <button class="btn" id="submit-btn" onclick="submitWorkflow()">
-        <i class="ti ti-player-play"></i> Start workflow
-      </button>
-    </div>
-    <p class="submit-msg" id="submit-msg"></p>
   </div>
 
   <!-- Stat cards: row 1 — workflow + Lambda counts -->
@@ -277,15 +292,7 @@
 
   <div style="margin-bottom: 1rem;"></div>
 
-  <!-- Activity feed -->
-  <div class="card">
-    <p class="card-label">Activity feed</p>
-    <div id="activity-feed">
-      <div class="feed-empty">
-        <i class="ti ti-radar-2"></i>
-        Waiting for submissions...
-      </div>
-    </div>
+    </section>
   </div>
 
 </div>
@@ -355,7 +362,8 @@
 
   // ── Presenter mode ───────────────────────────────────────────────────────
   function isPresenterMode() {
-    return new URLSearchParams(window.location.search).get('presenter') === '1';
+    const query = new URLSearchParams(window.location.search);
+    return query.get('presenter') === '1' || query.get('booth') === '1';
   }
   function setPresenterMode(on) {
     document.getElementById('presenter-panel').classList.toggle('visible', on);

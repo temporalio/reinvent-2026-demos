@@ -4,7 +4,7 @@ import catalog from './catalog.json'
 import logos from './customerLogos.json'
 import './index.css'
 
-const initialDemo = catalog.find(d=>d.id===new URLSearchParams(window.location.search).get('demo') && !d.tentative) || null
+const initialDemo = catalog.find(d=>d.id===new URLSearchParams(window.location.search).get('demo')) || null
 
 type Persona = 'Captain' | 'Mech' | 'Envoy' | 'Solarian'
 export default function App() {
@@ -12,7 +12,7 @@ export default function App() {
   const [persona, setPersona] = useState<Persona>('Captain')
   const [filter, setFilter] = useState<'all' | 'aws-ai' | 'holodeck'>('all')
   const [selected, setSelected] = useState<(typeof catalog)[number] | null>(initialDemo)
-  const [runtime,setRuntime] = useState<{mode:string;availableDemos?:string[];temporalUi:string|null;notice?:string}>({mode:'hosted',temporalUi:null})
+  const [runtime,setRuntime] = useState<{mode:string;availableDemos?:string[];temporalUi:string|null;notice?:string;demoNotices?:Record<string,string>}>({mode:'hosted',temporalUi:null})
   const [runtimeLoaded,setRuntimeLoaded] = useState(false)
   useEffect(()=>{
     const controller=new AbortController()
@@ -22,6 +22,15 @@ export default function App() {
       setRuntime(config); setRuntimeLoaded(true)
     }).catch(error=>{if(error.name!=='AbortError'){setRuntime({mode:'hosted',availableDemos:[],temporalUi:null,notice:'Station settings could not be loaded. Reload before launching a demo.'});setRuntimeLoaded(true)}})
     return ()=>controller.abort()
+  },[])
+  useEffect(()=>{
+    function navigateFromDemo(event:MessageEvent) {
+      const frame=document.querySelector<HTMLIFrameElement>('.native-stage, .app-viewport iframe')
+      if(event.origin!==window.location.origin || event.source!==frame?.contentWindow || event.data?.type!=='booth:navigate')return
+      if(event.data.screen==='missions' || event.data.screen==='crew')setScreen(event.data.screen)
+    }
+    window.addEventListener('message',navigateFromDemo)
+    return ()=>window.removeEventListener('message',navigateFromDemo)
   },[])
   const [compact, setCompact] = useState(false)
   const [lower, setLower] = useState(false)
@@ -38,8 +47,8 @@ export default function App() {
     {runtime.notice && <aside className="local-notice">{runtime.notice}</aside>}
     <main className={`${compact ? 'compact' : ''} ${lower ? 'lower' : ''}`}>
       {screen === 'crew' && <><p className="eyebrow">SECTOR 01 / CHOOSE YOUR CREW</p><h1>CREW</h1><div className="crew">{(['Captain','Mech','Envoy','Solarian'] as Persona[]).map((name,i) => <button data-persona={name.toLowerCase()} key={name} onClick={() => {setPersona(name);setFilter('all');setScreen('missions')}}><span>0{i+1}</span><strong>{name}</strong><p>{['Business outcomes and durable customer experiences','Workflow code and application architecture','Operations, reliability, and recovery','Creative, content, and growth workflows'][i]}</p></button>)}<button onClick={() => {setFilter('aws-ai');setScreen('missions')}}><strong>Space Wizard</strong><p>AWS and AI missions</p></button><button onClick={() => {setFilter('holodeck');setScreen('missions')}}><strong>Holodeck</strong><p>Flight simulator and AI Photo Booth</p></button></div></>}
-      {screen === 'missions' && <><p className="eyebrow">SECTOR 02 / {filter === 'all' ? persona : filter === 'holodeck' ? 'HOLODECK' : 'SPACE WIZARD'}</p><h1>MISSION</h1><div className="missions">{missions.map(d => <article key={d.id}><h2>{d.title}</h2><p>{d.internet === 'required' ? 'Internet required' : d.internet === 'conditional' ? 'Some features require internet' : 'Cloud deployment requires internet'}</p>{d.tentative && <p className="pending">Requires booth GitHub setup</p>}{runtime.availableDemos && !runtime.availableDemos.includes(d.id) && <p className="pending">Not running in this local preview</p>}<button disabled={!runtimeLoaded || d.tentative || (runtime.availableDemos !== undefined && !runtime.availableDemos.includes(d.id))} onClick={() => {setSelected(d);setScreen('demo')}}>Launch ↗</button></article>)}</div></>}
-      {screen === 'demo' && selected && <><p className="eyebrow">SECTOR 03 / {persona}</p><h1 className="demo-title">{selected.title}</h1>{!runtimeLoaded ? <p role="status">Loading station settings…</p> : runtime.availableDemos && !runtime.availableDemos.includes(selected.id) ? <p role="status">This demo is not running in the local preview. Choose another mission.</p> : <DemoStage key={`${selected.id}-${persona}`} demo={selected} persona={persona} temporalUi={runtime.temporalUi} />}</>}
+      {screen === 'missions' && <><p className="eyebrow">SECTOR 02 / {filter === 'all' ? persona : filter === 'holodeck' ? 'HOLODECK' : 'SPACE WIZARD'}</p><h1>MISSION</h1><div className="missions">{missions.map(d => <article key={d.id}><h2>{d.title}</h2><p>{d.internet === 'required' ? 'Internet required' : d.internet === 'conditional' ? 'Some features require internet' : 'Cloud deployment requires internet'}</p>{runtime.demoNotices?.[d.id] && <p className="pending">{runtime.demoNotices[d.id]}</p>}{d.tentative && runtime.mode!=='local' && <p className="pending">Requires booth GitHub setup</p>}{runtime.availableDemos && !runtime.availableDemos.includes(d.id) && <p className="pending">Not running in this local preview</p>}<button disabled={!runtimeLoaded || (d.tentative && runtime.mode!=='local') || (runtime.availableDemos !== undefined && !runtime.availableDemos.includes(d.id))} onClick={() => {setSelected(d);setScreen('demo')}}>Launch ↗</button></article>)}</div></>}
+      {screen === 'demo' && selected && <><p className="eyebrow">SECTOR 03 / {persona}</p><h1 className="demo-title">{selected.title}</h1>{!runtimeLoaded ? <p role="status">Loading station settings…</p> : (selected.tentative && runtime.mode!=='local') || (runtime.availableDemos && !runtime.availableDemos.includes(selected.id)) ? <p role="status">This demo is not running in the local preview. Choose another mission.</p> : <>{runtime.demoNotices?.[selected.id] && <p className="preview-notice" role="status">{runtime.demoNotices[selected.id]}</p>}<DemoStage key={`${selected.id}-${persona}`} demo={selected} persona={persona} temporalUi={runtime.temporalUi} /></>}</>}
     </main>
     <footer><button onClick={() => setScreen('crew')}>Crew</button><button onClick={() => setScreen('missions')}>Missions</button><details><summary><img src="/assets/brand/ziggy-face.png" alt="Station display settings" /></summary><div><p>Display preview controls</p><button aria-pressed={compact} onClick={() => setCompact(!compact)}>Smaller demo area</button><button aria-pressed={lower} onClick={() => setLower(!lower)}>Lower demo area</button><p>PIN protection and fleet configuration are not connected yet.</p></div></details></footer>
   </div>

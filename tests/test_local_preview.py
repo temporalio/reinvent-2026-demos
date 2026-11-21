@@ -17,8 +17,8 @@ class LocalPreviewTests(unittest.TestCase):
                 self.assertEqual(env['TEMPORAL_ADDRESS'], 'temporal:7233')
                 self.assertEqual(env['TEMPORAL_API_KEY'], '')
                 self.assertEqual(env['TEMPORAL_TLS'], 'false')
-                self.assertNotIn('OPENAI_API_KEY', env)
-                self.assertNotIn('SENDGRID_API_KEY', env)
+                self.assertFalse(env.get('OPENAI_API_KEY'))
+                self.assertFalse(env.get('SENDGRID_API_KEY'))
         photo = config['services']['photobooth-web']['environment']
         self.assertEqual(photo['HOLODECK_IMAGE_PROVIDER'], 'mock')
         self.assertEqual(photo['HOLODECK_EMAIL_PROVIDER'], 'outbox')
@@ -30,10 +30,18 @@ class LocalPreviewTests(unittest.TestCase):
                 self.assertTrue(port.startswith('127.0.0.1:'))
         self.assertIn('temporal-data', config['volumes'])
 
-    def test_unsupported_provider_apps_fail_explicitly(self):
-        for app in ['loan','no-roads','agent-harness','agentic-sdlc']:
-            with self.assertRaisesRegex(ValueError, 'No verified local adapter'):
-                local.render([app])
+    def test_all_nine_have_explicit_local_modes_and_unknown_apps_fail(self):
+        services=local.render(list(local.GROUPS))['services']
+        self.assertEqual(len(local.GROUPS),9)
+        self.assertIn('no-roads-local-worker',services)
+        self.assertIn('loan-web',services)
+        self.assertIn('travel-web',services)
+        self.assertIn('sdlc-web',services)
+        for name in ['loan-worker','travel-worker','sdlc-worker-v1','sdlc-worker-v2']:
+            self.assertNotIn(name,services)
+        self.assertEqual(services['loan-web']['environment']['LOAN_PROVIDER_MODE'],'unavailable')
+        with self.assertRaisesRegex(ValueError,'No verified local adapter'):
+            local.render(['unknown-demo'])
 
     def test_commands_and_init_dependencies_are_preserved(self):
         services = local.render(['data-pipeline'])['services']

@@ -411,6 +411,7 @@ spec:
     - travel-web
     - travel-worker
     - photobooth-web
+    - loan-worker
     s3:
       buckets:
         payloads:

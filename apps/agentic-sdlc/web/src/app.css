@@ -237,3 +237,5 @@
   .agent-grid, .stat-grid, .problem-grid, .change-grid, .act-result, .act-proof { grid-template-columns: minmax(0, 1fr); }
 }
 .node-group[data-injected] .node { stroke: var(--pink); stroke-dasharray: 3 2; }
+
+.presenter-controls-group { display:contents; margin:0; border:0; padding:0; min-width:0; }

@@ -121,6 +121,7 @@ class LoanUnderwritingSupervisorWorkflow:
         # LENNY keeps his own activity-backed tools; the specialist evidence is
         # injected into the prompt rather than fetched via tools.
         self.agent = TemporalAgent(
+            model="loan-supervisor",
             start_to_close_timeout=timedelta(seconds=90),
             tools=[
                 activity_as_tool(

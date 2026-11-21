@@ -4,7 +4,7 @@
  * (see docs/theme-and-interaction.md). Brand colors are placeholders
  * pending marketing sign-off.
  */
-@import url('https://fonts.googleapis.com/css2?family=Antonio:wght@400;600;700&family=Inter:wght@400;600;800&display=swap');
+/* Booth fonts are served locally by the shared Cosmic Pop theme. */
 
 :root {
   --bg: #05060d;

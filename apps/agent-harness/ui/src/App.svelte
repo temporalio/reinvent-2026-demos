@@ -13,6 +13,8 @@
   // The session the page shows, and the one it is creating (null once created).
   let sessionId = $state<string | null>(null);
   let creating = $state<string | null>(null);
+  let preview = $state<boolean | null>(null);
+  let previewNotice = $state<string | null>(null);
 
   function show(id: string) {
     const url = new URL(location.href);
@@ -22,7 +24,7 @@
   }
 
   function newTrip() {
-    if (!view) return;
+    if (!view || preview !== false) return;
     // The page names the session and switches to it immediately; the trip opens once
     // Temporal has started the Workflow, usually before anyone has finished typing.
     const id = newSessionId(view.session_prefix);
@@ -42,8 +44,16 @@
     );
   }
 
-  loadView().then(
-    (loaded) => {
+  Promise.all([
+    loadView(),
+    fetch("/travel-agent/api/local-preview").then(response => {
+      if(!response.ok) throw new Error("Demo capabilities could not be loaded");
+      return response.json() as Promise<{preview:boolean;notice:string|null}>;
+    }),
+  ]).then(
+    ([loaded, capabilities]) => {
+      preview = capabilities.preview;
+      previewNotice = capabilities.notice;
       view = loaded;
       const requested = new URL(location.href).searchParams.get("s");
       const latest = loaded.sessions
@@ -51,7 +61,7 @@
         .sort((a, b) => b.created_at - a.created_at)[0];
       if (requested?.startsWith(loaded.session_prefix)) show(requested);
       else if (latest) show(latest.workflow_id);
-      else newTrip();
+      else if (!preview) newTrip();
     },
     (error: Error) => (loadError = error.message),
   );
@@ -82,20 +92,27 @@
           {motion.paused ? "Play motion" : "Pause motion"}
         </button>
       {/if}
-      <button class="button small primary ultraviolet" onclick={newTrip} disabled={!view || creating !== null}>
+      <button class="button small primary ultraviolet" onclick={newTrip} disabled={!view || preview !== false || creating !== null}>
         New trip
       </button>
     </nav>
   </header>
 
+  {#if previewNotice}<aside class="card booth-native-notice" role="status">{previewNotice}</aside>{/if}
+
   {#if loadError}
     <div class="card failure" role="alert"><span class="badge error">error</span> {loadError}</div>
   {/if}
 
-  {#if sessionId}
+  {#if sessionId && !preview}
     {#key sessionId}
       <Trip {sessionId} />
     {/key}
+  {:else if preview}
+    <main class="workspace preview-workspace">
+      <section class="card" aria-labelledby="preview-conversation"><p class="eyebrow">01 / CONVERSATION</p><h2 id="preview-conversation">No trip is running</h2><p>The travel agent's conversations and bookings will appear here after an inference-enabled worker is configured.</p></section>
+      <section class="card" aria-labelledby="preview-controls"><p class="eyebrow">02 / APPROVALS & STATUS</p><h2 id="preview-controls">Waiting for an agent session</h2><p>Model settings, tool approvals, and booking status belong here. This preview does not start an agent or invent a booking.</p></section>
+    </main>
   {:else if !loadError}
     <div class="card starting" role="status">
       <p class="heading">{creating ? "Starting a new trip…" : "Loading your trips…"}</p>

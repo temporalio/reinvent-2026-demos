@@ -34,6 +34,7 @@ _versioning_kwargs = (
 class LoanUnderwritingWorkflow:
     def __init__(self) -> None:
         self.agent = TemporalAgent(
+            model="loan-underwriting",
             name="LoanUnderwritingAgent",
             start_to_close_timeout=timedelta(seconds=60),
             tools=[

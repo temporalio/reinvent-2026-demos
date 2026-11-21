@@ -126,12 +126,30 @@
 </script>
 
 <main class="workspace">
-  <div class="travel">
+  <div class="travel" role="region" aria-label="Route and booking status">
     <RouteMap {rows} {away} />
     <Departures {rows} {board} {away} {still} />
+    {#if agent.pendingApprovals.length > 0}
+      <div class="approvals">
+        <ApprovalQueue
+          calls={agent.pendingApprovals}
+          respond={(call, decision) => agent.respondToApproval(call.part.toolId, decision)}
+        />
+      </div>
+    {/if}
+
+    {#if choices.length === 0}
+      <Settings
+        {model}
+        {policy}
+        setModel={(next) => void agent.sendMessage("set_model", { model: next })}
+        setPolicy={(next) => void agent.sendMessage("set_approval_policy", { new_policy: next })}
+      />
+
+    {/if}
   </div>
 
-  <div class="side">
+  <div class="side" role="region" aria-label="Conversation and approval controls">
     {#if away}
       <div class="card recovering" role="status">
         <span class="badge progress">reconnecting</span>
@@ -160,23 +178,7 @@
       <Conversation {messages} />
     {/if}
 
-    {#if agent.pendingApprovals.length > 0}
-      <div class="approvals">
-        <ApprovalQueue
-          calls={agent.pendingApprovals}
-          respond={(call, decision) => agent.respondToApproval(call.part.toolId, decision)}
-        />
-      </div>
-    {/if}
-
     {#if choices.length === 0}
-      <Settings
-        {model}
-        {policy}
-        setModel={(next) => void agent.sendMessage("set_model", { model: next })}
-        setPolicy={(next) => void agent.sendMessage("set_approval_policy", { new_policy: next })}
-      />
-
       <form class="composer" onsubmit={send}>
         <label class="visually-hidden" for="composer">Message Ziggy</label>
         <textarea

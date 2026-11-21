@@ -3,6 +3,7 @@ package activities
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"go.temporal.io/sdk/activity"
@@ -19,7 +20,11 @@ func (a *Activities) ProcessSubmission(ctx context.Context, input workflows.Demo
 	logger := activity.GetLogger(ctx)
 	logger.Info("ProcessSubmission activity started", "name", input.Name)
 
-	result := fmt.Sprintf("Hello from Lambda, %s! Your workflow ran successfully.", input.Name)
+	execution := "Lambda"
+	if os.Getenv("NO_ROADS_EXECUTION_MODE") == "native" {
+		execution = "the local native worker"
+	}
+	result := fmt.Sprintf("Hello from %s, %s! Your workflow ran successfully.", execution, input.Name)
 	return result, nil
 }
 

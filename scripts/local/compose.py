@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Render a local Compose preview from the single production DemoProject."""
 import argparse
+import importlib.util
 import json
 from pathlib import Path
 import yaml
@@ -13,6 +14,24 @@ GROUPS = {
     'flight-simulator': ['flightsim-web'],
     'photo-booth': ['photobooth-web'],
 }
+def load_adapter(name):
+    module_spec = importlib.util.spec_from_file_location('preview_' + name, ROOT / 'scripts/local' / (name + '.py'))
+    module = importlib.util.module_from_spec(module_spec)
+    module_spec.loader.exec_module(module)
+    return module
+
+SERVERLESS = load_adapter('serverless')
+AGENTS = load_adapter('agents')
+GROUPS.update(SERVERLESS.GROUPS)
+GROUPS.update({'agent-harness': [], 'agentic-sdlc': []})
+NOTICES = {
+    'no-roads': 'Local native worker: backlog and concurrency are real; AWS Lambda scaling is not emulated.',
+    'loan': 'Presentation preview: Bedrock inference and loan decisions are unavailable until a provider is configured.',
+    'agent-harness': 'Presentation preview: model inference is disabled.',
+    'agentic-sdlc': 'Presentation preview: GitHub actions and model inference are disabled.',
+    'photo-booth': 'Local mock images and email outbox; no real image inference or email delivery.',
+}
+
 MOTO = 'motoserver/moto:5.2.5@sha256:59a1965d845249b04def37a0e2565f9cc6c44543cb89b68e90f28f344b3b0d1a'
 
 def render(apps, port=15101):
@@ -86,6 +105,8 @@ def render(apps, port=15101):
     # nginx resolves these API hosts while loading its static config.
     for web, api in [('tacos-web','tacos-api'),('banking-web','banking-api')]:
         if web in services: services[web]['depends_on'] = {api: {'condition': 'service_started'}}
+    SERVERLESS.apply(services, spec, ROOT, apps, port)
+    AGENTS.apply(services, spec, ROOT, apps, port)
     volumes = {'temporal-data': {}}
     volumes.update({name+'-data': {} for name in ['flightsim-web','photobooth-web'] if name in services})
     return {'name': 'reinvent-2026-local', 'services': services, 'volumes': volumes}
@@ -98,7 +119,7 @@ def write(apps, port):
     gateway = (ROOT / 'apps/gateway/default.conf.template').read_text()
     gateway = gateway.replace('  location / {', '  location /_temporal/primary/ {\n    set $ui temporal:8233;\n    proxy_pass http://$ui;\n    proxy_set_header Host $http_host;\n  }\n  location / {')
     (target / 'gateway.conf.template').write_text(gateway)
-    (target / 'runtime-config.json').write_text(json.dumps({'mode': 'local', 'availableDemos': apps, 'temporalUi': '/_temporal/primary/namespaces/default/workflows', 'notice': 'Local preview: Photo Booth uses mock images and saves email to a local outbox. AWS storage is emulated; Bedrock and Lambda are not.'}))
+    (target / 'runtime-config.json').write_text(json.dumps({'mode': 'local', 'availableDemos': apps, 'demoNotices': {key: value for key, value in NOTICES.items() if key in apps}, 'temporalUi': '/_temporal/primary/namespaces/default/workflows', 'notice': 'Local preview: Photo Booth uses mock images and saves email to a local outbox. AWS storage is emulated; Bedrock and Lambda are not.'}))
     print(target / 'compose.yaml')
 
 if __name__ == '__main__':

@@ -7,16 +7,16 @@ from typing import Optional
 
 def temporal_connect_args() -> tuple[str, dict]:
     """Return (address, kwargs) for Client.connect() based on TEMPORAL_ENV."""
-    env = os.environ.get("TEMPORAL_ENV", "local")
+    env = os.environ.get("TEMPORAL_ENV") or ("cloud" if os.environ.get("TEMPORAL_API_KEY") else "local")
     if env == "cloud":
-        address = os.environ["TEMPORAL_CLOUD_ADDRESS"]
+        address = os.environ.get("TEMPORAL_CLOUD_ADDRESS") or os.environ["TEMPORAL_ADDRESS"]
         return address, {
-            "namespace": os.environ["TEMPORAL_CLOUD_NAMESPACE"],
-            "api_key": os.environ["TEMPORAL_CLOUD_API_KEY"],
+            "namespace": os.environ.get("TEMPORAL_CLOUD_NAMESPACE") or os.environ["TEMPORAL_NAMESPACE"],
+            "api_key": os.environ.get("TEMPORAL_CLOUD_API_KEY") or os.environ["TEMPORAL_API_KEY"],
             "tls": True,
         }
-    return os.environ.get("TEMPORAL_LOCAL_ADDRESS", "localhost:7233"), {
-        "namespace": os.environ.get("TEMPORAL_LOCAL_NAMESPACE", "default"),
+    return os.environ.get("TEMPORAL_LOCAL_ADDRESS") or os.environ.get("TEMPORAL_ADDRESS", "localhost:7233"), {
+        "namespace": os.environ.get("TEMPORAL_LOCAL_NAMESPACE") or os.environ.get("TEMPORAL_NAMESPACE", "default"),
     }
 
 

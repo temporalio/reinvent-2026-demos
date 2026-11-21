@@ -29,3 +29,104 @@ html[data-booth=true][data-demo=dejavutacos] .mission-footer { display:none; }
 html[data-booth=true][data-demo=dejavutacos] .taqueria-shell { padding:1rem; grid-template-rows:auto minmax(0,1fr); }
 html[data-booth=true][data-demo=dejavutacos] .taqueria-shell:has(> .mission-notices) { grid-template-rows:auto auto minmax(0,1fr); }
 html[data-booth=true][data-demo=dejavutacos] .mission-options { margin-top:0; }
+
+/* The same semantic palette reaches the native apps, including Holodeck's older aliases. */
+html[data-booth=true] {
+  --bg-2:var(--surface-overlay); --panel:var(--surface-overlay); --panel-2:var(--surface-hero);
+  --line:var(--border-default); --text-dim:var(--text-muted); --text-tertiary:var(--text-muted);
+  --uv:var(--brand-primary); --uv-glow:var(--brand-accent); --mint:var(--status-completed);
+  --amber:var(--status-waiting); --coral:var(--status-failed); --sky:var(--status-active);
+  --ok:var(--status-completed); --warn:var(--status-waiting); --bad:var(--status-failed);
+  --font-display:var(--font-mono); --font-body:var(--font-sans);
+  --purple:var(--brand-accent); --border-focus:var(--border-hover);
+}
+html[data-booth=true] button:disabled { opacity:.45; cursor:not-allowed; }
+html[data-booth=true] a[aria-label="Booth settings (staff)"],
+html[data-booth=true] a[aria-label="Demo menu"] { display:none; }
+.booth-native-notice { border:1px solid var(--status-waiting); background:var(--surface-overlay); color:var(--text-primary); padding:.7rem 1rem; margin:0 0 .8rem; font:.8rem/1.5 var(--font-sans); flex-shrink:0; }
+
+/* No Roads: submission and activity on the left, load controls and metrics on the right. */
+html[data-booth=true][data-demo=no-roads] body { height:100dvh; padding:1rem; display:flex; flex-direction:column; overflow:hidden; }
+html[data-booth=true][data-demo=no-roads] .container { flex:1; min-height:0; width:100%; max-width:none; display:flex; flex-direction:column; }
+html[data-booth=true][data-demo=no-roads] .container > .header { display:none; }
+html[data-booth=true][data-demo=no-roads] .no-roads-booth-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; min-height:0; flex:1; }
+html[data-booth=true][data-demo=no-roads] :is(.no-roads-interaction,.no-roads-controls) { min-width:0; overflow:auto; padding:1rem; border:1px solid var(--border-default); background:var(--surface-overlay); }
+html[data-booth=true][data-demo=no-roads] :is(.card,.stat-card,#presenter-panel) { border-radius:0; border-color:var(--border-default); background:var(--surface-page); }
+html[data-booth=true][data-demo=no-roads] :is(.btn,.btn-seed) { background:var(--brand-highlight); color:var(--surface-overlay); border-color:var(--brand-highlight); white-space:normal; }
+html[data-booth=true][data-demo=no-roads] .submit-row { flex-wrap:wrap; }
+html[data-booth=true][data-demo=no-roads] .submit-row > * { width:100%; min-width:0; }
+html[data-booth=true][data-demo=no-roads] .stats-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+html[data-booth=true][data-demo=no-roads] .charts-grid { grid-template-columns:minmax(0,1fr); }
+html[data-booth=true][data-demo=no-roads] .stat-value { font-size:2rem; }
+html[data-booth=true][data-demo=no-roads] .presenter-controls { align-items:stretch; }
+html[data-booth=true][data-demo=no-roads] .presenter-title { flex-wrap:wrap; }
+
+/* Loan: application editing alongside preset applicants and bulk controls. */
+html[data-booth=true][data-demo=loans] body > header { display:none; }
+html[data-booth=true][data-demo=loans] .screen { max-width:none; padding:1rem; }
+html[data-booth=true][data-demo=loans] .hero-title { padding:0 !important; margin:0 !important; font-size:1.6rem; }
+html[data-booth=true][data-demo=loans] .hero-sub { padding:0 !important; margin:.5rem 0 1rem !important; }
+html[data-booth=true][data-demo=loans] .loan-entry-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; }
+html[data-booth=true][data-demo=loans] .loan-entry-grid > div { margin:0 !important; padding:0 !important; min-width:0; }
+html[data-booth=true][data-demo=loans] .loan-entry-grid .form-grid { grid-template-columns:minmax(0,1fr); }
+html[data-booth=true][data-demo=loans] .profile-grid { grid-template-columns:minmax(0,1fr); }
+html[data-booth=true][data-demo=loans] :is(.form-card,.profile-card,.panel,.assessment-box,.bulk-actions) { border-radius:0; border-color:var(--border-default); background:var(--surface-overlay); }
+html[data-booth=true][data-demo=loans] :is(.btn-primary,.btn-approve) { background:var(--brand-highlight); color:var(--surface-overlay); }
+html[data-booth=true][data-demo=loans] .bulk-button-row { flex-direction:column; }
+html[data-booth=true][data-demo=loans] .two-col { gap:1rem; }
+html[data-booth=true][data-demo=loans] .submit-panel { position:static; }
+
+/* Travel: the conversation is the interaction surface; approvals and route status sit beside it. */
+html[data-booth=true][data-demo=travel-agent] .app { height:100dvh; min-height:0; padding:1rem; }
+html[data-booth=true][data-demo=travel-agent] .brand { display:none; }
+html[data-booth=true][data-demo=travel-agent] .workspace { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; min-height:0; flex:1; }
+html[data-booth=true][data-demo=travel-agent] .workspace > .side { grid-column:1; grid-row:1; height:auto; min-height:0; overflow:auto; }
+html[data-booth=true][data-demo=travel-agent] .workspace > .travel { grid-column:2; grid-row:1; display:flex; flex-direction:column; height:auto; min-height:0; overflow:auto; }
+html[data-booth=true][data-demo=travel-agent] .travel > * { flex-shrink:0; }
+html[data-booth=true][data-demo=travel-agent] .travel > :is(.route-map,.departures) { min-height:12rem; }
+html[data-booth=true][data-demo=travel-agent] .settings { flex-wrap:wrap; }
+html[data-booth=true][data-demo=travel-agent] .settings select { min-width:0; width:100%; }
+html[data-booth=true][data-demo=travel-agent] .preview-workspace > .card { overflow:auto; align-self:stretch; }
+
+/* SDLC: story/result view and the real scenario/failure controls share the upper row. */
+html[data-booth=true][data-demo=agentic-sdlc] .shell { grid-template-columns:minmax(0,1fr) minmax(15rem,.45fr); grid-template-rows:auto minmax(0,1fr); padding:1rem; }
+html[data-booth=true][data-demo=agentic-sdlc] .topbar { grid-column:1/-1; flex-wrap:wrap; }
+html[data-booth=true][data-demo=agentic-sdlc] .topbar .brand { display:none; }
+html[data-booth=true][data-demo=agentic-sdlc] .acts { flex-wrap:wrap; }
+html[data-booth=true][data-demo=agentic-sdlc] .body { grid-column:1; min-width:0; overflow:auto; }
+html[data-booth=true][data-demo=agentic-sdlc] .stage { align-content:start; }
+html[data-booth=true][data-demo=agentic-sdlc] .presenter-bar { grid-column:2; align-self:stretch; align-items:stretch; flex-direction:column; justify-content:flex-start; overflow:auto; min-height:0; border:1px solid var(--border-default); padding:1rem; background:var(--surface-overlay); }
+html[data-booth=true][data-demo=agentic-sdlc] .presenter-bar .bar-group { flex-direction:column; align-items:stretch; width:100%; }
+html[data-booth=true][data-demo=agentic-sdlc] .presenter-bar :is(button,select) { min-width:0; width:100%; white-space:normal; }
+html[data-booth=true][data-demo=agentic-sdlc] :is(.run-grid,.act-result,.act-proof,.change-grid,.problem-grid) { grid-template-columns:minmax(0,1fr); overflow:auto; }
+html[data-booth=true][data-demo=agentic-sdlc] .act .display { font-size:1.8rem; }
+html[data-booth=true][data-demo=agentic-sdlc] .empty-stage .display { font-size:1.8rem; }
+html[data-booth=true][data-demo=agentic-sdlc] :is(.lifecycle,.stat-grid) { grid-template-columns:repeat(2,minmax(0,1fr)); }
+
+@media(max-width:540px) {
+  html[data-booth=true][data-demo=loans] .loan-entry-grid { grid-template-columns:minmax(0,1fr); }
+  html[data-booth=true][data-demo=no-roads] .no-roads-booth-grid,
+  html[data-booth=true][data-demo=travel-agent] .workspace { grid-template-columns:minmax(0,1fr); }
+  html[data-booth=true][data-demo=travel-agent] .workspace > .travel { grid-column:1; grid-row:2; }
+  html[data-booth=true][data-demo=agentic-sdlc] .shell { grid-template-columns:minmax(0,1fr); grid-template-rows:auto minmax(20rem,1fr) auto; height:auto; }
+  html[data-booth=true][data-demo=agentic-sdlc] .presenter-bar { grid-column:1; max-height:24rem; }
+}
+html[data-booth=true] .booth-panel-title { font:400 1rem var(--font-mono); margin:0 0 1rem; color:var(--text-primary); }
+html[data-booth=true] .ti { font-style:normal; }
+html[data-booth=true] .ti-bolt::before { content:'ϟ'; }
+html[data-booth=true] .ti-player-play::before { content:'▶'; }
+html[data-booth=true] .ti-radar-2::before { content:'◎'; }
+html[data-booth=true] .ti-sparkles::before { content:'✦'; }
+/* Keep small native dashboards legible inside a portrait frame. */
+html[data-booth=true] { font-size:clamp(16px,1.5vw,28px); }
+html[data-booth=true] .chrome-home { display:none; }
+html[data-booth=true][data-demo=loans] #screen-1 { max-width:none; padding:1rem; }
+html[data-booth=true][data-demo=loans] .hero-title { font-family:var(--font-mono); font-weight:400; }
+html[data-booth=true][data-demo=loans] .loan-entry-grid { height:calc(100dvh - 12rem); min-height:20rem; }
+html[data-booth=true][data-demo=loans] .loan-entry-grid > div { overflow:auto; }
+html[data-booth=true][data-demo=travel-agent] .travel > .map { min-height:12rem; }
+html[data-booth=true][data-demo=no-roads] #presenter-panel .badge { display:none; }
+html[data-booth=true][data-execution-mode=native] .stat-card:has(#stat-lambda) :is(.stat-value,.stat-sub),
+html[data-booth=true][data-execution-mode=native] .charts-grid .card:first-child :is(.spark,.chart-time,.chart-peak) { display:none; }
+html[data-booth=true][data-execution-mode=native] .stat-card:has(#stat-lambda)::after,
+html[data-booth=true][data-execution-mode=native] .charts-grid .card:first-child::after { content:'Not emulated'; display:block; margin-top:1rem; color:var(--text-muted); font:.8rem var(--font-mono); }
