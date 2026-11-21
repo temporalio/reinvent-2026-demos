@@ -21,6 +21,8 @@ Run scripts/validate-fieldkit.sh with access to the pinned platform checkout. sc
 
 ## Embedded Temporal UI
 
+Reference: [Michael’s public Tacos viewscreen example](https://dejavu-tacos.tmprl-demo.cloud/_reinvent_example/). The page and JavaScript were fetched without credentials on November 21, 2026. Its viewscreen renders a Temporal UI iframe with adjustable scale. Interactive workflow switching and browser framing behavior have not been verified here.
+
 Michael confirmed that the live catalog can expose a self-hosted temporalio/ui pod backed by Temporal Cloud through a proxy sidecar with a separate read-only service account. Credentials stay inside the pods, so the booth can embed the UI without attendee Cloud logins. Fieldkit exposes this through temporal.publicUI, with per-namespace UI routes where supported.
 
 Read-only access still exposes workflow payloads and histories. The combined project keeps publicUI false until attendee photo/email data is protected or placed outside the public demo namespace. The feature is available; safe publication of this project is not yet verified.
