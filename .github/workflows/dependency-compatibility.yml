@@ -33,10 +33,10 @@ jobs:
       python: ${{ steps.select.outputs.python }}
       builds: ${{ steps.select.outputs.builds }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.13'
       - run: pip install -r requirements-tooling.txt
@@ -74,7 +74,7 @@ jobs:
       matrix:
         project: ${{ fromJSON(needs.targets.outputs.npm) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Locked install, typecheck, build, tests, and audit
         env:
           CHECK_PROJECT: ${{ matrix.project }}
@@ -92,7 +92,7 @@ jobs:
       matrix:
         project: ${{ fromJSON(needs.targets.outputs.python) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - run: docker build -f scripts/ci-python.Dockerfile -t reinvent-python-compat scripts
       - name: Prepare locked packages
         env:
@@ -112,7 +112,7 @@ jobs:
       matrix:
         project: ${{ fromJSON(needs.targets.outputs.go) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Compile and test changed Go modules
         env:
           CHECK_PROJECT: ${{ matrix.project }}
@@ -130,7 +130,7 @@ jobs:
       matrix:
         build: ${{ fromJSON(needs.targets.outputs.builds) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Build the affected deployment image
         env:
           BUILD_NAME: ${{ matrix.build.name }}
@@ -150,7 +150,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - run: docker build -f scripts/ci-python.Dockerfile -t reinvent-python-compat scripts
       - name: Prepare locked SDLC runtime
         run: docker run --rm -v "$PWD:/repo" -w /repo/apps/agentic-sdlc reinvent-python-compat prepare
@@ -175,7 +175,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Start isolated Temporal OSS
         run: |
           docker run -d --name compatibility-temporal -p 127.0.0.1:7233:7233 temporalio/temporal:1.8.3 server start-dev --ip 0.0.0.0
