@@ -111,3 +111,14 @@ test('a failed logout stays locked when an older authenticated poll arrives',asy
   assert.equal(get().authenticated,false)
   assert.equal(get().state.authenticated,false)
 })
+
+
+test('live authenticated responses are persisted only as unauthenticated cache',async()=>{
+  const authenticated=state(2);authenticated.authenticated=true
+  const storage=new Map()
+  const {get}=load({storage,fetch:async()=>response(authenticated)})
+  await get().login('1121')
+  assert.equal(get().authenticated,true)
+  assert.equal(JSON.parse(storage.get('reinvent-control-cache-v1')).authenticated,false)
+  assert.ok(!JSON.stringify([...storage]).includes('1121'))
+})
