@@ -1,4 +1,10 @@
-"""Private-LAN booth availability and display settings, with durable revisions."""
+"""Booth availability and display settings, with durable revisions.
+
+Local runs keep them in SQLite on a Docker volume (Store). The hosted hub keeps
+them in the DynamoDB table Fieldkit provisions from spec.aws (DynamoStore,
+selected by CONTROL_TABLE), because a container's own files do not survive a
+restart or a rollout.
+"""
 from __future__ import annotations
 
 from contextlib import closing, contextmanager
@@ -139,6 +145,116 @@ class Store:
             if config != updated:
                 db.execute('UPDATE config SET revision=revision+1,payload=? WHERE id=1', (json.dumps(updated, allow_nan=False),))
             return self._snapshot(db, token, now)
+
+
+class StorageUnavailable(OSError):
+    """The settings store could not be read or written."""
+
+
+class DynamoStore:
+    """Store's transactions on one DynamoDB table with string hash key pk.
+
+    Items: pk "config" (revision, payload), "presence#<station>" (last_seen) and
+    "session#<token hash>" (expires, plus expires_at for DynamoDB TTL). A save
+    is a put conditioned on the revision it read, so concurrent saves have one
+    winner, as Store's BEGIN IMMEDIATE gives locally.
+    """
+    def __init__(self, table, client):
+        from botocore.exceptions import BotoCoreError, ClientError
+        self.table, self.client = table, client
+        self._errors, self._client_error = (BotoCoreError, ClientError), ClientError
+        try:
+            self._call('put_item', Item={'pk': {'S': 'config'}, 'revision': {'N': '0'}, 'payload': {'S': json.dumps(default_config())}},
+                       ConditionExpression='attribute_not_exists(pk)')
+        except _ConditionFailed:
+            pass
+
+    def _call(self, operation, **kwargs):
+        try:
+            return getattr(self.client, operation)(TableName=self.table, **kwargs)
+        except self._client_error as error:
+            if error.response.get('Error', {}).get('Code') == 'ConditionalCheckFailedException':
+                raise _ConditionFailed() from None
+            raise StorageUnavailable(f'DynamoDB {operation} on {self.table}: {error}') from error
+        except self._errors as error:
+            raise StorageUnavailable(f'DynamoDB {operation} on {self.table}: {error}') from error
+
+    def _get(self, pk):
+        return self._call('get_item', Key={'pk': {'S': pk}}, ConsistentRead=True).get('Item')
+
+    def _config(self):
+        item = self._get('config')
+        if not item:
+            raise StorageUnavailable(f'DynamoDB table {self.table} has no config item')
+        return int(item['revision']['N']), item['payload']['S']
+
+    def _authenticated(self, token, now):
+        if not token:
+            return False
+        key = 'session#' + token_hash(token)
+        item = self._get(key)
+        if not item:
+            return False
+        if float(item['expires']['N']) <= now:
+            # TTL deletes it eventually; do it now so it is gone at once.
+            self._call('delete_item', Key={'pk': {'S': key}})
+            return False
+        return True
+
+    def _snapshot(self, token, now):
+        revision, payload = self._config()
+        result = json.loads(payload)
+        keys = [{'pk': {'S': 'presence#' + station}} for station in STATION_IDS]
+        try:
+            response = self.client.batch_get_item(RequestItems={self.table: {'Keys': keys, 'ConsistentRead': True}})
+        except self._errors as error:
+            raise StorageUnavailable(f'DynamoDB batch_get_item on {self.table}: {error}') from error
+        for item in response.get('Responses', {}).get(self.table, []):
+            station = item['pk']['S'].split('#', 1)[1]
+            if station in result['stations']:
+                result['stations'][station]['last_seen'] = item['last_seen']['S']
+        return {'revision': revision, **result, 'authenticated': self._authenticated(token, now), 'server_time': timestamp(now)}
+
+    def state(self, token, now, station=None):
+        if station:
+            self._call('put_item', Item={'pk': {'S': 'presence#' + station}, 'last_seen': {'S': timestamp(now)}})
+        return self._snapshot(token, now)
+
+    def login(self, token, old_token, now):
+        if old_token:
+            self._call('delete_item', Key={'pk': {'S': 'session#' + token_hash(old_token)}})
+        expires = now + SESSION_SECONDS
+        self._call('put_item', Item={'pk': {'S': 'session#' + token_hash(token)}, 'expires': {'N': repr(expires)}, 'expires_at': {'N': str(math.ceil(expires))}})
+        return self._snapshot(token, now)
+
+    def logout(self, token, now):
+        if token:
+            self._call('delete_item', Key={'pk': {'S': 'session#' + token_hash(token)}})
+        return self._snapshot('', now)
+
+    def patch(self, revision, mutate, token, now):
+        if not self._authenticated(token, now):
+            raise ApiError(401, 'authentication_required', 'Enter the station PIN before saving settings.')
+        current_revision, payload = self._config()
+        stale = ApiError(409, 'stale_revision', 'Settings changed elsewhere. Review the current settings before saving.')
+        if revision != current_revision:
+            stale.state = self._snapshot(token, now)
+            raise stale
+        config = json.loads(payload)
+        updated = deepcopy(config)
+        mutate(updated)
+        if config != updated:
+            try:
+                self._call('put_item', Item={'pk': {'S': 'config'}, 'revision': {'N': str(current_revision + 1)}, 'payload': {'S': json.dumps(updated, allow_nan=False)}},
+                           ConditionExpression='revision = :read', ExpressionAttributeValues={':read': {'N': str(current_revision)}})
+            except _ConditionFailed:
+                stale.state = self._snapshot(token, now)
+                raise stale from None
+        return self._snapshot(token, now)
+
+
+class _ConditionFailed(Exception):
+    """A DynamoDB conditional write lost to another write."""
 
 
 class PinLimiter:
@@ -425,8 +541,21 @@ class Handler(BaseHTTPRequestHandler):
             self.fail(ApiError(503, 'storage_unavailable', 'Settings storage is unavailable. Try again shortly.'))
 
 
+def make_store():
+    table = os.environ.get('CONTROL_TABLE', '').strip()
+    if not table:
+        return Store(os.environ.get('CONTROL_DB', '/data/control.sqlite3'))
+    import boto3
+    from botocore.config import Config
+    # Region and credentials come from the environment (Fieldkit sets
+    # AWS_REGION; EKS Pod Identity supplies the credentials). Short timeouts:
+    # the launchpad gives up on a request after 4 seconds.
+    config = Config(connect_timeout=2, read_timeout=3, retries={'mode': 'standard', 'max_attempts': 2})
+    return DynamoStore(table, boto3.client('dynamodb', config=config))
+
+
 def main():
-    store = Store(os.environ.get('CONTROL_DB', '/data/control.sqlite3'))
+    store = make_store()
     server = ControlServer(
         (os.environ.get('CONTROL_LISTEN_ADDRESS', '127.0.0.1'), int(os.environ.get('CONTROL_PORT', '8090'))),
         store, timezone_name=os.environ.get('CONTROL_TIMEZONE', 'America/Denver'),

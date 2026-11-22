@@ -11,7 +11,7 @@ class MonorepoTests(unittest.TestCase):
         self.assertEqual(len(docs),1)
         spec=docs[0]['spec']
         self.assertEqual(docs[0]['kind'],'DemoProject')
-        self.assertFalse(spec['temporal']['publicUI'])
+        self.assertTrue(spec['temporal']['publicUI'])
         for component in spec['components'].values():
             self.assertIn(component['build'],spec['builds'])
         for recipe in spec['builds'].values():

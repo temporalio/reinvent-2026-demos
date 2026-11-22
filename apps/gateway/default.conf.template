@@ -30,7 +30,7 @@ server {
   location = /healthz { default_type application/json; return 200 '{"ok":true}'; }
   location = /flightsim { return 308 /flightsim/$is_args$args; }
   location /flightsim/ {
-    set $target flightsim-web:8080;
+    set $target flightsim-web${SVC_SUFFIX}:8080;
     rewrite ^/flightsim/(.*)$ /$1 break;
     proxy_set_header X-Forwarded-Prefix /flightsim;
     proxy_set_header Host $http_host;
@@ -43,7 +43,7 @@ server {
   }
   location = /photobooth { return 308 /photobooth/$is_args$args; }
   location /photobooth/ {
-    set $target photobooth-web:8080;
+    set $target photobooth-web${SVC_SUFFIX}:8080;
     rewrite ^/photobooth/(.*)$ /$1 break;
     proxy_set_header X-Forwarded-Prefix /photobooth;
     proxy_set_header Host $http_host;
@@ -56,7 +56,7 @@ server {
   }
   location = /dejavutacos { return 308 /dejavutacos/$is_args$args; }
   location /dejavutacos/ {
-    set $target tacos-web:5173;
+    set $target tacos-web${SVC_SUFFIX}:5173;
     rewrite ^/dejavutacos/(.*)$ /$1 break;
     proxy_set_header X-Forwarded-Prefix /dejavutacos;
     proxy_set_header Host $http_host;
@@ -69,7 +69,7 @@ server {
   }
   location = /banking { return 308 /banking/$is_args$args; }
   location /banking/ {
-    set $target banking-web:5173;
+    set $target banking-web${SVC_SUFFIX}:5173;
     rewrite ^/banking/(.*)$ /$1 break;
     proxy_set_header X-Forwarded-Prefix /banking;
     proxy_set_header Host $http_host;
@@ -82,7 +82,7 @@ server {
   }
   location = /data-pipeline { return 308 /data-pipeline/$is_args$args; }
   location /data-pipeline/ {
-    set $target pipeline-web:8080;
+    set $target pipeline-web${SVC_SUFFIX}:8080;
     rewrite ^/data-pipeline/(.*)$ /$1 break;
     proxy_set_header X-Forwarded-Prefix /data-pipeline;
     proxy_set_header Host $http_host;
@@ -95,7 +95,7 @@ server {
   }
   location = /loans { return 308 /loans/$is_args$args; }
   location /loans/ {
-    set $target loan-web:8000;
+    set $target loan-web${SVC_SUFFIX}:8000;
     rewrite ^/loans/(.*)$ /$1 break;
     proxy_set_header X-Forwarded-Prefix /loans;
     proxy_set_header Host $http_host;
@@ -108,7 +108,7 @@ server {
   }
   location = /no-roads { return 308 /no-roads/$is_args$args; }
   location /no-roads/ {
-    set $target no-roads-web:8080;
+    set $target no-roads-web${SVC_SUFFIX}:8080;
     rewrite ^/no-roads/(.*)$ /$1 break;
     proxy_set_header X-Forwarded-Prefix /no-roads;
     proxy_set_header Host $http_host;
@@ -121,7 +121,7 @@ server {
   }
   location = /travel-agent { return 308 /travel-agent/$is_args$args; }
   location /travel-agent/ {
-    set $target travel-web:8000;
+    set $target travel-web${SVC_SUFFIX}:8000;
     rewrite ^/travel-agent/(.*)$ /$1 break;
     proxy_set_header X-Forwarded-Prefix /travel-agent;
     proxy_set_header Host $http_host;
@@ -134,7 +134,7 @@ server {
   }
   location = /agentic-sdlc { return 308 /agentic-sdlc/$is_args$args; }
   location /agentic-sdlc/ {
-    set $target sdlc-web:8000;
+    set $target sdlc-web${SVC_SUFFIX}:8000;
     rewrite ^/agentic-sdlc/(.*)$ /$1 break;
     proxy_set_header X-Forwarded-Prefix /agentic-sdlc;
     proxy_set_header Host $http_host;
@@ -146,7 +146,7 @@ server {
     proxy_pass http://$target;
   }
   location / {
-    set $target launchpad:8080;
+    set $target launchpad${SVC_SUFFIX}:8080;
     proxy_pass http://$target;
   }
 }

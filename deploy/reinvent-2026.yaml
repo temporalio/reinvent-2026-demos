@@ -1,5 +1,6 @@
 # Single Fieldkit project. NOT deployment-ready: see docs/DEPLOYMENT.md.
-# Pinned platform validation: 69e7fa0f4faa3a08e25cb8462269ef215efe4544.
+# Pinned platform validation: 77037f86 (temporal-fieldkit-platform main with #151:
+# spec.aws for aws-lambda components; live needs the promotion that includes it).
 apiVersion: registry.tmprl-demo.cloud/v1alpha1
 kind: DemoProject
 metadata:
@@ -79,7 +80,7 @@ spec:
   temporal:
     auth:
       mode: apiKey
-    publicUI: false
+    publicUI: true
     searchAttributes:
       Step:
         type: keyword
@@ -113,27 +114,22 @@ spec:
         servicePort: 8080
     gateway:
       build: gateway
-      env:
-      - name: CONTROL_HUB_URL
-        value: http://control-hub:8090
       ports:
       - name: http
         containerPort: 8080
         servicePort: 8080
-    # Hosted SQLite is ephemeral with the current Fieldkit Component schema.
-    # Keep one replica, but do not treat disruption: never as persistent storage.
-    # See docs/STATION-CONTROL.md before enabling hosted configuration writes.
+    # Hosted, the hub keeps its settings in the spec.aws DynamoDB table
+    # (CONTROL_TABLE); without it (local runs) it uses SQLite. Ingress sends
+    # /control-api straight here: reads are public for the kiosks, writes
+    # need a Fieldkit sign-in (docs/STATION-CONTROL.md).
     control-hub:
       build: control-hub
       replicas: 1
-      disruption: never
       ports:
       - name: http
         containerPort: 8090
         servicePort: 8090
       env:
-      - name: CONTROL_DB
-        value: /data/control.sqlite3
       - name: CONTROL_TIMEZONE
         value: America/Denver
     tacos-web:
@@ -434,6 +430,15 @@ spec:
     - travel-worker
     - photobooth-web
     - loan-worker
+    - control-hub
+    dynamodb:
+      tables:
+        control:
+          env: CONTROL_TABLE
+          hashKey:
+            name: pk
+            type: S
+          ttlAttribute: expires_at
     s3:
       buckets:
         payloads:
@@ -447,14 +452,29 @@ spec:
         loan:
           id: us.anthropic.claude-sonnet-4-5-20250929-v1:0
           env: BEDROCK_MODEL_ID
+  # No sign-in for the demos: attendees and kiosks reach every app. Only
+  # changing booth settings needs a Fieldkit sign-in: the /config page and the
+  # control hub's writes. Kiosks poll /control-api/state, the longer (public)
+  # prefix, without one.
   ingress:
     subdomain: reinvent-booth
-    auth: required
+    auth: public
     routes:
     - pathPrefix: /agentic-sdlc/webhooks/github
       component: gateway
       port: http
       public: true
+    - pathPrefix: /config
+      component: gateway
+      port: http
+      auth: required
+    - pathPrefix: /control-api/state
+      component: control-hub
+      port: http
+    - pathPrefix: /control-api
+      component: control-hub
+      port: http
+      auth: required
     - pathPrefix: /
       component: gateway
       port: http

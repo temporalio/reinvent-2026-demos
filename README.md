@@ -16,7 +16,7 @@ With Docker Desktop running, use `./scripts/local.sh up`, then open http://local
 
 Open http://localhost:15101/config on the laptop, or tap Ziggy on a station and enter the daily date PIN. Controls include global and per-station demo switches, online/offline launch policy, and saved display width, height, zoom, and position. A station On override takes precedence over global Off; existing demos continue running.
 
-Follow [station control setup](docs/STATION-CONTROL.md) to connect the four Mac gateways to the laptop hub over the private LAN. Settings persist in a local Docker volume. Offline policy does not provision fallback services or change worker connections.
+Follow [station control setup](docs/STATION-CONTROL.md) to connect the four Mac gateways to the laptop hub over the private LAN (local runs; settings persist in a local Docker volume), or for the hosted booth, where settings are kept in DynamoDB and `/config` needs a Fieldkit sign-in. Offline policy does not provision fallback services or change worker connections.
 
 ## Local checks
 

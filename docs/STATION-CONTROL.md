@@ -34,8 +34,10 @@ When the selected hub is unavailable, the launchpad retains its cached configura
 
 A station On setting overrides global Off. Inherit removes that station override. Policy changes affect the next launch and do not stop the current demo. Offline policy is limited by the local runtime's reported demo capabilities. It does not switch Temporal Cloud clients to OSS, emulate unavailable AI providers, or provision AWS replacements. Hosted-only apps remain unavailable offline.
 
-## Hosted deployment gate
+## Hosted booth
 
-The single Fieldkit YAML includes the control image, service, and gateway route. The inspected Fieldkit Component schema has no generic persistent-volume or database-storage field. `replicas: 1` and `disruption: never` do not make a SQLite file durable across pod replacement. No unsupported volume field is invented in the manifest.
+The hosted deployment is a different setup from the LAN one above: the stations' browsers load `https://reinvent-booth.tmprl-demo.cloud`, and nothing in the cloud can reach a laptop on the booth LAN (the gateway runs in EKS, and the HTTPS page cannot call an `http://` LAN address). The hub is the hosted `control-hub` component.
 
-Before using hosted configuration writes, provide an approved persistent database/volume integration through Fieldkit or keep the authoritative hub on the laptop's persistent local stack. The hosted component's database is otherwise ephemeral, and its presence in the YAML is not a persistence claim. No infrastructure is provisioned by these local scripts.
+- **Storage.** The hosted hub keeps settings, presence and sessions in the DynamoDB table Fieldkit provisions from `spec.aws.dynamodb.tables.control` (env `CONTROL_TABLE`, hash key `pk`, TTL on `expires_at`). Settings survive restarts and every rollout of the project. Without `CONTROL_TABLE` the hub uses SQLite, as in local runs.
+- **Sign-in.** Ingress sends `/control-api` straight to `control-hub`. `/control-api/state` is public, so kiosks poll it without signing in. Every other control route and the `/config` page need a Fieldkit sign-in. Change settings from a signed-in phone or laptop at `/config` (then the daily PIN, as before). Saving from a kiosk's Ziggy overlay needs that sign-in on the kiosk browser too.
+- `CONTROL_HUB_URL` and `BOOTH_BIND_ADDRESS` apply only to local runs.

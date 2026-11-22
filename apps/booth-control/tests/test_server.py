@@ -1,4 +1,4 @@
-"""Exercise the real HTTP API, SQLite persistence, and concurrent writes."""
+"""Exercise the real HTTP API, SQLite and DynamoDB persistence, and concurrent writes."""
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from datetime import datetime, timezone
@@ -11,7 +11,9 @@ import tempfile
 import threading
 import unittest
 
-from server import COOKIE_NAME, ControlServer, DEFAULT_DISPLAY, MAX_BODY_BYTES, SESSION_SECONDS, Store
+from botocore.exceptions import ClientError
+
+from server import COOKIE_NAME, ControlServer, DEFAULT_DISPLAY, DynamoStore, MAX_BODY_BYTES, SESSION_SECONDS, Store, StorageUnavailable
 
 
 class Clock:
@@ -32,10 +34,17 @@ class ControlHttpTests(unittest.TestCase):
         self.addCleanup(self.stop_server)
 
     def start_server(self):
-        self.server = ControlServer(('127.0.0.1', 0), Store(self.database), clock=self.clock)
+        self.server = ControlServer(('127.0.0.1', 0), self.make_store(), clock=self.clock)
         self.thread = threading.Thread(target=self.server.serve_forever, kwargs={'poll_interval': .01}, daemon=True)
         self.thread.start()
         self.port = self.server.server_address[1]
+
+    def make_store(self):
+        return Store(self.database)
+
+    def session_hashes(self):
+        with closing(sqlite3.connect(self.database)) as db:
+            return [row[0] for row in db.execute('SELECT token_hash FROM sessions')]
 
     def stop_server(self):
         if self.server:
@@ -106,8 +115,7 @@ class ControlHttpTests(unittest.TestCase):
         self.assertTrue(self.request('GET', '/control-api/state', cookie=cookie)[1]['authenticated'])
         self.clock.value += SESSION_SECONDS + 1
         self.assertFalse(self.request('GET', '/control-api/state', cookie=cookie)[1]['authenticated'])
-        with closing(sqlite3.connect(self.database)) as db:
-            self.assertEqual(db.execute('SELECT count(*) FROM sessions').fetchone()[0], 0)
+        self.assertEqual(self.session_hashes(), [])
         # A fresh login is on the same local date after this eight-hour advance.
         cookie = self.login()
         status, state, headers = self.request('POST', '/control-api/logout', {}, cookie=cookie)
@@ -186,8 +194,7 @@ class ControlHttpTests(unittest.TestCase):
         self.assertEqual(state['stations']['3']['display']['y'], 250)
         self.assertIsNotNone(state['stations']['3']['last_seen'])
         self.assertTrue(state['authenticated'])
-        with closing(sqlite3.connect(self.database)) as db:
-            saved_hash = db.execute('SELECT token_hash FROM sessions').fetchone()[0]
+        (saved_hash,) = self.session_hashes()
         self.assertNotIn(cookie.split('=', 1)[1], saved_hash)
 
     def test_strict_schema_and_bounds_reject_partial_writes(self):
@@ -237,3 +244,90 @@ class ControlHttpTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class FakeDynamo:
+    """The DynamoDB client calls DynamoStore makes, on one in-memory table.
+
+    It enforces the two condition expressions DynamoStore writes with, so the
+    concurrency and first-start behavior is the real store's.
+    """
+    def __init__(self, table='control'):
+        self.table, self.items, self.lock = table, {}, threading.Lock()
+        self.fail = None
+
+    def _check(self, TableName):
+        if self.fail:
+            raise ClientError({'Error': {'Code': self.fail, 'Message': 'injected'}}, 'call')
+        assert TableName == self.table, TableName
+
+    def get_item(self, TableName, Key, ConsistentRead=False):
+        self._check(TableName)
+        with self.lock:
+            item = self.items.get(Key['pk']['S'])
+            return {'Item': json.loads(json.dumps(item))} if item else {}
+
+    def put_item(self, TableName, Item, ConditionExpression=None, ExpressionAttributeValues=None):
+        self._check(TableName)
+        with self.lock:
+            current = self.items.get(Item['pk']['S'])
+            if ConditionExpression == 'attribute_not_exists(pk)':
+                ok = current is None
+            elif ConditionExpression == 'revision = :read':
+                ok = current is not None and current['revision'] == ExpressionAttributeValues[':read']
+            else:
+                assert ConditionExpression is None, ConditionExpression
+                ok = True
+            if not ok:
+                raise ClientError({'Error': {'Code': 'ConditionalCheckFailedException', 'Message': 'condition'}}, 'PutItem')
+            self.items[Item['pk']['S']] = json.loads(json.dumps(Item))
+        return {}
+
+    def delete_item(self, TableName, Key):
+        self._check(TableName)
+        with self.lock:
+            self.items.pop(Key['pk']['S'], None)
+        return {}
+
+    def batch_get_item(self, RequestItems):
+        (table, request), = RequestItems.items()
+        self._check(table)
+        with self.lock:
+            found = [json.loads(json.dumps(self.items[k['pk']['S']])) for k in request['Keys'] if k['pk']['S'] in self.items]
+        return {'Responses': {table: found}}
+
+
+class DynamoControlHttpTests(ControlHttpTests):
+    """The same HTTP behavior with the hosted DynamoDB store; a restart keeps the table."""
+    def setUp(self):
+        self.dynamo = FakeDynamo()
+        super().setUp()
+
+    def make_store(self):
+        return DynamoStore('control', self.dynamo)
+
+    def session_hashes(self):
+        return [pk.split('#', 1)[1] for pk in self.dynamo.items if pk.startswith('session#')]
+
+    def test_sessions_carry_a_ttl_attribute(self):
+        self.login()
+        (item,) = [v for k, v in self.dynamo.items.items() if k.startswith('session#')]
+        self.assertEqual(int(item['expires_at']['N']), int(self.clock.value) + SESSION_SECONDS)
+
+    def test_storage_errors_are_503_not_crashes(self):
+        self.dynamo.fail = 'ProvisionedThroughputExceededException'
+        status, payload, _ = self.request('GET', '/control-api/state?station=1')
+        self.assertEqual(status, 503)
+        self.assertEqual(payload['error'], 'storage_unavailable')
+
+    def test_a_second_start_keeps_the_saved_config(self):
+        cookie = self.login()
+        self.request('PATCH', '/control-api/global', {'revision': 0, 'settings': {'network_mode': 'offline'}}, cookie=cookie)
+        DynamoStore('control', self.dynamo)  # another replica or a restart
+        self.assertEqual(self.request('GET', '/control-api/state')[1]['global']['network_mode'], 'offline')
+
+    def test_unreachable_table_at_start_is_visible(self):
+        self.dynamo.fail = 'ResourceNotFoundException'
+        with self.assertRaises(StorageUnavailable) as raised:
+            DynamoStore('control', self.dynamo)
+        self.assertIn('control', str(raised.exception))

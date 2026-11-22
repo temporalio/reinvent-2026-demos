@@ -117,7 +117,9 @@ def render(apps, port=15101, bind_address='127.0.0.1', hub_url=DEFAULT_CONTROL_H
         if name == 'photobooth-web' or name == 'flightsim-web':
             env.update({'HOLODECK_IMAGE_PROVIDER': 'mock', 'HOLODECK_LLM_PROVIDER': 'mock', 'HOLODECK_EMAIL_PROVIDER': 'outbox', 'HOLODECK_PUBLIC_BASE_URL': f'http://localhost:{port}' + env['PUBLIC_PATH']})
             service['volumes'] = [f'{name}-data:/data']
-        if name in spec['aws']['components']:
+        # The hosted hub's DynamoDB table (spec.aws) is not emulated: local
+        # runs keep the hub on SQLite in the control-data volume.
+        if name in spec['aws']['components'] and name != 'control-hub':
             env.update({'AWS_ACCESS_KEY_ID': 'local', 'AWS_SECRET_ACCESS_KEY': 'local', 'AWS_REGION': 'us-east-1', 'AWS_ENDPOINT_URL_S3': 'http://moto:5000', 'AWS_ENDPOINT_URL_DYNAMODB': 'http://moto:5000'})
             for key, bucket in spec['aws']['s3']['buckets'].items(): env[bucket['env']] = 'ri26-local-' + key
             service.setdefault('depends_on', {})['aws-seed'] = {'condition': 'service_completed_successfully'}
@@ -131,6 +133,7 @@ def render(apps, port=15101, bind_address='127.0.0.1', hub_url=DEFAULT_CONTROL_H
             service['volumes'] = [str(ROOT / 'tmp/local/gateway.conf.template') + ':/etc/nginx/templates/default.conf.template:ro']
             service['depends_on'] = {'launchpad': {'condition': 'service_started'}, 'aws-seed': {'condition': 'service_completed_successfully'}, 'temporal-init': {'condition': 'service_completed_successfully'}, 'control-hub': {'condition': 'service_healthy'}}
         if name == 'control-hub':
+            env['CONTROL_DB'] = '/data/control.sqlite3'
             service['volumes'] = ['control-data:/data']
             service['healthcheck'] = {'test': ['CMD', 'python', '-c', "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/healthz')"], 'interval': '3s', 'timeout': '3s', 'retries': 30}
         if name == 'launchpad':

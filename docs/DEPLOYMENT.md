@@ -2,9 +2,11 @@
 
 The deployment definition is deploy/reinvent-2026.yaml. It is one DemoProject with all application builds/components. It is not deployment-ready. No AWS, Cloud, catalog, or cluster resources have been provisioned by this migration.
 
-## Confirmed platform blocker
+## Platform support for Lambda with spec.aws
 
-Validated against Fieldkit main commit 69e7fa0f4faa3a08e25cb8462269ef215efe4544. The real validator rejects spec.aws when any component uses aws-lambda: the Lambda component would not receive the managed resource role. This affects the combined No Roads/Loan Lambda workers with Agent Harness/Photo Booth S3 and Bedrock declarations. It is independent of ingress routing. Keep the requirements together and resolve this with Michael; do not silently switch serverless demos to always-on workers or delete their AWS requirements.
+Resolved in temporal-fieldkit-platform #151 (main 77037f86, November 21, 2026): spec.aws now accepts aws-lambda components. The project's Lambda exec role gets the bucket, table and model grants, usable only from inside the project's functions (lambda:SourceFunctionArn), and each selected function gets the resource and model env (not AWS_REGION, which Lambda sets). The manifest validates against that commit. Live needs the platform promotion that includes it.
+
+Still to verify on the platform: one Lambda call to the loan Bedrock model (us.anthropic.claude-sonnet-4-5-20250929-v1:0) in live's account and region, us-west-1. Model access is per account and region, the operator does not check it, and a disabled model fails the loan agent at runtime while the demo shows Ready.
 
 Run scripts/validate-fieldkit.sh with access to the pinned platform checkout. scripts/validate.py checks repository structure and credential patterns only; a passing structural check is not deployment readiness.
 
@@ -15,8 +17,8 @@ Run scripts/validate-fieldkit.sh with access to the pinned platform checkout. sc
 - Loan has no matching live demo YAML in the supplied platform snapshot. Its new Lambda image and injected queue/deployment settings require an actual serverless run and verified Bedrock model/permission alignment.
 - Agentic SDLC remains disabled in the launchpad until the booth sandbox GitHub repository, scoped token, signed webhook, runtime secret, and provider account are configured. The manifest references a project-owned sandbox setting rather than the live SA storefront repository.
 - Each build and every app's prefixed asset/API/stream route must pass. Only the tested builds and checks in VERIFICATION.md count.
-- The proposed ingress host label is reinvent-booth. Michael must confirm the base domain/availability and hosted kiosk access mode. Initial ingress requires SSO. Anonymous operation on rental Macs needs an explicitly reviewed access arrangement; no personal login or secret export is installed by these scripts.
-- publicUI remains false until workflow payload visibility and station-scoped reader access are approved.
+- Ingress (decided November 21, 2026): host reinvent-booth on live, `auth: public`, so attendees and the kiosks reach every demo without signing in. Only booth settings need a Fieldkit sign-in: `/config` and the control hub's writes (`/control-api`, `auth: required`). Kiosks poll `/control-api/state`, a public route. Every paid or outbound action (image generation, SDLC runs, Photo Booth email) is reachable by anyone who finds the host; provider spend caps are the limit, and the project is removed after re:Invent.
+- publicUI is on (decided November 21, 2026). Every workflow input, result and history in the namespace, including Photo Booth attendee email addresses, is readable by anyone at `/_temporal/primary/`. The hosted launchpad embeds that route (`apps/launchpad/public/runtime-config.json`).
 - Secrets live under the new project's Secrets Manager scope. No SA live provider keys or credentials are copied. The platform provisions Cloud credentials; do not install AWS IAM keys on the browser-only stations.
 
 ## Embedded Temporal UI
@@ -25,7 +27,7 @@ Reference: [Michael’s public Tacos viewscreen example](https://dejavu-tacos.tm
 
 Michael confirmed that the live catalog can expose a self-hosted temporalio/ui pod backed by Temporal Cloud through a proxy sidecar with a separate read-only service account. Credentials stay inside the pods, so the booth can embed the UI without attendee Cloud logins. Fieldkit exposes this through temporal.publicUI, with per-namespace UI routes where supported.
 
-Read-only access still exposes workflow payloads and histories. The combined project keeps publicUI false until attendee photo/email data is protected or placed outside the public demo namespace. The feature is available; safe publication of this project is not yet verified.
+Read-only access still exposes workflow payloads and histories. publicUI is on for this project (see "Other required gates"), so treat everything an attendee types into a workflow as public.
 
 ## Catalog workflow
 
