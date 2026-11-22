@@ -21,5 +21,11 @@ missions; it does not select a fifth persona. Holodeck lists the flight simulato
 and Photo Booth. Existing availability rules still apply.
 
 Mission cards vary the starfield crop and asteroid rotation/edge placement in a
-four-card cycle. The asteroid is clipped to its card. A dark scrim sits above both
-art layers and below all text and controls; artwork cannot capture pointer input.
+three-card cycle. The asteroid is clipped to its card. Dark backing and text shadows protect the content while leaving the edge artwork
+visible. Launch buttons use a dark translucent fill; artwork cannot capture pointer input.
+
+The shared frame uses Ian's additional grid, orange glow, lunar foreground, and
+astronaut Ziggy exports in `assets/frame/`. Two SVG curves approximate the visible
+pink orbital ellipse. All frame layers are fixed to the viewport and ignore touch;
+the saved station rectangle and Temporal UI are unchanged. No Figma measurements
+have been verified yet.

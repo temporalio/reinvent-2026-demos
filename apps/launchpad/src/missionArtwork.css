@@ -1,28 +1,46 @@
-/* Keep artwork decorative and beneath a dark scrim, including behind long titles. */
+/* Three repeating art poses match the supplied mission-card reference. */
 .missions .mission-card {
   --star-position:20% 25%;
-  --rock-turn:-25deg;
+  --sky-turn:scaleY(1);
+  --rock-turn:0deg;
   --rock-top:auto;
-  --rock-bottom:-3.8rem;
+  --rock-bottom:-14%;
   --rock-left:auto;
-  --rock-right:-2.5rem;
+  --rock-right:-14%;
+  --rock-width:48%;
+  --rock-height:55%;
   overflow:hidden;
-  background:var(--surface-overlay) url('/assets/missions/starfield.png') var(--star-position)/cover no-repeat;
+  background:var(--surface-overlay);
+}
+.missions .mission-card::before {
+  content:""; position:absolute; inset:0; z-index:0; pointer-events:none;
+  background:linear-gradient(#08090d33,#08090d33),url('/assets/missions/starfield.png') var(--star-position)/cover no-repeat;
+  transform:var(--sky-turn);
 }
 .missions .mission-card::after {
   content:""; position:absolute; inset:auto;
   top:var(--rock-top); bottom:var(--rock-bottom); left:var(--rock-left); right:var(--rock-right);
-  width:10rem; height:8rem;
+  width:var(--rock-width); height:var(--rock-height);
   background:url('/assets/missions/asteroid.png') center/contain no-repeat;
-  transform:rotate(var(--rock-turn)); opacity:.8; pointer-events:none; z-index:0;
-}
-.missions .mission-card::before {
-  content:""; position:absolute; inset:0; z-index:1; pointer-events:none;
-  background:linear-gradient(110deg,#08090df0 0%,#08090dd9 48%,#08090db8 100%);
+  transform:rotate(var(--rock-turn)); opacity:.95; pointer-events:none; z-index:1;
 }
 .missions .mission-card > * { position:relative; z-index:2; }
-.missions .mission-card:nth-child(4n+2) { --star-position:85% 0%; --rock-top:-4rem; --rock-bottom:auto; --rock-turn:155deg; }
-.missions .mission-card:nth-child(4n+3) { --star-position:0% 100%; --rock-top:24%; --rock-bottom:auto; --rock-left:-7rem; --rock-right:auto; --rock-turn:65deg; }
-.missions .mission-card:nth-child(4n) { --star-position:100% 65%; --rock-top:auto; --rock-bottom:-5rem; --rock-left:20%; --rock-right:auto; --rock-turn:195deg; }
-.missions .mission-tags li { background:#08090dcc; }
-.missions .mission-icon { background:#08090dcc; }
+.missions .mission-card:nth-child(3n+2) {
+  --star-position:20% 25%; --sky-turn:scaleY(-1);
+  --rock-top:-29%; --rock-bottom:auto; --rock-right:-9%; --rock-turn:180deg;
+  --rock-width:57%; --rock-height:63%;
+}
+.missions .mission-card:nth-child(3n) {
+  --star-position:75% 50%; --sky-turn:rotate(180deg);
+  --rock-top:15%; --rock-bottom:auto; --rock-left:-31%; --rock-right:auto;
+  --rock-turn:75deg; --rock-width:48%; --rock-height:65%;
+}
+/* Back only the content, preserving the visible starfield and edge artwork. */
+.missions .mission-card-heading h2,.missions .mission-description,.missions .mission-connectivity,.missions .mission-card .pending {
+  text-shadow:0 1px 3px #000,0 0 8px #000;
+  background:#08090d99;
+  box-shadow:0 0 .45rem .2rem #08090d99;
+}
+.missions .mission-tags li,.missions .mission-icon { background:#08090dcc; }
+.missions .mission-card button { background:#08090de8; color:var(--brand-highlight); backdrop-filter:blur(3px); }
+.missions .mission-card button:disabled { opacity:.65; }

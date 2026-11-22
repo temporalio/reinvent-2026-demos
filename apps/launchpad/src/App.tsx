@@ -11,6 +11,7 @@ import { initialLaunchScreen } from './launchNavigation'
 import { missionMetadata } from './missionMetadata'
 import { LogoMarquee } from './LogoMarquee'
 import { CrewPicker, type Persona } from './CrewPicker'
+import { BoothBackground } from './BoothBackground'
 import { idleScreensaverEnabled, useIdleScreensaver } from './useIdleScreensaver'
 
 const initialDemo = catalog.find(d=>d.id===new URLSearchParams(window.location.search).get('demo')) || null
@@ -71,6 +72,7 @@ export default function App() {
     doc?.addEventListener('reinvent:exit', showCrew, { once: true })
   }} />
   return <div className={`launchpad${screen === 'crew' ? ' launchpad-crew' : ''}`}>
+    <BoothBackground />
     <LogoMarquee side="top" /><LogoMarquee side="bottom" />
     <header><img src="/assets/brand/temporal-logo.svg" alt="Temporal" />{screen === 'demo' && selected && <h1 className="demo-title">{selected.title}</h1>}</header>
     {runtime.notice && <aside className="local-notice">{runtime.notice}</aside>}
@@ -92,7 +94,7 @@ export default function App() {
       })}</div></>}
       {screen === 'demo' && selected && <>{!mayRun ? <p role="status">{blocked || 'Choose another mission.'}</p> : <><DemoStage key={`${selected.id}-${persona}`} demo={selected} persona={persona} temporalUi={runtime.temporalUi} notice={runtime.demoNotices?.[selected.id]} /></>}</>}
     </DisplayArea>
-    <footer><button onClick={showCrew}>Crew</button><button onClick={() => setScreen('missions')}>Missions</button><div className="screensaver-control"><span className="idle-countdown" role="status" aria-live="polite">{idleCountdown !== null ? `Screensaver in ${idleCountdown}s` : ''}</span><button onClick={showScreensaver}>Screensaver</button></div><button className="ziggy-settings" onClick={()=>setConfigurationOpen(true)} aria-label="Open station configuration"><img src="/assets/brand/ziggy-face.png" alt="Ziggy station settings" /></button></footer>
+    <footer><button onClick={showCrew}>Crew</button><button onClick={() => setScreen('missions')}>Missions</button><div className="screensaver-control"><span className="idle-countdown" role="status" aria-live="polite">{idleCountdown !== null ? `Screensaver in ${idleCountdown}s` : ''}</span><button onClick={showScreensaver}>Screensaver</button></div><button className="ziggy-settings" onClick={()=>setConfigurationOpen(true)} aria-label="Open station configuration"><img src="/assets/frame/ziggy-astronaut.png" alt="Ziggy station settings" /></button></footer>
     {configurationOpen && <div className="station-settings-overlay" role="dialog" aria-modal="true" aria-label="Station configuration"><StationControl onExit={()=>setConfigurationOpen(false)} /></div>}
   </div>
 }

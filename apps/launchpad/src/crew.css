@@ -32,5 +32,5 @@
 }
 
 /* A single starfield remains visible through the whole crew sheet and its cards. */
-.launchpad-crew { background:linear-gradient(#08090d33,#08090d66),url('/assets/missions/starfield.png') center/cover fixed; }
+.launchpad-crew { background:var(--surface-page); }
 .launchpad-crew main.station-surface { background:#08090d40; }

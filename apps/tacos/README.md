@@ -4,9 +4,9 @@
 
 This reskin is only for AWS re:Invent 2026. Contact Ian Douglas or Tomas Josovsky with questions.
 
-Ordering and kitchen controls stay visible together. The lower panel has Business impact, Architecture, Workflow code, and Temporal UI tabs. `?persona=captain`, `mech`, `envoy`, or `solarian` sets the starting tab; changing perspective or code language keeps the order running. Each panel has its own zoom buttons and two-finger zoom handler. Physical TV/stylus testing remains required; gestures inside the embedded Temporal UI belong to that app.
+Ordering and kitchen controls stay visible together. The lower panel has Business impact, Architecture, Workflow code, and Temporal UI tabs. `?persona=captain`, `mech`, `envoy`, or `solarian` sets the starting tab; switching information tabs or code language keeps the order running. Display size, position, and zoom are configured through the launchpad controls. Physical TV/stylus testing remains required; gestures inside the embedded Temporal UI belong to that app.
 
-The UI uses Ash's Cosmic Pop theme from `_design-toolkit`. The code viewer shows the running language's full Workflow source from this build, or annotated excerpts in other languages. Swift is an explicitly illustrative outline for the [stable community SDK](https://forums.swift.org/t/temporal-swift-sdk-1-0-0/86768), with no Swift worker. It is not compiled SDK code.
+The UI uses Ash's Cosmic Pop theme. In the monorepo launchpad, the code viewer shows one short orchestration example in each of the eight official SDK languages. The running worker stays in its configured language; other SDK examples are labeled illustrative. See [the code viewer notes](../../docs/CODE-EXAMPLES.md).
 
 ### Run the complete local stack with Docker
 
