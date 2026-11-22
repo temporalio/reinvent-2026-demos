@@ -18,6 +18,8 @@ Open http://localhost:15101/config on the laptop, or tap Ziggy on a station and 
 
 Follow [station control setup](docs/STATION-CONTROL.md) to connect the four Mac gateways to the laptop hub over the private LAN (local runs; settings persist in a local Docker volume), or for the hosted booth, where settings are kept in DynamoDB and `/config` needs a Fieldkit sign-in. Offline policy does not provision fallback services or change worker connections.
 
+See [touchscreen presentation](docs/TOUCHSCREEN-UI.md) for panel fitting, idle behavior, SDK excerpts, and position preview. The [SDLC GitHub setup](docs/AGENTIC-SDLC-GITHUB.md) covers the dedicated demo account and sandbox repository.
+
 ## Local checks
 
 ```bash

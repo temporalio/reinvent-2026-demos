@@ -12,6 +12,12 @@ Mission cards use toolkit icons, short descriptions, and capability tags. Tags d
 
 The gradient artwork is anchored to the full screensaver viewport, outside the centered portrait artboard, so a different aspect ratio does not leave a hard left inset.
 
+## Preview a position before saving
+
+In staff controls, select a station, change its Demo area values, then tap **Preview position**. The real Tacos layout renders with those unsaved dimensions. The arrow beside Screensaver/Ziggy returns directly to the same unlocked draft. Preview does not PATCH the control API, change the selected station identity, or require a temporary save/undo. Only **Save settings** applies the draft. Staff preview does not time out.
+
+Preview uses the current browser viewport. A laptop preview cannot certify physical reach on a different television; verify final placement on the station. Its Screensaver button is a staff preview with a persistent Back control; leaving that preview returns to the staff draft.
+
 ## Character artwork
 
 The toolkit's main tree at `da8ce54b01f9d7f96f9a4649691e802f69b00c1c` was checked. It includes the Cosmic Pop theme, customer logos, Ziggy, icons, and general illustrations. The Captain, Mech, Envoy, Solarian, and Space Wizard portrait exports shown in the design screenshots are absent. They have not been replaced with fabricated character artwork. Original exports are still needed to finish that part of crew selection.

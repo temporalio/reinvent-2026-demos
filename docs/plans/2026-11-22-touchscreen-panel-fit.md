@@ -11,3 +11,5 @@ Code examples contain the key orchestration idea, not a whole source file. Provi
 Phases: (1) inspect/document complete; (2) shared shell, native adapters, and curated examples; (3) Docker builds, browser geometry/flows and owned-frame navigation checks; commit and PR against the deployed onboarding branch. No deployment or merge.
 
 Screensaver follow-up: all exit/Launch paths return to crew selection before a demo can start. The latest toolkit tree at da8ce54 contains no Captain/Mech/Envoy/Solarian/Space Wizard portrait exports; character artwork remains pending source assets. Do not present substitute art as Ash's characters.
+
+Completed follow-ups: mission capability cards; 30-second idle plus 5-second countdown with staff/active Holodeck exemptions; full-bleed gradient; in-memory Tacos position preview that preserves the unlocked draft. All native/SDK/browser checks are recorded in docs/TOUCHSCREEN-UI.md and docs/VERIFICATION.md. SDLC account/repository setup is documented separately, with no remote resources created.
