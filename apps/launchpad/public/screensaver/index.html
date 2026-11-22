@@ -13,12 +13,12 @@
      repeats the list until the strip is covered twice over, then the strip slides by
      exactly one copy so the loop never shows a seam.
 
-     The six planets are the six Launchpad decks. Each one circles its orbit, growing
+     The planets represent the Launchpad demos. Each one circles its orbit, growing
      as it swings to the front and shrinking as it passes behind. Tap a planet to open
      its deck's lead demo on the card; DECKS in the script holds that copy and each
-     demo's link. The card's Launch outline fills over CARD_SECONDS, then the card
+     demo's introduction. The card's Launch outline fills over CARD_SECONDS, then the card
      closes and only the orbits stay until the next planet is tapped. A tap anywhere
-     else goes on to the crew select screen (CREW_SELECT_URL, not built yet).
+     else goes on to crew selection, as does every Launch button.
 
      Point the asset paths at your copy of assets/. -->
 <html lang="en">
@@ -54,7 +54,9 @@
     .lines { pointer-events: none; }
 
     /* Background art */
-    .glow { left: -868px; top: -494.7px; width: 1814.85px; height: 1355.62px; rotate: -42.34deg; scale: 1 -1; }
+    /* Background fills the viewport even when the portrait artboard is letterboxed. */
+    .viewport-glow { position:fixed; inset:0; overflow:hidden; pointer-events:none; }
+    .viewport-glow .glow { position:absolute; left:calc(-868px * var(--s, 1)); top:calc(-494.7px * var(--s, 1)); width:calc(1814.85px * var(--s, 1)); height:calc(1355.62px * var(--s, 1)); rotate:-42.34deg; scale:1 -1; }
     .comet-ring { fill: none; stroke: var(--status-retrying); stroke-width: .5; opacity: .7; }
     .link { stroke: var(--accent); stroke-width: 2; stroke-dasharray: 2 10; }
     /* The big asteroid starts where Figma puts it; the script then arcs it off the bottom. */
@@ -152,8 +154,9 @@
 <body>
   <canvas id="stars" aria-hidden="true"></canvas>
 
+  <div class="viewport-glow" aria-hidden="true"><img class="glow" src="art/glow.svg" alt=""></div>
+
   <main class="screensaver" aria-label="Crash Course: no lost state">
-    <img class="glow" src="art/glow.svg" alt="">
 
     <svg class="stage-art lines" viewBox="0 0 1080 1920" aria-hidden="true">
       <ellipse class="comet-ring" cx="540.11" cy="959.75" rx="2949.2" ry="855.28" transform="rotate(25.1 540.11 959.75)"/>
@@ -238,6 +241,7 @@
   <div class="marquee bottom" aria-hidden="true"><div class="marquee-track"></div></div>
 
   <script src="../../assets/js/starfield.js"></script>
+  <script src="./navigation.js"></script>
   <script>
     Starfield.start(document.getElementById("stars"));
     // No long-press menu on the touch screen.
@@ -323,7 +327,7 @@
     // does (angle in degrees, 90 = front); pace scales its lap time (under 1 is faster,
     // over 1 slower); the card copy is each deck's lead demo, and
     // url is where its Launch button goes. Until a url is set, Launch does nothing.
-    const DECKS = [{"badge": "orbit_01", "deck": "Ziggy Space Taqueria", "color": "--persona-captain", "orbit": 5, "angle": 30, "r": 42, "pace": 0.8, "title": "Ziggy Space Taqueria", "lead": "Order tacos from orbit, then", "mark": "cut the kitchen uplink", "rest": " and recover the order.", "url": "/?demo=tacos"}, {"badge": "orbit_02", "deck": "Money Transfer", "color": "--persona-mech", "orbit": 4, "angle": 71, "r": 39, "pace": 0.89, "title": "Money Transfer", "lead": "Move credits between accounts.", "mark": "Interrupt the transfer", "rest": " and inspect compensation.", "url": "/?demo=money-transfer"}, {"badge": "orbit_03", "deck": "Data Pipeline", "color": "--persona-envoy", "orbit": 3, "angle": 112, "r": 36, "pace": 0.98, "title": "Data Pipeline", "lead": "Validate and transform mission data.", "mark": "Recover a failed step", "rest": " without starting over.", "url": "/?demo=data-pipeline"}, {"badge": "orbit_04", "deck": "Loan Underwriting", "color": "--persona-solarian", "orbit": 2, "angle": 153, "r": 33, "pace": 1.07, "title": "Loan Underwriting", "lead": "Assess an application with Strands agents.", "mark": "Pause for human review", "rest": " before the decision.", "url": "/?demo=loan"}, {"badge": "orbit_05", "deck": "No Roads", "color": "--persona-wizard", "orbit": 1, "angle": 194, "r": 30, "pace": 1.1600000000000001, "title": "No Roads", "lead": "Send jobs to serverless workers.", "mark": "Watch backlog and concurrency", "rest": " on AWS Lambda.", "url": "/?demo=no-roads"}, {"badge": "orbit_06", "deck": "Travel Agent / Temporal Agent Harness", "color": "--brand-accent", "orbit": 0, "angle": 235, "r": 27, "pace": 1.25, "title": "Travel Agent / Temporal Agent Harness", "lead": "Build a trip with an AI agent.", "mark": "Approve the next booking", "rest": " and follow each durable tool call.", "url": "/?demo=agent-harness"}, {"badge": "orbit_07", "deck": "Agentic SDLC (tentative)", "color": "--persona-captain", "orbit": 5, "angle": 276, "r": 24, "pace": 1.34, "title": "Agentic SDLC (tentative)", "lead": "GitHub-driven development agents.", "mark": "Staff setup required", "rest": " before this mission can launch.", "url": null}, {"badge": "orbit_08", "deck": "Flight Simulator", "color": "--persona-mech", "orbit": 4, "angle": 317, "r": 21, "pace": 1.4300000000000002, "title": "Flight Simulator", "lead": "Take the controls for a flight mission.", "mark": "Explore the galaxy", "rest": " with Temporal behind the scenes.", "url": "/?demo=flight-simulator"}, {"badge": "orbit_09", "deck": "Photo Booth", "color": "--persona-envoy", "orbit": 3, "angle": 358, "r": 18, "pace": 1.52, "title": "Photo Booth", "lead": "Step into the Photo Booth.", "mark": "Become a space explorer", "rest": " and create an AI photo strip.", "url": "/?demo=photo-booth"}];
+    const DECKS = [{"badge": "orbit_01", "deck": "Ziggy Space Taqueria", "color": "--persona-captain", "orbit": 5, "angle": 30, "r": 42, "pace": 0.8, "title": "Ziggy Space Taqueria", "lead": "Order tacos from orbit, then", "mark": "cut the kitchen uplink", "rest": " and recover the order.", "url": "/?screen=crew"}, {"badge": "orbit_02", "deck": "Money Transfer", "color": "--persona-mech", "orbit": 4, "angle": 71, "r": 39, "pace": 0.89, "title": "Money Transfer", "lead": "Move credits between accounts.", "mark": "Interrupt the transfer", "rest": " and inspect compensation.", "url": "/?screen=crew"}, {"badge": "orbit_03", "deck": "Data Pipeline", "color": "--persona-envoy", "orbit": 3, "angle": 112, "r": 36, "pace": 0.98, "title": "Data Pipeline", "lead": "Validate and transform mission data.", "mark": "Recover a failed step", "rest": " without starting over.", "url": "/?screen=crew"}, {"badge": "orbit_04", "deck": "Loan Underwriting", "color": "--persona-solarian", "orbit": 2, "angle": 153, "r": 33, "pace": 1.07, "title": "Loan Underwriting", "lead": "Assess an application with Strands agents.", "mark": "Pause for human review", "rest": " before the decision.", "url": "/?screen=crew"}, {"badge": "orbit_05", "deck": "No Roads", "color": "--persona-wizard", "orbit": 1, "angle": 194, "r": 30, "pace": 1.1600000000000001, "title": "No Roads", "lead": "Send jobs to serverless workers.", "mark": "Watch backlog and concurrency", "rest": " on AWS Lambda.", "url": "/?screen=crew"}, {"badge": "orbit_06", "deck": "Travel Agent / Temporal Agent Harness", "color": "--brand-accent", "orbit": 0, "angle": 235, "r": 27, "pace": 1.25, "title": "Travel Agent / Temporal Agent Harness", "lead": "Build a trip with an AI agent.", "mark": "Approve the next booking", "rest": " and follow each durable tool call.", "url": "/?screen=crew"}, {"badge": "orbit_07", "deck": "Agentic SDLC (tentative)", "color": "--persona-captain", "orbit": 5, "angle": 276, "r": 24, "pace": 1.34, "title": "Agentic SDLC (tentative)", "lead": "GitHub-driven development agents.", "mark": "Staff setup required", "rest": " before this mission can launch.", "url": "/?screen=crew"}, {"badge": "orbit_08", "deck": "Flight Simulator", "color": "--persona-mech", "orbit": 4, "angle": 317, "r": 21, "pace": 1.4300000000000002, "title": "Flight Simulator", "lead": "Take the controls for a flight mission.", "mark": "Explore the galaxy", "rest": " with Temporal behind the scenes.", "url": "/?screen=crew"}, {"badge": "orbit_09", "deck": "Photo Booth", "color": "--persona-envoy", "orbit": 3, "angle": 358, "r": 18, "pace": 1.52, "title": "Photo Booth", "lead": "Step into the Photo Booth.", "mark": "Become a space explorer", "rest": " and create an AI photo strip.", "url": "/?screen=crew"}];
 
     // How far round the front a planet is: 0 at the back of its orbit, 1 at the front.
     const depthAt = deg => (1 + Math.sin(deg * Math.PI / 180)) / 2;
@@ -364,9 +368,6 @@
 
     // How long a card stays open before it closes on its own, in seconds.
     const CARD_SECONDS = 15;
-    // The screen a tap on the background leads to. The crew select screen is not
-    // built yet: until it is, a background tap only fires a "screensaver:next" event.
-    const CREW_SELECT_URL = null;
 
     const launch = card.querySelector(".launch");
     let selected = null;
@@ -400,15 +401,10 @@
       } else {
         p.append(keep, deck.rest);
       }
-      launch.setAttribute("aria-label", `Launch ${deck.title}`);
-      if (deck.url) {
-        launch.href = deck.url;
-        launch.target = "_top";
-        launch.removeAttribute("aria-disabled");
-      } else {
-        launch.removeAttribute("href");
-        launch.setAttribute("aria-disabled", "true");
-      }
+      launch.setAttribute("aria-label", `Choose your crew to explore ${deck.title}`);
+      launch.href = "/?screen=crew";
+      launch.removeAttribute("target");
+      launch.removeAttribute("aria-disabled");
       card.classList.remove("is-swapping");
       void card.offsetWidth;
       card.classList.add("is-swapping");
@@ -437,11 +433,15 @@
         .finished.then(() => { if (!selected) hide(); });
     }
 
-    // A tap anywhere but a planet or the open card moves on to the crew select screen.
+    launch.addEventListener("click", event => {
+      event.preventDefault();
+      window.boothExitScreensaver();
+    });
+
+    // Planet/card taps stay interactive. Every exit starts with crew selection.
     addEventListener("pointerdown", e => {
       if (e.target.closest(".planet, .card-overview")) return;
-      if (CREW_SELECT_URL) location.href = CREW_SELECT_URL;
-      else document.dispatchEvent(new CustomEvent("reinvent:exit"));
+      window.boothExitScreensaver();
     });
 
     function place(planet) {

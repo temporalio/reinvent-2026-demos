@@ -68,15 +68,15 @@ export function TransferTracker({
     : Math.min(lastStarted + (isDone ? 1 : 0.5), visiblePhases.length - 1)
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="px-4 py-3 border-b border-border">
+    <div className="banking-screen banking-tracker flex flex-col h-full">
+      <div className="banking-screen-head px-4 py-3 border-b border-border">
         <h1 className="text-xl font-light tracking-tight">Transfer Status</h1>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="banking-screen-body tracking-body flex-1 overflow-y-auto">
         <div
           data-status={hero.status}
-          className="mx-4 mt-4 mb-5 p-5 bg-panel border border-border border-l-[3px] border-l-(--status) text-center"
+          className="tracking-hero mx-4 mt-4 mb-5 p-5 bg-panel border border-border border-l-[3px] border-l-(--status) text-center"
         >
           <span className="mx-auto mb-3 w-12 h-12 border border-current flex items-center justify-center text-(--status)">
             <Icon name={hero.icon} size={24} />
@@ -85,7 +85,7 @@ export function TransferTracker({
           <p className="text-sm mt-1 text-t-indigo-100">{hero.subtitle}</p>
         </div>
 
-        <div className="px-6 mb-4">
+        <div className="tracking-progress px-6 mb-4">
           <div className="relative h-9 mx-3">
             <div className="absolute top-1/2 left-0 right-0 -translate-y-1/2 h-[3px] bg-border" />
             {lastStarted >= 0 && (
@@ -135,7 +135,7 @@ export function TransferTracker({
           </div>
         )}
 
-        <div className="mx-4 mb-4 px-4 py-3 bg-panel border border-border flex items-center gap-3">
+        <div className="tracking-security mx-4 mb-4 px-4 py-3 bg-panel border border-border flex items-center gap-3">
           <Icon name="lock" className="flex-shrink-0 text-t-green" />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium">Temporal Banking</p>
@@ -145,7 +145,7 @@ export function TransferTracker({
       </div>
 
       {isDone && (
-        <div className="p-4 border-t border-border">
+        <div className="banking-screen-actions p-4 border-t border-border">
           <button type="button" onClick={onNewTransfer} className="button primary ultraviolet w-full">
             New transfer
           </button>

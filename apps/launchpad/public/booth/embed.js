@@ -1,23 +1,58 @@
-// One native application session per booth frame. Full-page demo navigation keeps
-// the theme by checking its actual parent frame, rather than storing a global flag.
-function isBoothFrame() {
+// Native full-page navigations inherit booth mode only from their owning frame.
+function boothFrame() {
   try {
-    return parent !== window && parent.location.origin === location.origin &&
-      [...parent.document.querySelectorAll('.app-viewport iframe, iframe.native-stage')].some(frame => frame.contentWindow === window)
-  } catch { return false }
+    return parent !== window && parent.location.origin === location.origin
+      ? [...parent.document.querySelectorAll('.app-viewport iframe, iframe.native-stage')].find(frame => frame.contentWindow === window)
+      : null
+  } catch { return null }
 }
-if (new URLSearchParams(location.search).get('booth') === '1' || isBoothFrame()) {
+const parentBoothFrame = boothFrame()
+const boothParams = new URLSearchParams(location.search)
+const frameParams = parentBoothFrame ? new URL(parentBoothFrame.src, location.href).searchParams : new URLSearchParams()
+if (boothParams.get('booth') === '1' || parentBoothFrame) {
   document.documentElement.dataset.booth = 'true'
   document.documentElement.dataset.demo = location.pathname.split('/')[1]
+  const sharedStage = boothParams.get('sharedStage') === '1' || frameParams.get('sharedStage') === '1'
+  if(sharedStage)document.documentElement.dataset.sharedStage = 'true'
   const style = document.createElement('link')
   style.rel = 'stylesheet'
   style.href = '/booth/embed.css'
   document.head.append(style)
   let lastWorkflow = ''
+  let uiBase = null
+  const runtimeReady = fetch('/runtime-config.json').then(response=>response.ok?response.json():null).then(runtime=>{
+    if(!runtime?.temporalUi)return
+    const url=new URL(runtime.temporalUi,location.origin)
+    if(url.origin===location.origin && url.pathname.startsWith('/_temporal/'))uiBase=url
+  }).catch(()=>{})
+  function isTemporalLink(url) {
+    if(url.username || url.password || !['http:','https:'].includes(url.protocol))return false
+    return (url.origin===location.origin && url.pathname.startsWith('/_temporal/')) ||
+      (url.origin==='https://cloud.temporal.io' && /^\/namespaces\/[^/]+\/workflows(?:\/|$)/.test(url.pathname))
+  }
+  function embeddedTemporalUrl(url) {
+    if(!isTemporalLink(url))return null
+    if(url.origin===location.origin)return url.href
+    if(!uiBase)return null
+    const route=url.pathname.match(/\/workflows(\/.*)?$/)
+    if(!route || !/\/workflows\/?$/.test(uiBase.pathname))return null
+    const destination=new URL(uiBase.href)
+    destination.pathname=destination.pathname.replace(/\/workflows\/?$/,'/workflows')+(route[1]||'')
+    destination.search=url.search
+    destination.hash=url.hash
+    return destination.href
+  }
   function publishWorkflow() {
-    const links = [...document.querySelectorAll('a[href]')].map(anchor => new URL(anchor.href, location.href))
-      .filter(url => url.origin === location.origin && url.pathname.startsWith('/_temporal/') && /\/workflows\/[^/?#]+/.test(url.pathname))
-    const latest = links.at(-1)?.href
+    const links = [...document.querySelectorAll('a[href]')].map(anchor => ({anchor,url:new URL(anchor.href, location.href)}))
+    for(const {anchor,url} of links){
+      if(!isTemporalLink(url))continue
+      anchor.removeAttribute('target')
+      anchor.setAttribute('data-booth-temporal','true')
+      anchor.title='Show workflow in the lower Temporal UI panel'
+      const label=anchor.textContent.replace(/↗/g,'').replace('Open execution','View workflow').trim()
+      if(label!==anchor.textContent)anchor.textContent=label
+    }
+    const latest=links.map(({url})=>embeddedTemporalUrl(url)).filter(value=>value && /\/workflows\/[^/?#]+/.test(new URL(value).pathname)).at(-1)
     if (latest && latest !== lastWorkflow) {
       lastWorkflow = latest
       parent.postMessage({type:'booth:workflow', url:latest}, location.origin)
@@ -52,18 +87,89 @@ if (new URLSearchParams(location.search).get('booth') === '1' || isBoothFrame())
       }
     } catch { /* The server remains the authority for provider availability. */ }
   }
+  // Give legacy dashboards a measured, bounded canvas rather than nested scrolling.
+  // Banking/Tacos have compact native layouts; the remaining apps use a virtual canvas.
+  const virtualFit = sharedStage && !['banking','dejavutacos','flightsim','photobooth'].includes(document.documentElement.dataset.demo)
+  let fitPending = false
+  function fitNativeCanvas() {
+    fitPending = false
+    if(!sharedStage)return
+    const root=document.documentElement
+    root.dataset.boothFit='measuring'
+    if(virtualFit) {
+      const body=document.body
+      body.style.zoom='1'
+      body.style.width=innerWidth+'px'
+      body.style.height='auto'
+      root.style.setProperty('--booth-canvas-height',innerHeight+'px')
+      // Expand native scroll regions before measuring their real content. The outer
+      // iframe itself remains fixed and the fitted result never needs a scrollbar.
+      document.querySelectorAll('body *').forEach(element=>{
+        const style=getComputedStyle(element)
+        if(['auto','scroll'].includes(style.overflowY) || ['auto','scroll'].includes(style.overflowX) ||
+          (style.overflowY==='hidden' && element.scrollHeight>element.clientHeight+2 && element.querySelector('button,input,select,textarea')))element.dataset.boothScrollfit='true'
+      })
+      let scale=1
+      // Keep the fitted canvas full width. Reflowing at its virtual width also
+      // avoids needlessly shrinking long labels and forms into a narrow column.
+      for(let pass=0;pass<6;pass++) {
+        body.style.width=(innerWidth/scale)+'px'
+        let bottom=Math.max(innerHeight,body.getBoundingClientRect().bottom), right=innerWidth/scale
+        document.querySelectorAll('body *').forEach(element=>{
+          if(element.closest('dialog:not([open]),[hidden]'))return
+          const rect=element.getBoundingClientRect()
+          if(rect.width && rect.height && getComputedStyle(element).visibility!=='hidden') {
+            bottom=Math.max(bottom,rect.bottom)
+            right=Math.max(right,rect.right)
+          }
+        })
+        // The body's border/padding contributes to document height even when no
+        // child reaches its bottom edge. Measure it instead of clipping that edge.
+        bottom=Math.max(bottom,body.getBoundingClientRect().top+body.scrollHeight)
+        const next=Math.min(1,innerHeight/(bottom+2),innerWidth/(right+2))
+        if(Math.abs(next-scale)<.0001){scale=next;break}
+        scale=next
+      }
+      body.style.zoom=String(scale)
+      root.dataset.boothFitScale=String(scale)
+    }
+    root.dataset.boothFit='ready'
+  }
+  function scheduleFit() {
+    if(!sharedStage || fitPending)return
+    fitPending=true
+    requestAnimationFrame(()=>requestAnimationFrame(fitNativeCanvas))
+  }
+  style.addEventListener('load',scheduleFit)
+  window.addEventListener('resize',scheduleFit)
+  window.addEventListener('load',scheduleFit)
+  document.fonts?.ready.then(scheduleFit)
   function observe() {
     document.addEventListener('click', event => {
       const anchor = event.target instanceof Element ? event.target.closest('a[href]') : null
       if(!anchor || parent === window) return
       const destination = new URL(anchor.href,location.href)
+      if(isTemporalLink(destination)) {
+        event.preventDefault()
+        event.stopPropagation()
+        void runtimeReady.then(()=>{
+          const url=embeddedTemporalUrl(destination)
+          if(url)parent.postMessage({type:'booth:workflow',url:/\/workflows\/[^/?#]+/.test(new URL(url).pathname)?url:lastWorkflow||url,activate:true},location.origin)
+        })
+        return
+      }
       if(destination.origin === location.origin && destination.pathname === '/' && !destination.search) {
         event.preventDefault()
         parent.postMessage({type:'booth:navigate',screen:'missions'}, location.origin)
       }
     },true)
-    new MutationObserver(publishWorkflow).observe(document.body, {childList:true, subtree:true, attributes:true, attributeFilter:['href']})
+    new MutationObserver(records=>{
+      if(records.every(record=>record.type==='attributes' && record.target===document.body))return
+      publishWorkflow();scheduleFit()
+    }).observe(document.body, {childList:true, subtree:true, attributes:true, attributeFilter:['href','open','class','style']})
     publishWorkflow()
+    scheduleFit()
+    void runtimeReady.then(publishWorkflow)
     void showRuntimeNotice()
   }
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', observe, {once:true})

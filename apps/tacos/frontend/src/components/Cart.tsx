@@ -23,7 +23,7 @@ export function Cart({ items, onUpdateQuantity, onCheckout, onBack }: CartProps)
       </div>
 
       {/* Items */}
-      <div className="flex-1 overflow-y-auto px-3 py-2 space-y-2">
+      <div className="taqueria-cart-items flex-1 overflow-y-auto px-3 py-2 space-y-2">
         {items.length === 0 ? (
           <div className="text-center py-12 text-gray-400">
             <p className="text-4xl mb-2">🌮</p>
@@ -33,7 +33,7 @@ export function Cart({ items, onUpdateQuantity, onCheckout, onBack }: CartProps)
           items.map((item) => (
             <div
               key={item.menu_item_id}
-              className="bg-white rounded-xl p-3 shadow-sm flex items-center gap-3"
+              className="taqueria-cart-item bg-white rounded-xl p-3 shadow-sm flex items-center gap-3"
             >
               <div className="flex-1">
                 <h3 className="font-semibold text-gray-900 text-sm">
@@ -69,7 +69,7 @@ export function Cart({ items, onUpdateQuantity, onCheckout, onBack }: CartProps)
 
       {/* Totals + Checkout */}
       {items.length > 0 && (
-        <div className="p-3 bg-white border-t border-orange-100 space-y-2">
+        <div className="taqueria-cart-totals p-3 bg-white border-t border-orange-100 space-y-2">
           <div className="flex justify-between text-sm text-gray-600">
             <span>Subtotal</span>
             <span>${subtotal.toFixed(2)}</span>

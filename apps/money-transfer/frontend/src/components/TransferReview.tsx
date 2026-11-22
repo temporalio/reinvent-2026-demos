@@ -28,19 +28,19 @@ export function TransferReview({
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val)
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="px-4 py-3 border-b border-border flex items-center gap-1">
+    <div className="banking-screen banking-review flex flex-col h-full">
+      <div className="banking-screen-head px-4 py-3 border-b border-border flex items-center gap-1">
         <BackButton onClick={onBack} />
         <h1 className="text-xl font-light tracking-tight">Review Transfer</h1>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4">
-        <div className="text-center mb-6 grid gap-2">
+      <div className="banking-screen-body review-detail flex-1 overflow-y-auto px-4 py-4">
+        <div className="review-amount text-center mb-6 grid gap-2">
           <p className="text-5xl font-light tracking-tight tabular-nums">{formatCurrency(amount)}</p>
           <p className="eyebrow">Transfer amount</p>
         </div>
 
-        <div className="bg-panel p-4 border border-border mb-2 grid gap-2">
+        <div className="review-account bg-panel p-4 border border-border mb-2 grid gap-2">
           <p className="eyebrow">From</p>
           <div className="flex items-center gap-3">
             <AccountIcon type={from?.account_type} />
@@ -57,7 +57,7 @@ export function TransferReview({
           </div>
         </div>
 
-        <div className="flex justify-center py-1">
+        <div className="review-direction flex justify-center py-1">
           <div className="w-8 h-8 border border-control-edge flex items-center justify-center text-t-green">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
               <path d="M8 3v10M5 10l3 3 3-3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -65,7 +65,7 @@ export function TransferReview({
           </div>
         </div>
 
-        <div className="bg-panel p-4 border border-border mb-6 grid gap-2">
+        <div className="review-account bg-panel p-4 border border-border mb-6 grid gap-2">
           <p className="eyebrow">To</p>
           <div className="flex items-center gap-3">
             <AccountIcon type={to?.account_type} />
@@ -78,7 +78,7 @@ export function TransferReview({
         </div>
       </div>
 
-      <div className="p-4 border-t border-border">
+      <div className="banking-screen-actions p-4 border-t border-border">
         <button
           type="button"
           onClick={onConfirm}

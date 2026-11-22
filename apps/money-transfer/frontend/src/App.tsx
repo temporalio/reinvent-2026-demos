@@ -25,6 +25,8 @@ const DEFAULT_SETTINGS: Settings = {
   presentation_mode: 'detailed',
 }
 
+const SHARED_STAGE = new URLSearchParams(window.location.search).get('sharedStage') === '1'
+
 const TRANSFER_EVENTS = { update: 'transfer_update', done: 'transfer_complete' }
 
 function App() {
@@ -181,10 +183,11 @@ function App() {
           </button>
         </nav>
         <div className="topbar-actions">
+          {SHARED_STAGE && <label className="booth-scenario field"><span>Scenario</span><select value={settings.scenario} onChange={event=>void handleSaveSettings({...settings,scenario:event.target.value as Settings['scenario']})}>{SCENARIOS.map(item=><option key={item.value} value={item.value}>{item.label}</option>)}</select></label>}
           <button
             type="button"
             onClick={() => setSettingsOpen(true)}
-            className="button small secondary ultraviolet"
+            className="button small secondary ultraviolet booth-scenario-dialog"
             aria-haspopup="dialog"
           >
             Scenario: {scenarioLabel}
@@ -194,7 +197,7 @@ function App() {
             target="_blank"
             rel="noreferrer"
             aria-disabled={temporalUi?.namespace_url ? undefined : true}
-            className="button small secondary green"
+            className="button small secondary green booth-temporal-summary"
             title={
               temporalUi
                 ? `Open ${temporalUi.namespace} in the Temporal UI`
@@ -226,13 +229,11 @@ function App() {
                       </div>
                       <PaneCollapseButton />
                     </div>
-                    <PhoneFrame
+                    {SHARED_STAGE ? <div className="booth-banking-product">{renderPhoneContent()}</div> : <PhoneFrame
                       chrome="var(--space-black)"
                       background="var(--space-black)"
                       foreground="var(--off-white)"
-                    >
-                      {renderPhoneContent()}
-                    </PhoneFrame>
+                    >{renderPhoneContent()}</PhoneFrame>}
                   </div>
                 ),
               },

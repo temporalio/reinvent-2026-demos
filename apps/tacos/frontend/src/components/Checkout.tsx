@@ -22,9 +22,9 @@ export function Checkout({ items, onPlaceOrder, onBack, isLoading }: CheckoutPro
         <h1 className="text-lg font-bold">Checkout</h1>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-4">
+      <div className="taqueria-checkout-content flex-1 overflow-y-auto px-3 py-4 space-y-4">
         {/* Pickup info */}
-        <div className="bg-white rounded-xl p-4 shadow-sm">
+        <div className="taqueria-checkout-card bg-white rounded-xl p-4 shadow-sm">
           <h2 className="font-bold text-gray-900 mb-2 text-sm">Pickup Location</h2>
           <div className="flex items-center gap-2 text-sm text-gray-600">
             <span className="text-lg">📍</span>
@@ -37,7 +37,7 @@ export function Checkout({ items, onPlaceOrder, onBack, isLoading }: CheckoutPro
         </div>
 
         {/* Payment */}
-        <div className="bg-white rounded-xl p-4 shadow-sm">
+        <div className="taqueria-checkout-card bg-white rounded-xl p-4 shadow-sm">
           <h2 className="font-bold text-gray-900 mb-2 text-sm">Payment Method</h2>
           <div className="flex items-center gap-2 text-sm text-gray-600">
             <span className="text-lg">💳</span>
@@ -49,7 +49,7 @@ export function Checkout({ items, onPlaceOrder, onBack, isLoading }: CheckoutPro
         </div>
 
         {/* Order summary */}
-        <div className="bg-white rounded-xl p-4 shadow-sm">
+        <div className="taqueria-checkout-card taqueria-checkout-summary bg-white rounded-xl p-4 shadow-sm">
           <h2 className="font-bold text-gray-900 mb-2 text-sm">Order Summary</h2>
           {items.map((item) => (
             <div key={item.menu_item_id} className="flex justify-between text-sm py-1">
@@ -61,7 +61,7 @@ export function Checkout({ items, onPlaceOrder, onBack, isLoading }: CheckoutPro
               </span>
             </div>
           ))}
-          <div className="border-t border-gray-100 mt-2 pt-2 space-y-1">
+          <div className="taqueria-checkout-totals border-t border-gray-100 mt-2 pt-2 space-y-1">
             <div className="flex justify-between text-sm text-gray-500">
               <span>Subtotal</span>
               <span>${subtotal.toFixed(2)}</span>

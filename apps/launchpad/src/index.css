@@ -57,13 +57,42 @@ button:disabled { opacity: .55; cursor: default; }
 .launchpad { height:100dvh; min-height:0; overflow:hidden; padding-top:3.5rem; padding-bottom:3.5rem; }
 .launchpad > header, .launchpad > footer { flex-shrink:0; }
 .launchpad > footer { margin-top:0; }
-.station-status { font: .65rem var(--font-mono); margin:.4rem 0; color:var(--text-muted); }
 .local-notice { font-size:.65rem; flex-shrink:0; }
 .presentation-bounds { flex:1; min-height:0; position:relative; overflow:hidden; }
 main.station-surface { position:absolute; top:50%; left:50%; max-width:none; margin:0; padding:0; overflow:auto; overscroll-behavior:contain; border:1px solid var(--border-default); background:var(--surface-overlay); transition:none; }
 .station-content { min-height:100%; padding:1rem; }
-.station-surface .demo-stage { height:calc(100dvh - 20rem); min-height:42rem; }
-.station-surface .native-stage { height:calc(100dvh - 20rem); min-height:42rem; }
 .ziggy-settings { margin-left:auto; display:flex; align-items:center; min-width:48px; min-height:48px; }
 
 .station-settings-overlay { position:fixed; inset:0; z-index:30; overflow:auto; background:var(--surface-page); overscroll-behavior:contain; }
+
+/* Browse screens may scroll; running demos always fit the saved station rectangle. */
+.launchpad > header { min-height:2.6rem; padding-bottom:.4rem; }
+.launchpad > header > img { width:7rem; flex-shrink:0; }
+.launchpad > header .demo-title { margin:0; font-size:clamp(.9rem,2.8vw,1.7rem); text-align:right; }
+.station-content { min-height:0; padding:1rem; }
+.station-surface-demo { overflow:hidden !important; }
+.station-surface-demo .station-content { position:absolute; inset:0 auto auto 0; display:flex; flex-direction:column; padding:0; overflow:hidden; }
+.station-surface-demo .demo-stage { flex:1; height:100%; min-height:0; }
+.screensaver-control { margin-left:auto; }
+.ziggy-settings { margin-left:0; }
+
+/* Capability cards use the toolkit's existing marks and screensaver artwork. */
+.missions { align-items:stretch; gap:.8rem; }
+.missions .mission-card { position:relative; isolation:isolate; min-width:0; padding:1rem; background:var(--surface-page); overflow:hidden; }
+.mission-card::before { content:""; position:absolute; inset:0; z-index:-1; pointer-events:none; background:radial-gradient(ellipse at top right,var(--surface-hero),transparent 70%); }
+.mission-card::after { content:""; position:absolute; right:-2.8rem; bottom:-3.4rem; width:9rem; height:9rem; z-index:-1; opacity:.13; pointer-events:none; background:url('/screensaver/art/asteroid.png') center/contain no-repeat; transform:rotate(-20deg); }
+.mission-card-heading { display:flex; align-items:center; gap:.65rem; min-height:3.2rem; }
+.mission-icon { display:grid; place-items:center; flex:0 0 2.8rem; width:2.8rem; height:2.8rem; border:1px solid var(--border-default); }
+.mission-icon img { width:1.9rem; height:1.9rem; }
+.mission-card-heading h2 { min-width:0; margin:0; font:700 1.05rem/1.2 var(--font-mono); text-transform:uppercase; overflow-wrap:anywhere; }
+.missions .mission-description { font-size:.8rem; line-height:1.4; min-height:4.2em; color:var(--text-primary); margin:.8rem 0; }
+.mission-tags { display:flex; align-content:start; flex-wrap:wrap; gap:.3rem; padding:0; margin:0 0 .6rem; list-style:none; }
+.mission-tags li { border:1px solid var(--border-default); padding:.2rem .35rem; font:.55rem/1.2 var(--font-mono); text-transform:uppercase; color:var(--text-primary); }
+.missions .mission-connectivity { margin:.1rem 0 .65rem; font:.6rem/1.3 var(--font-mono); color:var(--text-muted); }
+.missions .mission-card .pending { font-size:.65rem; line-height:1.35; margin:0 0 .6rem; }
+.missions .mission-card button { display:flex; justify-content:space-between; gap:.5rem; width:100%; min-height:48px; border-color:var(--brand-highlight); margin-top:auto; }
+.mission-card[aria-disabled=true] .mission-card-heading,.mission-card[aria-disabled=true] .mission-description,.mission-card[aria-disabled=true] .mission-icon { opacity:.55; }
+@media(min-width:651px) { .mission-card-heading h2 { min-height:2.4em; display:flex; align-items:center; } }
+.screensaver-control { display:flex; align-items:center; justify-content:flex-end; gap:.6rem; }
+.idle-countdown { color:var(--status-waiting); font:.65rem var(--font-mono); white-space:nowrap; }
+@media(max-width:650px) { .screensaver-control { position:relative; } .idle-countdown { position:absolute; bottom:100%; right:0; padding-bottom:.3rem; } }

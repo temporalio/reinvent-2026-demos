@@ -11,6 +11,7 @@ interface SelectProps {
 
 /** A <select> drawn by the kit's Listbox, which keeps the select as the value. */
 export function Select({ label, value, options, onChange }: SelectProps) {
+  const sharedStage = new URLSearchParams(window.location.search).get('sharedStage') === '1'
   const selectRef = useRef<HTMLSelectElement>(null)
   const listboxRef = useRef<ListboxHandle | null>(null)
   // Listbox copies the options when it mounts, so it remounts when they change.
@@ -18,7 +19,7 @@ export function Select({ label, value, options, onChange }: SelectProps) {
 
   useEffect(() => {
     const select = selectRef.current
-    if (!select) return
+    if (!select || sharedStage) return
     const listbox = window.Listbox.mount(select, { label })
     listboxRef.current = listbox
     return () => {
@@ -26,7 +27,7 @@ export function Select({ label, value, options, onChange }: SelectProps) {
       select.hidden = false
       listboxRef.current = null
     }
-  }, [label, optionsKey])
+  }, [label, optionsKey, sharedStage])
 
   useEffect(() => {
     listboxRef.current?.sync()

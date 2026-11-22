@@ -1,0 +1,531 @@
+{
+  "languages": [
+    {
+      "id": "python",
+      "label": "Python",
+      "icon": "Py",
+      "language": "python"
+    },
+    {
+      "id": "go",
+      "label": "Go",
+      "icon": "Go",
+      "language": "go"
+    },
+    {
+      "id": "java",
+      "label": "Java",
+      "icon": "J",
+      "language": "java"
+    },
+    {
+      "id": "typescript",
+      "label": "TypeScript",
+      "icon": "TS",
+      "language": "typescript"
+    },
+    {
+      "id": "dotnet",
+      "label": ".NET / C#",
+      "icon": "C#",
+      "language": "csharp"
+    },
+    {
+      "id": "php",
+      "label": "PHP",
+      "icon": "PHP",
+      "language": "php"
+    },
+    {
+      "id": "ruby",
+      "label": "Ruby",
+      "icon": "Rb",
+      "language": "ruby"
+    },
+    {
+      "id": "rust",
+      "label": "Rust",
+      "icon": "Rs",
+      "language": "rust"
+    }
+  ],
+  "demos": {
+    "money-transfer": {
+      "concept": "Compensate a failed deposit",
+      "summary": "A failed deposit can undo the earlier withdrawal. Activity retry policy and the transfer idempotency key belong to the surrounding implementation.",
+      "nativeLanguage": "python",
+      "source": {
+        "path": "apps/money-transfer/workflows/python/src/banking_workflows/account_transfer_workflow_scenarios.py",
+        "symbol": "AccountTransferWorkflowScenarios.run",
+        "startLine": 109,
+        "endLine": 131
+      },
+      "examples": {
+        "go": {
+          "code": "func Transfer(ctx workflow.Context, transfer TransferInput) error {\n    ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{\n        StartToCloseTimeout: 5 * time.Second,\n    })\n    // transfer carries the idempotency key used by the Activities.\n    if err := workflow.ExecuteActivity(ctx, \"Withdraw\", transfer).Get(ctx, nil); err != nil {\n        return err\n    }\n    if err := workflow.ExecuteActivity(ctx, \"Deposit\", transfer).Get(ctx, nil); err != nil {\n        // This is a terminal failure, after Activity retries.\n        if undoErr := workflow.ExecuteActivity(ctx, \"UndoWithdraw\", transfer).Get(ctx, nil); undoErr != nil {\n            return undoErr\n        }\n        return err\n    }\n    return nil\n}",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "typescript": {
+          "code": "const activities = proxyActivities<TransferActivities>({\n  startToCloseTimeout: '5 seconds',\n  retry: { initialInterval: '1 second', maximumInterval: '30 seconds' },\n});\nexport async function transfer(input: TransferInput): Promise<void> {\n  // Input carries the idempotency key used for withdrawal/deposit.\n  await activities.withdraw(input);\n  try {\n    await activities.deposit(input);\n  } catch (error) {\n    await activities.undoWithdraw(input);\n    throw error;\n  }\n}",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "java": {
+          "code": "public void transfer(Input input) {\n    ActivityOptions options = ActivityOptions.newBuilder()\n        .setStartToCloseTimeout(Duration.ofSeconds(30)).build();\n    DemoActivities activities = Workflow.newActivityStub(\n        DemoActivities.class, options);\n    activities.withdraw(input);\n    try {\n        activities.deposit(input);\n    } catch (ActivityFailure failure) {\n        // Terminal deposit failure: undo the earlier withdrawal.\n        activities.undoWithdraw(input);\n        throw failure;\n    }\n}",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "dotnet": {
+          "code": "[WorkflowRun]\npublic async Task TransferAsync(Input input)\n{\n    var options = new ActivityOptions {\n        StartToCloseTimeout = TimeSpan.FromSeconds(30),\n    };\n    await Workflow.ExecuteActivityAsync((Activities a) => a.WithdrawAsync(input), options);\n    try {\n        await Workflow.ExecuteActivityAsync((Activities a) => a.DepositAsync(input), options);\n    } catch (ActivityFailureException) {\n        // The earlier withdrawal must be undone after terminal deposit failure.\n        await Workflow.ExecuteActivityAsync((Activities a) => a.UndoWithdrawAsync(input), options);\n        throw;\n    }\n}",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "php": {
+          "code": "$activities = Workflow::newActivityStub(\n    DemoActivities::class,\n    ActivityOptions::new()->withStartToCloseTimeout('30 seconds'),\n);\n// The movement includes an idempotency key for external writes.\nyield $activities->withdraw($movement);\ntry {\n    yield $activities->deposit($movement);\n} catch (ActivityFailure $failure) {\n    // This runs after the deposit's retry policy is exhausted.\n    yield $activities->undoWithdraw($movement->amount);\n    throw $failure;\n}",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "ruby": {
+          "code": "class DemoWorkflow < Temporalio::Workflow::Definition\n  Workflow = Temporalio::Workflow\n\n  def execute(input)\n    # The movement includes an idempotency key for external writes.\n    Workflow.execute_activity(Activities::Withdraw, input, start_to_close_timeout: 5)\n    begin\n      Workflow.execute_activity(Activities::Deposit, input, start_to_close_timeout: 5)\n    rescue Temporalio::Error::ActivityError\n      # A terminal deposit failure compensates the earlier withdrawal.\n      Workflow.execute_activity(Activities::UndoWithdraw, input.amount,\n                                start_to_close_timeout: 5)\n      raise\n    end\n  end\nend",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "rust": {
+          "code": "#[run]\npub async fn run(ctx: &mut WorkflowContext<Self>, input: Input) -> WorkflowResult<Output> {\n    let options = ActivityOptions::start_to_close_timeout(Duration::from_secs(30));\n    // Movement carries the idempotency key for external side effects.\n    ctx.execute_activity(Activities::withdraw, input.clone(), options.clone()).await?;\n    if let Err(failure) = ctx.execute_activity(\n        Activities::deposit, input.clone(), options.clone(),\n    ).await {\n        // Terminal deposit failure compensates the earlier withdrawal.\n        ctx.execute_activity(Activities::undo_withdraw, input.amount, options).await?;\n        return Err(failure.into());\n    }\n    Ok(Output::completed())\n}",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation. Rust fragments follow the 1.1.2 SDK API pinned in these demos."
+        },
+        "python": {
+          "code": "# Deposit\nself.upsertStep(\"Deposit\")\ntry:\n    self.depositResponse = await workflow.execute_activity(\n        AccountTransferActivities.deposit,\n        args=[idempotencyKey, input.amount, self.workflow_type],\n        start_to_close_timeout=self.start_to_close_timeout,\n        retry_policy=self.retry_policy,\n    )\n    await self.updateProgress(75, 1)\nexcept Exception as ex:\n    logger.info(\"Deposit failed unrecoverable error, reverting withdraw\")\n    await workflow.execute_activity(\n        AccountTransferActivities.undoWithdraw,\n        args=[input.amount],\n        start_to_close_timeout=self.start_to_close_timeout,\n        retry_policy=self.retry_policy,\n    )\n    raise ApplicationError(\n        f\"{ex.__cause__}\",\n        type=\"DepositFailed\",\n        non_retryable=True,\n    )",
+          "kind": "native-excerpt",
+          "note": "Curated native excerpt from the running implementation. Surrounding imports, setup, and other Workflow steps are omitted."
+        }
+      }
+    },
+    "tacos": {
+      "concept": "Wait for a kitchen Signal",
+      "summary": "The Workflow waits durably for order_ready. The current demo also proceeds after its one-hour timeout, then captures payment; compensation is outside this excerpt.",
+      "nativeLanguage": "python",
+      "source": {
+        "path": "apps/tacos/workflows/python/src/dejavu_workflows/order_workflow.py",
+        "symbol": "OrderWorkflow.run",
+        "startLine": 121,
+        "endLine": 139
+      },
+      "examples": {
+        "go": {
+          "code": "func Order(ctx workflow.Context, order OrderInput) error {\n    ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{\n        StartToCloseTimeout: 15 * time.Second,\n    })\n    ready := false\n    workflow.Go(ctx, func(ctx workflow.Context) {\n        workflow.GetSignalChannel(ctx, \"order_ready\").Receive(ctx, nil)\n        ready = true\n    })\n    // The demo proceeds on the Signal or the one-hour timer.\n    if _, err := workflow.AwaitWithTimeout(ctx, time.Hour, func() bool { return ready }); err != nil {\n        return err\n    }\n    return workflow.ExecuteActivity(ctx, \"CapturePayment\", order).Get(ctx, nil)\n}",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "typescript": {
+          "code": "const orderReady = defineSignal('order_ready');\nconst activities = proxyActivities<OrderActivities>({\n  startToCloseTimeout: '15 seconds',\n});\nexport async function order(input: OrderInput): Promise<void> {\n  let ready = false;\n  setHandler(orderReady, () => { ready = true; });\n  // The demo proceeds when the kitchen Signals, or its timer expires.\n  await condition(() => ready, '1 hour');\n  await activities.capturePayment(input);\n  // Earlier validation/payment hold and compensation are outside this view.\n}",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "java": {
+          "code": "private boolean orderReady;\npublic void run(OrderInput input) {\n    OrderActivities activities = Workflow.newActivityStub(\n        OrderActivities.class, ActivityOptions.newBuilder()\n            .setStartToCloseTimeout(Duration.ofSeconds(15)).build());\n    // Signal or timer; this is the demo's current auto-completion policy.\n    Workflow.await(Duration.ofHours(1), () -> orderReady);\n    activities.capturePayment(input);\n}\n// Implements the @SignalMethod declared on the omitted Workflow interface.\npublic void orderReady() {\n    orderReady = true;\n}",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "dotnet": {
+          "code": "private bool orderReady;\n[WorkflowRun]\npublic async Task RunAsync(OrderInput input)\n{\n    await Workflow.WaitConditionAsync(() => orderReady, TimeSpan.FromHours(1));\n    await Workflow.ExecuteActivityAsync(\n        (Activities a) => a.CapturePaymentAsync(input),\n        new() { StartToCloseTimeout = TimeSpan.FromSeconds(15) });\n}\n[WorkflowSignal(\"order_ready\")]\npublic Task OrderReadyAsync() { orderReady = true; return Task.CompletedTask; }\n// Payment hold, compensation, and types belong to the enclosing Workflow.",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "php": {
+          "code": "private bool $ready = false;\n\npublic function run(OrderInput $order): \\Generator\n{\n    $activities = Workflow::newActivityStub(DemoActivities::class,\n        ActivityOptions::new()->withStartToCloseTimeout('15 seconds'));\n    // Earlier steps authorize payment and submit the kitchen order.\n    yield Workflow::awaitWithTimeout(3600, fn() => $this->ready);\n    // Match the demo: proceed on Signal OR timeout.\n    return yield $activities->capturePayment($order);\n}\n\n#[SignalMethod(name: 'order_ready')]\npublic function orderReady(): void { $this->ready = true; }",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "ruby": {
+          "code": "class OrderWorkflow < Temporalio::Workflow::Definition\n  Workflow = Temporalio::Workflow\n  def execute(order)\n    @ready = false\n    begin\n      Workflow.timeout(3600) { Workflow.wait_condition { @ready } }\n    rescue Timeout::Error\n      # Match the demo: continue after the kitchen timeout too.\n    end\n    Workflow.execute_activity(Activities::CapturePayment, order,\n                              start_to_close_timeout: 15)\n  end\n  workflow_signal name: 'order_ready'\n  def order_ready\n    @ready = true\n  end\nend",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "rust": {
+          "code": "#[run]\npub async fn run(ctx: &mut WorkflowContext<Self>, order: Order) -> WorkflowResult<Receipt> {\n    let options = ActivityOptions::start_to_close_timeout(Duration::from_secs(15));\n    // Match the demo: proceed after either Signal or one-hour timeout.\n    temporalio_sdk::workflows::select! {\n        ready = ctx.wait_condition(|state: &Self| state.ready) => ready?,\n        _ = ctx.timer(Duration::from_secs(3600)) => {}\n    }\n    Ok(ctx.execute_activity(Activities::capture_payment, order, options).await?)\n}\n\n#[signal]\npub fn order_ready(&mut self, _ctx: &mut SyncWorkflowContext<Self>) {\n    self.ready = true;\n}",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation. Rust fragments follow the 1.1.2 SDK API pinned in these demos."
+        },
+        "python": {
+          "code": "# Step 6: Wait for order ready signal (human in the loop)\nself._status = \"preparing\"\ntry:\n    await workflow.wait_condition(\n        lambda: self._order_ready, timeout=KITCHEN_WAIT_TIMEOUT\n    )\nexcept asyncio.TimeoutError:\n    # No word from the kitchen: complete the order anyway so the\n    # Workflow doesn't stay open.\n    workflow.logger.info(f\"Order {order_id} auto-completed\")\n\n# Step 7: Capture Payment (only after store confirms)\nself._status = \"capturing_payment\"\nawait workflow.execute_activity(\n    capture_payment_activity,\n    {**order_input, \"authorization_id\": authorization_id},\n    start_to_close_timeout=timedelta(seconds=15),\n    retry_policy=DEFAULT_RETRY,\n)",
+          "kind": "native-excerpt",
+          "note": "Curated native excerpt from the running implementation. Surrounding imports, setup, and other Workflow steps are omitted."
+        }
+      }
+    },
+    "data-pipeline": {
+      "concept": "Keep ETL on the selected worker",
+      "summary": "Extraction, transformation, and loading use the task queue discovered earlier, so the same worker can access the intermediate files.",
+      "nativeLanguage": "python",
+      "source": {
+        "path": "apps/data-pipeline/DataPipelineWorkflowHappyPath.py",
+        "symbol": "DataPipelineWorkflowHappyPath.run",
+        "startLine": 55,
+        "endLine": 86
+      },
+      "examples": {
+        "go": {
+          "code": "func Pipeline(ctx workflow.Context, input PipelineInput) error {\n    lookup := workflow.WithActivityOptions(ctx, workflow.ActivityOptions{\n        StartToCloseTimeout: 10 * time.Second,\n    })\n    var workerQueue string\n    if err := workflow.ExecuteActivity(lookup, \"GetAvailableTaskQueue\").Get(ctx, &workerQueue); err != nil {\n        return err\n    }\n    worker := workflow.WithActivityOptions(ctx, workflow.ActivityOptions{\n        TaskQueue: workerQueue, StartToCloseTimeout: 5 * time.Minute,\n        HeartbeatTimeout: 20 * time.Second,\n    })\n    for _, step := range []string{\"Extract\", \"Transform\", \"Load\"} {\n        if err := workflow.ExecuteActivity(worker, step, input).Get(ctx, nil); err != nil {\n            return err\n        }\n    }\n    return nil\n}",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "typescript": {
+          "code": "const discovery = proxyActivities<DiscoveryActivities>({\n  startToCloseTimeout: '10 seconds',\n});\nexport async function pipeline(input: PipelineInput): Promise<void> {\n  const workerQueue = await discovery.getAvailableTaskQueue();\n  const worker = proxyActivities<PipelineActivities>({\n    taskQueue: workerQueue,\n    startToCloseTimeout: '5 minutes', heartbeatTimeout: '20 seconds',\n  });\n  // Intermediate files remain on the selected worker.\n  await worker.extract(input);\n  await worker.transform(input);\n  await worker.load(input);\n}",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "java": {
+          "code": "public void pipeline(PipelineInput input) {\n    DiscoveryActivities discovery = Workflow.newActivityStub(\n        DiscoveryActivities.class, ActivityOptions.newBuilder()\n            .setStartToCloseTimeout(Duration.ofSeconds(10)).build());\n    String queue = discovery.getAvailableTaskQueue();\n    PipelineActivities worker = Workflow.newActivityStub(\n        PipelineActivities.class, ActivityOptions.newBuilder()\n            .setTaskQueue(queue).setStartToCloseTimeout(Duration.ofMinutes(5))\n            .setHeartbeatTimeout(Duration.ofSeconds(20)).build());\n    worker.extract(input);\n    worker.transform(input);\n    worker.load(input);\n}",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "dotnet": {
+          "code": "[WorkflowRun]\npublic async Task PipelineAsync(PipelineInput input)\n{\n    var queue = await Workflow.ExecuteActivityAsync(\n        (Activities a) => a.GetAvailableTaskQueueAsync(),\n        new() { StartToCloseTimeout = TimeSpan.FromSeconds(10) });\n    var worker = new ActivityOptions { TaskQueue = queue,\n        StartToCloseTimeout = TimeSpan.FromMinutes(5),\n        HeartbeatTimeout = TimeSpan.FromSeconds(20) };\n    await Workflow.ExecuteActivityAsync((Activities a) => a.ExtractAsync(input), worker);\n    await Workflow.ExecuteActivityAsync((Activities a) => a.TransformAsync(input), worker);\n    await Workflow.ExecuteActivityAsync((Activities a) => a.LoadAsync(input), worker);\n}",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "php": {
+          "code": "$activities = Workflow::newActivityStub(\n    DemoActivities::class,\n    ActivityOptions::new()->withStartToCloseTimeout('30 seconds'),\n);\n$queue = yield $activities->getAvailableTaskQueue();\n$worker = Workflow::newActivityStub(DemoActivities::class,\n    ActivityOptions::new()\n        ->withTaskQueue($queue)\n        ->withStartToCloseTimeout('5 minutes')\n        ->withHeartbeatTimeout('20 seconds'));\n// Route all file-processing steps to the selected worker.\n$extractStatus = yield $worker->extract($input);\n$transformStatus = yield $worker->transform($input);\nreturn yield $worker->load($input);",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "ruby": {
+          "code": "class DemoWorkflow < Temporalio::Workflow::Definition\n  Workflow = Temporalio::Workflow\n\n  def execute(input)\n    queue = Workflow.execute_activity(Activities::GetAvailableTaskQueue,\n                                      start_to_close_timeout: 10)\n    options = { task_queue: queue, start_to_close_timeout: 300,\n                heartbeat_timeout: 20 }\n    # A selected worker can access the intermediate files.\n    extract_status = Workflow.execute_activity(Activities::Extract, input, **options)\n    transform_status = Workflow.execute_activity(Activities::Transform, input, **options)\n    Workflow.execute_activity(Activities::Load, input, **options)\n  end\nend",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "rust": {
+          "code": "#[run]\npub async fn run(ctx: &mut WorkflowContext<Self>, input: Input) -> WorkflowResult<Output> {\n    let options = ActivityOptions::start_to_close_timeout(Duration::from_secs(30));\n    let queue = ctx.execute_activity(\n        Activities::get_available_task_queue, (), options,\n    ).await?;\n    let worker = ActivityOptions::with_start_to_close_timeout(Duration::from_secs(300))\n        .task_queue(queue)\n        .heartbeat_timeout(Duration::from_secs(20))\n        .build();\n    // Keep intermediate files on the selected worker.\n    let _extract_status = ctx.execute_activity(Activities::extract, input.clone(), worker.clone()).await?;\n    let _transform_status = ctx.execute_activity(Activities::transform, input.clone(), worker.clone()).await?;\n    Ok(ctx.execute_activity(Activities::load, input, worker).await?)\n}",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation. Rust fragments follow the 1.1.2 SDK API pinned in these demos."
+        },
+        "python": {
+          "code": "activity_output = await workflow.execute_activity(\n    extract,\n    input,\n    task_queue=unique_worker_task_queue,\n    start_to_close_timeout=timedelta(seconds=300),\n    heartbeat_timeout=timedelta(seconds=20),\n)\nworkflow.logger.info(f\"Extract status: {input.input_filename}: {activity_output}\")\n\n# Set progress to 40%\nself._progress = 40\n\nactivity_output = await workflow.execute_activity(\n    transform,\n    input,\n    task_queue=unique_worker_task_queue,\n    start_to_close_timeout=timedelta(seconds=300),\n    heartbeat_timeout=timedelta(seconds=20),\n)\nworkflow.logger.info(f\"Transform status: {input.input_filename}: {activity_output}\")\n\n# Set progress to 60%\nself._progress = 60\n\nactivity_output = await workflow.execute_activity(\n    load,\n    input,\n    task_queue=unique_worker_task_queue,\n    start_to_close_timeout=timedelta(seconds=300),\n    heartbeat_timeout=timedelta(seconds=20),\n)\nworkflow.logger.info(f\"Load status: {input.input_filename}: {activity_output}\")",
+          "kind": "native-excerpt",
+          "note": "Curated native excerpt from the running implementation. Surrounding imports, setup, and other Workflow steps are omitted."
+        }
+      }
+    },
+    "loan": {
+      "concept": "Pause for a human underwriting decision",
+      "summary": "After the Python Strands agent produces an assessment, a Signal supplies the human decision. Other languages illustrate the orchestration boundary, not a port of the Strands integration.",
+      "nativeLanguage": "python",
+      "source": {
+        "path": "apps/loan/supervisor.py",
+        "symbol": "LoanUnderwritingSupervisorWorkflow.run",
+        "startLine": 217,
+        "endLine": 242
+      },
+      "examples": {
+        "go": {
+          "code": "func Underwrite(ctx workflow.Context, applicant Applicant) (Decision, error) {\n    ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{\n        StartToCloseTimeout: 90 * time.Second,\n    })\n    // The Python Strands agent is represented as an Activity boundary here.\n    var assessment Assessment\n    if err := workflow.ExecuteActivity(ctx, \"AssessLoan\", applicant).Get(ctx, &assessment); err != nil {\n        return Decision{}, err\n    }\n    var humanDecision string\n    workflow.GetSignalChannel(ctx, \"underwriter_decision\").Receive(ctx, &humanDecision)\n    return Decision{Assessment: assessment, HumanDecision: humanDecision}, nil\n}",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "typescript": {
+          "code": "const humanDecision = defineSignal<[string]>('underwriter_decision');\nconst activities = proxyActivities<LoanActivities>({\n  startToCloseTimeout: '90 seconds',\n});\nexport async function underwrite(applicant: Applicant): Promise<Decision> {\n  let decision: string | undefined;\n  setHandler(humanDecision, value => { decision = value; });\n  // Orchestration boundary only; this does not port the Python Strands agent.\n  const assessment = await activities.assessLoan(applicant);\n  await condition(() => decision !== undefined);\n  return { assessment, humanDecision: decision! };\n}",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "java": {
+          "code": "private String humanDecision;\npublic Decision underwrite(Applicant applicant) {\n    LoanActivities activities = Workflow.newActivityStub(\n        LoanActivities.class, ActivityOptions.newBuilder()\n            .setStartToCloseTimeout(Duration.ofSeconds(90)).build());\n    // The Python Strands step is represented by an Activity boundary.\n    Assessment assessment = activities.assessLoan(applicant);\n    Workflow.await(() -> humanDecision != null);\n    return new Decision(assessment, humanDecision);\n}\n// Implements an @SignalMethod on the omitted Workflow interface.\npublic void underwriterDecision(String value) { humanDecision = value; }",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "dotnet": {
+          "code": "private string? humanDecision;\n[WorkflowRun]\npublic async Task<Decision> UnderwriteAsync(Applicant applicant)\n{\n    // Orchestration boundary, not a .NET port of the Python Strands plugin.\n    var assessment = await Workflow.ExecuteActivityAsync(\n        (Activities a) => a.AssessLoanAsync(applicant),\n        new() { StartToCloseTimeout = TimeSpan.FromSeconds(90) });\n    await Workflow.WaitConditionAsync(() => humanDecision != null);\n    return new Decision(assessment, humanDecision!);\n}\n[WorkflowSignal]\npublic Task UnderwriterDecisionAsync(string value) { humanDecision = value; return Task.CompletedTask; }",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "php": {
+          "code": "private ?string $decision = null;\n\npublic function run(LoanInput $input): \\Generator\n{\n    $activities = Workflow::newActivityStub(DemoActivities::class,\n        ActivityOptions::new()->withStartToCloseTimeout('5 minutes'));\n    // Basic Activity orchestration, not the Python Strands plugin.\n    $assessment = yield $activities->assessLoan($input);\n    yield Workflow::await(fn() => $this->decision !== null);\n    return ['assessment' => $assessment, 'decision' => $this->decision];\n}\n\n#[SignalMethod(name: 'human_decision')]\npublic function decide(string $decision): void { $this->decision = $decision; }",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "ruby": {
+          "code": "class UnderwritingWorkflow < Temporalio::Workflow::Definition\n  Workflow = Temporalio::Workflow\n  def execute(input)\n    @decision = nil\n    # Basic Activity boundary, not the Python Strands integration.\n    assessment = Workflow.execute_activity(Activities::AssessLoan, input,\n                                            start_to_close_timeout: 300)\n    Workflow.wait_condition { !@decision.nil? }\n    { assessment: assessment, decision: @decision }\n  end\n  workflow_signal name: 'human_decision'\n  def human_decision(decision)\n    @decision = decision\n  end\nend",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "rust": {
+          "code": "#[run]\npub async fn run(ctx: &mut WorkflowContext<Self>, input: Loan) -> WorkflowResult<Decision> {\n    let options = ActivityOptions::start_to_close_timeout(Duration::from_secs(300));\n    // Basic Activity boundary, not the Python Strands integration.\n    let assessment = ctx.execute_activity(Activities::assess_loan, input, options).await?;\n    ctx.wait_condition(|state: &Self| state.decision.is_some()).await?;\n    let decision = ctx.state(|state| state.decision.clone().unwrap());\n    Ok(Decision { assessment, decision })\n}\n\n#[signal]\npub fn human_decision(&mut self, _ctx: &mut SyncWorkflowContext<Self>, decision: String) {\n    self.decision = Some(decision);\n}",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation. Rust fragments follow the 1.1.2 SDK API pinned in these demos."
+        },
+        "python": {
+          "code": "result = str(await self.agent.invoke_async(prompt))\nself._assessment = result\n\nai_recommendation = (_field(result, \"RECOMMENDATION\") or \"REJECT\").upper().split()[0]\nif \"APPROVE\" in ai_recommendation:\n    ai_recommendation = \"APPROVE\"\nelse:\n    ai_recommendation = \"REJECT\"  # safe default\n\n# 3. Wait for the human underwriter's final call.\nawait workflow.wait_condition(lambda: self._human_decision is not None)\n\nexpected = \"APPROVED\" if ai_recommendation == \"APPROVE\" else \"REJECTED\"\nhuman_override = self._human_decision != expected\n\nself._final_decision = SupervisorDecision(\n    applicant_name=applicant.name,\n    ai_recommendation=ai_recommendation,\n    ai_reasoning=result,\n    fraud_recommendation=fraud.recommendation,\n    fraud_risk=fraud.fraud_risk,\n    employment_recommendation=employment.recommendation,\n    human_decision=self._human_decision,\n    human_override=human_override,\n)\nreturn self._final_decision",
+          "kind": "native-excerpt",
+          "note": "Curated native excerpt from the running implementation. Surrounding imports, setup, and other Workflow steps are omitted."
+        }
+      }
+    },
+    "no-roads": {
+      "concept": "Queue Activities that occupy worker slots",
+      "summary": "Sequential Activities hold worker capacity long enough to expose backlog. Worker scaling and Lambda registration are configured outside this Workflow body.",
+      "nativeLanguage": "go",
+      "source": {
+        "path": "apps/no-roads/shared/workflows/demo_workflow.go",
+        "symbol": "DemoWorkflow",
+        "startLine": 33,
+        "endLine": 59
+      },
+      "examples": {
+        "python": {
+          "code": "@workflow.defn\nclass WorkQueueDemo:\n    @workflow.run\n    async def run(self, submission: Submission) -> str:\n        options = {\"start_to_close_timeout\": timedelta(seconds=60)}\n        greeting = await workflow.execute_activity(\n            process_submission, submission, **options\n        )\n        # Each Activity holds a worker slot; the Workflow itself does not.\n        for step in (simulate_work_1, simulate_work_2, simulate_work_3):\n            await workflow.execute_activity(step, submission, **options)\n        # Client and Worker use the same Task Queue outside this excerpt.\n        return greeting",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "typescript": {
+          "code": "const activities = proxyActivities<QueueActivities>({\n  startToCloseTimeout: '60 seconds',\n});\nexport async function queuedWork(input: Submission): Promise<string> {\n  const greeting = await activities.processSubmission(input);\n  // These Activities hold worker slots, exposing backlog under load.\n  await activities.simulateWork1(input);\n  await activities.simulateWork2(input);\n  await activities.simulateWork3(input);\n  // Lambda registration and Task Queue bindings are worker/client settings.\n  return greeting;\n}",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "java": {
+          "code": "public String queuedWork(Input input) {\n    ActivityOptions options = ActivityOptions.newBuilder()\n        .setStartToCloseTimeout(Duration.ofSeconds(30)).build();\n    DemoActivities activities = Workflow.newActivityStub(\n        DemoActivities.class, options);\n    String greeting = activities.processSubmission(input);\n    // Each Activity holds capacity, so bursts can expose queue backlog.\n    activities.simulateWork1(input);\n    activities.simulateWork2(input);\n    activities.simulateWork3(input);\n    // Client/Worker Task Queue and Lambda setup are configured separately.\n    return greeting;\n}",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "dotnet": {
+          "code": "[WorkflowRun]\npublic async Task<string> QueuedWorkAsync(Input input)\n{\n    var options = new ActivityOptions {\n        StartToCloseTimeout = TimeSpan.FromSeconds(30),\n    };\n    var greeting = await Workflow.ExecuteActivityAsync((Activities a) => a.ProcessSubmissionAsync(input), options);\n    // Each Activity holds a worker slot, exposing backlog under bursts.\n    await Workflow.ExecuteActivityAsync((Activities a) => a.SimulateWork1Async(input), options);\n    await Workflow.ExecuteActivityAsync((Activities a) => a.SimulateWork2Async(input), options);\n    await Workflow.ExecuteActivityAsync((Activities a) => a.SimulateWork3Async(input), options);\n    // Lambda and Task Queue configuration live outside the Workflow body.\n    return greeting;\n}",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "php": {
+          "code": "$activities = Workflow::newActivityStub(\n    DemoActivities::class,\n    ActivityOptions::new()->withStartToCloseTimeout('60 seconds'),\n);\n// This Workflow runs where a worker is available to poll its queue.\n$result = yield $activities->processSubmission($input);\n// These are Activities, not Workflow timers: they occupy worker slots.\nyield $activities->simulateWork1($input);\nyield $activities->simulateWork2($input);\nyield $activities->simulateWork3($input);\n// Concurrent submissions can now build an Activity backlog.\n// Lambda scaling remains a deployment concern.\nreturn ['message' => $result];",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "ruby": {
+          "code": "class DemoWorkflow < Temporalio::Workflow::Definition\n  Workflow = Temporalio::Workflow\n\n  def execute(input)\n    options = { start_to_close_timeout: 60 }\n    result = Workflow.execute_activity(Activities::ProcessSubmission, input, **options)\n    # Activities occupy worker slots; Workflow timers would not.\n    Workflow.execute_activity(Activities::SimulateWork1, input, **options)\n    Workflow.execute_activity(Activities::SimulateWork2, input, **options)\n    Workflow.execute_activity(Activities::SimulateWork3, input, **options)\n    # Concurrent submissions reveal queue backlog and scaling pressure.\n    { message: result }\n  end\nend",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "rust": {
+          "code": "#[run]\npub async fn run(ctx: &mut WorkflowContext<Self>, input: Input) -> WorkflowResult<Output> {\n    let options = ActivityOptions::start_to_close_timeout(Duration::from_secs(30));\n    let options = ActivityOptions::start_to_close_timeout(Duration::from_secs(60));\n    let message = ctx.execute_activity(\n        Activities::process_submission, input.clone(), options.clone(),\n    ).await?;\n    // Activities hold worker slots; Workflow timers would not.\n    ctx.execute_activity(Activities::simulate_work1, input.clone(), options.clone()).await?;\n    ctx.execute_activity(Activities::simulate_work2, input.clone(), options.clone()).await?;\n    ctx.execute_activity(Activities::simulate_work3, input, options).await?;\n    // Lambda worker scaling is configured outside this Workflow.\n    Ok(Output { message })\n}",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation. Rust fragments follow the 1.1.2 SDK API pinned in these demos."
+        },
+        "go": {
+          "code": "ao := workflow.ActivityOptions{\n\t// Must exceed the sum of all three WorkDuration constants.\n\tStartToCloseTimeout: 60 * time.Second,\n}\nctx = workflow.WithActivityOptions(ctx, ao)\n\n// Step 1: fast processing activity\nvar result string\nif err := workflow.ExecuteActivity(ctx, \"ProcessSubmission\", input).Get(ctx, &result); err != nil {\n\treturn DemoOutput{}, err\n}\n\n// Steps 2-4: chained sleep activities — each holds a worker slot, driving\n// backlog depth and sync match rate pressure under load.\nvar workResult string\nif err := workflow.ExecuteActivity(ctx, \"SimulateWork1\", input).Get(ctx, &workResult); err != nil {\n\treturn DemoOutput{}, err\n}\nif err := workflow.ExecuteActivity(ctx, \"SimulateWork2\", input).Get(ctx, &workResult); err != nil {\n\treturn DemoOutput{}, err\n}\nif err := workflow.ExecuteActivity(ctx, \"SimulateWork3\", input).Get(ctx, &workResult); err != nil {\n\treturn DemoOutput{}, err\n}\n\nlogger.Info(\"DemoWorkflow completed\", \"name\", input.Name)\nreturn DemoOutput{Message: result}, nil",
+          "kind": "native-excerpt",
+          "note": "Curated native excerpt from the running implementation. Surrounding imports, setup, and other Workflow steps are omitted."
+        }
+      }
+    },
+    "agent-harness": {
+      "concept": "Make travel tools durable",
+      "summary": "The Python harness exposes travel tools through sandboxed Code Mode. Other SDKs illustrate durable search/booking Activities, not the harness or its model loop.",
+      "nativeLanguage": "python",
+      "source": {
+        "path": "apps/agent-harness/agent_harness_demo/ziggy/conversational_workflow.py",
+        "symbol": "ZiggyChatAgentWorkflow.__init__",
+        "startLine": 204,
+        "endLine": 224
+      },
+      "examples": {
+        "go": {
+          "code": "func Travel(ctx workflow.Context, request TripRequest) (Booking, error) {\n    ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{\n        StartToCloseTimeout: 3 * time.Minute,\n    })\n    // Orchestration equivalent, not a Go implementation of Python Code Mode.\n    var flights []Flight\n    if err := workflow.ExecuteActivity(ctx, \"SearchFlights\", request).Get(ctx, &flights); err != nil {\n        return Booking{}, err\n    }\n    var booking Booking\n    err := workflow.ExecuteActivity(ctx, \"BookFlight\", chooseFlight(flights, request)).Get(ctx, &booking)\n    return booking, err\n}",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "typescript": {
+          "code": "const travel = proxyActivities<TravelActivities>({\n  startToCloseTimeout: '3 minutes',\n});\nexport async function trip(request: TripRequest): Promise<Booking> {\n  // Basic orchestration equivalent; Python owns the harness/Code Mode loop.\n  const flights = await travel.searchFlights(request);\n  // A deterministic choice step uses only the recorded search result.\n  const choice = chooseFlight(flights, request);\n  const booking = await travel.bookFlight(choice);\n  // Each Activity has a durable result in Workflow history.\n  return booking;\n}",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "java": {
+          "code": "public Booking trip(Input input) {\n    ActivityOptions options = ActivityOptions.newBuilder()\n        .setStartToCloseTimeout(Duration.ofSeconds(30)).build();\n    DemoActivities activities = Workflow.newActivityStub(\n        DemoActivities.class, options);\n    // Basic orchestration, not a Java port of the Python Code Mode harness.\n    List<Flight> flights = activities.searchFlights(input);\n    Flight choice = chooseFlight(flights, input);\n    Booking booking = activities.bookFlight(choice);\n    // Model calls, sandboxing, and approval policy are separate concerns.\n    return booking;\n}",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "dotnet": {
+          "code": "[WorkflowRun]\npublic async Task<Booking> TripAsync(Input input)\n{\n    var options = new ActivityOptions {\n        StartToCloseTimeout = TimeSpan.FromSeconds(30),\n    };\n    // Durable-tool orchestration only; the actual harness is Python.\n    var flights = await Workflow.ExecuteActivityAsync(\n        (Activities a) => a.SearchFlightsAsync(input), options);\n    var choice = ChooseFlight(flights, input);\n    return await Workflow.ExecuteActivityAsync(\n        (Activities a) => a.BookFlightAsync(choice), options);\n}",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "php": {
+          "code": "$activities = Workflow::newActivityStub(\n    DemoActivities::class,\n    ActivityOptions::new()->withStartToCloseTimeout('30 seconds'),\n);\n// Basic orchestration equivalent, not a PHP Code Mode harness.\n$flights = yield $activities->searchFlights($request);\n$hotels = yield $activities->searchHotels($request);\n// Each tool's network I/O belongs in its registered Activity.\n$plan = yield $activities->chooseItinerary([$flights, $hotels]);\n// Booking identifiers must be idempotent across Activity retries.\n$booking = yield $activities->bookItinerary($plan);\n// Return the durable tool results to the caller.\nreturn $booking;",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "ruby": {
+          "code": "class DemoWorkflow < Temporalio::Workflow::Definition\n  Workflow = Temporalio::Workflow\n\n  def execute(input)\n    options = { start_to_close_timeout: 180 }\n    # Basic orchestration equivalent, not the Python Code Mode harness.\n    flights = Workflow.execute_activity(Activities::SearchFlights, input, **options)\n    hotels = Workflow.execute_activity(Activities::SearchHotels, input, **options)\n    plan = Workflow.execute_activity(Activities::ChooseItinerary,\n                                     { flights: flights, hotels: hotels }, **options)\n    # Booking Activities must handle duplicate attempts safely.\n    Workflow.execute_activity(Activities::BookItinerary, plan, **options)\n  end\nend",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "rust": {
+          "code": "#[run]\npub async fn run(ctx: &mut WorkflowContext<Self>, input: Input) -> WorkflowResult<Output> {\n    let options = ActivityOptions::start_to_close_timeout(Duration::from_secs(30));\n    // Basic orchestration equivalent, not the Python Code Mode harness.\n    let flights = ctx.execute_activity(\n        Activities::search_flights, input.clone(), options.clone(),\n    ).await?;\n    let hotels = ctx.execute_activity(\n        Activities::search_hotels, input, options.clone(),\n    ).await?;\n    let plan = ctx.execute_activity(\n        Activities::choose_itinerary, (flights, hotels), options.clone(),\n    ).await?;\n    Ok(ctx.execute_activity(Activities::book_itinerary, plan, options).await?)\n}",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation. Rust fragments follow the 1.1.2 SDK API pinned in these demos."
+        },
+        "python": {
+          "code": "# The single model-facing tool: Code Mode over the travel tools. The model writes a\n# Python script that calls the travel operations as async host functions; each host call\n# runs as a durable, approval-gated activity via run_tool.\nself._code_tool = agent.code_mode_tool(\n    # The travel tools plus the board tools, in one sandbox: a script can book a\n    # flight and record it on the board without a round trip through the model, so\n    # the board cannot drift from what was actually booked.\n    [*activities.ALL_TOOLS, *trip_board.BOARD_TOOLS, *choices.CHOICE_TOOLS],\n    name=\"run_travel_code\",\n    # Hidden from the model and from the generated stubs: the script names the\n    # trip, never the state it lives in.\n    injections={\"board\": self.trip_board},\n)\n# The Temporal-aware AsyncClient from the Gemini plugin; the runner is wired in so reply\n# text streams to the workflow stream as it is generated.\nself._gemini = google_genai_client(\n    activity_config=ActivityConfig(\n        start_to_close_timeout=timedelta(minutes=3),\n    ),\n    runner=self._runner,\n)",
+          "kind": "native-excerpt",
+          "note": "Curated native excerpt from the running implementation. Surrounding imports, setup, and other Workflow steps are omitted."
+        }
+      }
+    },
+    "agentic-sdlc": {
+      "concept": "Test the agent’s work, then repair it",
+      "summary": "The Workflow checks the pushed branch rather than trusting an agent’s response. Failed tests become feedback, with a bound on repair rounds.",
+      "nativeLanguage": "python",
+      "source": {
+        "path": "apps/agentic-sdlc/agentic_sdlc/pipeline/workflow.py",
+        "symbol": "IssueToProduction._code_subtask",
+        "startLine": 237,
+        "endLine": 248
+      },
+      "examples": {
+        "go": {
+          "code": "func RepairBranch(ctx workflow.Context, branch Branch) error {\n    ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{\n        StartToCloseTimeout: 3 * time.Minute,\n    })\n    for round := 0; round <= maxFixRounds; round++ {\n        var tests TestResult\n        if err := workflow.ExecuteActivity(ctx, \"RunBranchTests\", branch).Get(ctx, &tests); err != nil {\n            return err\n        }\n        if tests.Passed { return nil }\n        if round == maxFixRounds { break }\n        // Python's durable agent turn is represented as an Activity boundary.\n        if err := workflow.ExecuteActivity(ctx, \"CodeWithFeedback\", Feedback{branch, tests.Output}).Get(ctx, nil); err != nil {\n            return err\n        }\n    }\n    return temporal.NewNonRetryableApplicationError(\"Repair limit reached\", \"TestsFailed\", nil)\n}",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "typescript": {
+          "code": "const activities = proxyActivities<SdlcActivities>({\n  startToCloseTimeout: '3 minutes',\n});\nexport async function repairBranch(branch: Branch): Promise<void> {\n  for (let round = 0; round <= maxFixRounds; round++) {\n    const tests = await activities.runBranchTests(branch);\n    if (tests.passed) return;\n    if (round === maxFixRounds) break;\n    // Equivalent boundary for Python's durable coding-agent turn.\n    await activities.codeWithFeedback({ branch, feedback: tests.output });\n  }\n  throw ApplicationFailure.nonRetryable('Repair limit reached', 'TestsFailed');\n}",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "java": {
+          "code": "public void repairBranch(Input input) {\n    ActivityOptions options = ActivityOptions.newBuilder()\n        .setStartToCloseTimeout(Duration.ofSeconds(30)).build();\n    DemoActivities activities = Workflow.newActivityStub(\n        DemoActivities.class, options);\n    for (int round = 0; round <= maxFixRounds; round++) {\n        TestResult tests = activities.runBranchTests(input);\n        if (tests.passed()) return;\n        if (round == maxFixRounds) break;\n        // Equivalent boundary for Python's durable coding-agent turn.\n        activities.codeWithFeedback(input, tests.output());\n    }\n    throw ApplicationFailure.newNonRetryableFailure(\"Repair limit reached\", \"TestsFailed\");\n}",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "dotnet": {
+          "code": "[WorkflowRun]\npublic async Task RepairBranchAsync(Input input)\n{\n    var options = new ActivityOptions {\n        StartToCloseTimeout = TimeSpan.FromSeconds(30),\n    };\n    for (var round = 0; round <= maxFixRounds; round++) {\n        var tests = await Workflow.ExecuteActivityAsync(\n            (Activities a) => a.RunBranchTestsAsync(input), options);\n        if (tests.Passed) return;\n        if (round == maxFixRounds) break;\n        await Workflow.ExecuteActivityAsync(\n            (Activities a) => a.CodeWithFeedbackAsync(input, tests.Output), options);\n    }\n    throw new ApplicationFailureException(\"Repair limit reached\", nonRetryable: true);\n}",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "php": {
+          "code": "$activities = Workflow::newActivityStub(\n    DemoActivities::class,\n    ActivityOptions::new()->withStartToCloseTimeout('30 seconds'),\n);\n// The agent changes a branch; the Workflow verifies its tests.\n$reply = yield $activities->codeSubtask($task);\nfor ($attempt = 0; $attempt <= 3; $attempt++) {\n    $tests = yield $activities->runBranchTests($workspace);\n    if ($tests->passed) { return $reply; }\n    if ($attempt === 3) { throw new \\RuntimeException('Repair limit reached'); }\n    $reply = yield $activities->codeSubtask([\n        'task' => $task, 'feedback' => $tests->output,\n    ]);\n}",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "ruby": {
+          "code": "class DemoWorkflow < Temporalio::Workflow::Definition\n  Workflow = Temporalio::Workflow\n\n  def execute(input)\n    options = { start_to_close_timeout: 300 }\n    reply = Workflow.execute_activity(Activities::CodeSubtask, input, **options)\n    4.times do |attempt|\n      tests = Workflow.execute_activity(Activities::RunBranchTests, input.workspace, **options)\n      return reply if tests.passed\n      raise 'Repair limit reached' if attempt == 3\n      # Feed observed failures back into the next agent attempt.\n      reply = Workflow.execute_activity(Activities::CodeSubtask,\n                                        { task: input, feedback: tests.output }, **options)\n    end\n  end\nend",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "rust": {
+          "code": "#[run]\npub async fn run(ctx: &mut WorkflowContext<Self>, input: Input) -> WorkflowResult<Output> {\n    let options = ActivityOptions::start_to_close_timeout(Duration::from_secs(30));\n    let mut reply = ctx.execute_activity(Activities::code_subtask, input.clone(), options.clone()).await?;\n    for attempt in 0..=3 {\n        let tests = ctx.execute_activity(\n            Activities::run_branch_tests, input.workspace.clone(), options.clone(),\n        ).await?;\n        if tests.passed { return Ok(reply); }\n        if attempt == 3 { return Err(repair_limit_failure()); }\n        // Observed test output becomes feedback for the next agent attempt.\n        reply = ctx.execute_activity(\n            Activities::repair_subtask, (input.clone(), tests.output), options.clone(),\n        ).await?;\n    }\n    unreachable!()\n}",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation. Rust fragments follow the 1.1.2 SDK API pinned in these demos."
+        },
+        "python": {
+          "code": "# Don't take the agent's word for it: run the tests on the pushed branch.\n    tests = await workflow.execute_activity_method(CheckActivities.run_branch_tests, workspace, **QUICK)\n    if tests.passed:\n        if self._steers.get(lane):\n            continue  # a comment arrived while the tests ran\n        break\n    test_fixes += 1\n    if test_fixes > MAX_TEST_FIX_ROUNDS:\n        raise ApplicationError(f\"Subtask {subtask.id} still fails its tests.\", non_retryable=True)\n    self._detail(lane, \"Tests failed on the branch; sending the failures back to the agent\")\n    reply = await code(feedback=f\"The test suite fails on your branch:\\n{tests.output[-4000:]}\")\nself._detail(lane, reply.summary)",
+          "kind": "native-excerpt",
+          "note": "Curated native excerpt from the running implementation. Surrounding imports, setup, and other Workflow steps are omitted."
+        }
+      }
+    },
+    "flight-simulator": {
+      "concept": "Apply telemetry with a Workflow Update",
+      "summary": "Sequence numbers discard duplicate or late batches. An Update changes durable session state and returns the current view; validation and game Activities surround this excerpt.",
+      "nativeLanguage": "python",
+      "source": {
+        "path": "apps/flight-simulator/backend/holodeck/flight/workflows.py",
+        "symbol": "FlightSessionWorkflow.telemetry",
+        "startLine": 120,
+        "endLine": 142
+      },
+      "examples": {
+        "go": {
+          "code": "func Session(ctx workflow.Context, input SessionInput) (SessionState, error) {\n    state := SessionState{}\n    err := workflow.SetUpdateHandler(ctx, \"telemetry\", func(batch Telemetry) (SessionState, error) {\n        if batch.Seq <= state.Seq { return state, nil }\n        state.Seq = batch.Seq\n        state.Score = batch.Score\n        // Validation and event Activities live outside this focused handler.\n        return state, nil\n    })\n    if err != nil { return state, err }\n    // The separate finish handler changes state.Finished.\n    err = workflow.Await(ctx, func() bool { return state.Finished })\n    return state, err\n}",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "typescript": {
+          "code": "const telemetry = defineUpdate<SessionState, [Telemetry]>('telemetry');\nexport async function flight(): Promise<SessionState> {\n  const state: SessionState = { seq: 0, score: 0, finished: false };\n  setHandler(telemetry, batch => {\n    if (batch.seq <= state.seq) return { ...state };\n    state.seq = batch.seq;\n    state.score = batch.score;\n    return { ...state };\n  });\n  // A separate finish handler sets state.finished; validators are omitted.\n  await condition(() => state.finished);\n  return state;\n}",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "java": {
+          "code": "private long sequence;\nprivate int score;\nprivate boolean finished;\npublic SessionState run() {\n    // A separate finish handler sets finished; game validation is omitted.\n    Workflow.await(() -> finished);\n    return new SessionState(sequence, score);\n}\n// Implements an @UpdateMethod declared on the omitted Workflow interface.\npublic SessionState telemetry(Telemetry batch) {\n    if (batch.seq() <= sequence) return new SessionState(sequence, score);\n    sequence = batch.seq();\n    score = batch.score();\n    return new SessionState(sequence, score);\n}",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "dotnet": {
+          "code": "private long sequence;\nprivate int score;\nprivate bool finished;\n[WorkflowRun]\npublic async Task RunAsync() => await Workflow.WaitConditionAsync(() => finished);\n// A separate finish handler sets finished; validators are outside this excerpt.\n[WorkflowUpdate]\npublic SessionState Telemetry(Telemetry batch)\n{\n    if (batch.Seq <= sequence) return new(sequence, score);\n    sequence = batch.Seq;\n    score = batch.Score;\n    return new(sequence, score);\n}",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "php": {
+          "code": "private int $sequence = -1;\nprivate int $score = 0;\n\n// This Update method belongs to the Workflow implementation.\n#[UpdateMethod(name: 'telemetry')]\npublic function telemetry(Telemetry $batch): array\n{\n    // Duplicate or late packets must not replace newer state.\n    if ($batch->seq > $this->sequence) {\n        $this->sequence = $batch->seq;\n        $this->score = $batch->score;\n    }\n    return ['sequence' => $this->sequence, 'score' => $this->score];\n}",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "ruby": {
+          "code": "class FlightWorkflow < Temporalio::Workflow::Definition\n  # State is reconstructed by Workflow replay.\n  def initialize\n    @sequence = -1\n    @score = 0\n  end\n  workflow_update\n  def telemetry(batch)\n    # Ignore duplicates and late packets.\n    if batch.seq > @sequence\n      @sequence = batch.seq\n      @score = batch.score\n    end\n    { sequence: @sequence, score: @score }\n  end\nend",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "rust": {
+          "code": "// Fields such as sequence and score belong to the Workflow state.\n#[update]\npub fn telemetry(\n    &mut self,\n    _ctx: &mut SyncWorkflowContext<Self>,\n    batch: Telemetry,\n) -> SessionView {\n    // Duplicate or late packets cannot overwrite newer state.\n    if batch.seq > self.sequence {\n        self.sequence = batch.seq;\n        self.score = batch.score;\n    }\n    SessionView { sequence: self.sequence, score: self.score }\n}",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation. Rust fragments follow the 1.1.2 SDK API pinned in these demos."
+        },
+        "python": {
+          "code": "@workflow.update\ndef telemetry(self, t: Telemetry) -> SessionState:\n    s = self._state\n    if t.seq <= s.seq:  # duplicate/late batch (client retry): ignore\n        return self._view()\n    s.seq = t.seq\n    s.elapsed_ms = min(t.elapsed_ms, s.game_ms)\n    s.score = t.score\n    s.distance = t.distance\n    s.hull = t.hull\n    s.broken = list(t.broken)\n    s.durable = t.durable\n    s.deploys = t.deploys\n    s.repairs = t.repairs\n    s.damage_taken = t.damage_taken\n    s.temporal_charges = t.temporal_charges\n    s.next_threshold = t.next_threshold\n    s.event_log = (s.event_log + [f\"{e.t_ms // 1000:>2}s {e.type}{':' + e.kind if e.kind else ''}\" for e in t.events])[-EVENT_LOG_MAX:]\n    for ev in t.events:\n        self._schedule(ev)\n    if s.elapsed_ms >= s.game_ms:\n        s.status = \"ended\"\n    return self._view()",
+          "kind": "native-excerpt",
+          "note": "Curated native excerpt from the running implementation. Surrounding imports, setup, and other Workflow steps are omitted."
+        }
+      }
+    },
+    "photo-booth": {
+      "concept": "Compose the result, then deliver it",
+      "summary": "After parallel scene rendering, Activities compose the strip, make its animated version, and send an email using an idempotency key.",
+      "nativeLanguage": "python",
+      "source": {
+        "path": "apps/photo-booth/backend/holodeck/photobooth/workflows.py",
+        "symbol": "PhotoBoothWorkflow.run",
+        "startLine": 180,
+        "endLine": 210
+      },
+      "examples": {
+        "go": {
+          "code": "func PhotoStrip(ctx workflow.Context, input PhotoInput) error {\n    ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{\n        StartToCloseTimeout: 2 * time.Minute,\n    })\n    futures := make([]workflow.Future, len(input.Scenes))\n    for i, scene := range input.Scenes {\n        futures[i] = workflow.ExecuteActivity(ctx, \"RenderScene\", scene)\n    }\n    frames := make([]string, len(futures))\n    for i, future := range futures {\n        if err := future.Get(ctx, &frames[i]); err != nil { return err }\n    }\n    var strip string\n    if err := workflow.ExecuteActivity(ctx, \"ComposeStrip\", frames).Get(ctx, &strip); err != nil { return err }\n    return workflow.ExecuteActivity(ctx, \"SendEmail\", Delivery{Strip: strip, IdempotencyKey: input.SessionID}).Get(ctx, nil)\n}",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "typescript": {
+          "code": "const activities = proxyActivities<PhotoActivities>({\n  startToCloseTimeout: '2 minutes',\n});\nexport async function photoStrip(input: PhotoInput): Promise<void> {\n  const frames = await Promise.all(\n    input.scenes.map(scene => activities.renderScene(scene))\n  );\n  const strip = await activities.composeStrip(frames);\n  await activities.makeAnimatedStrip(frames);\n  await activities.sendEmail({ strip, idempotencyKey: input.sessionId });\n  // Image generation and delivery I/O happen inside Activities.\n}",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "java": {
+          "code": "public void photoStrip(Input input) {\n    ActivityOptions options = ActivityOptions.newBuilder()\n        .setStartToCloseTimeout(Duration.ofSeconds(30)).build();\n    DemoActivities activities = Workflow.newActivityStub(\n        DemoActivities.class, options);\n    List<Promise<String>> pending = new ArrayList<>();\n    for (Scene scene : input.scenes()) {\n        pending.add(Async.function(activities::renderScene, scene));\n    }\n    List<String> frames = pending.stream().map(Promise::get).toList();\n    String strip = activities.composeStrip(frames);\n    activities.makeAnimatedStrip(frames);\n    activities.sendEmail(new Delivery(strip, input.sessionId()));\n}",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "dotnet": {
+          "code": "[WorkflowRun]\npublic async Task PhotoStripAsync(Input input)\n{\n    var options = new ActivityOptions {\n        StartToCloseTimeout = TimeSpan.FromSeconds(30),\n    };\n    var pending = input.Scenes.Select(scene => Workflow.ExecuteActivityAsync(\n        (Activities a) => a.RenderSceneAsync(scene), options));\n    var frames = await Task.WhenAll(pending);\n    var strip = await Workflow.ExecuteActivityAsync((Activities a) => a.ComposeStripAsync(frames), options);\n    await Workflow.ExecuteActivityAsync((Activities a) => a.MakeAnimatedStripAsync(frames), options);\n    await Workflow.ExecuteActivityAsync(\n        (Activities a) => a.SendEmailAsync(new Delivery(strip, input.SessionId)), options);\n}",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "php": {
+          "code": "$activities = Workflow::newActivityStub(\n    DemoActivities::class,\n    ActivityOptions::new()->withStartToCloseTimeout('30 seconds'),\n);\n$pending = [];\nforeach ($input->scenes as $scene) {\n    $pending[] = $activities->renderScene($scene);\n}\n$frames = yield \\Temporal\\Promise::all($pending);\n$strip = yield $activities->composeStrip($frames);\nyield $activities->makeAnimatedStrip($frames);\n// The delivery key prevents duplicate email side effects.\nyield $activities->sendEmail($strip, 'photobooth-' . $input->sessionId);\nreturn $strip;",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "ruby": {
+          "code": "class DemoWorkflow < Temporalio::Workflow::Definition\n  Workflow = Temporalio::Workflow\n\n  def execute(input)\n    options = { start_to_close_timeout: 300 }\n    pending = input.scenes.map do |scene|\n      Workflow::Future.new { Workflow.execute_activity(Activities::RenderScene, scene, **options) }\n    end\n    Workflow::Future.all_of(*pending).wait\n    frames = pending.map(&:result)\n    strip = Workflow.execute_activity(Activities::ComposeStrip, frames, **options)\n    Workflow.execute_activity(Activities::MakeAnimatedStrip, frames, **options)\n    Workflow.execute_activity(Activities::SendEmail,\n                              { strip: strip, key: \"photobooth-#{input.session_id}\" }, **options)\n    strip\n  end\nend",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation."
+        },
+        "rust": {
+          "code": "#[run]\npub async fn run(ctx: &mut WorkflowContext<Self>, input: Input) -> WorkflowResult<Output> {\n    let options = ActivityOptions::start_to_close_timeout(Duration::from_secs(30));\n    let pending = input.scenes.into_iter().map(|scene| {\n        ctx.execute_activity(Activities::render_scene, scene, options.clone())\n    });\n    // Use the SDK's deterministic concurrency wrapper.\n    let frames = temporalio_sdk::workflows::join_all(pending).await\n        .into_iter().collect::<Result<Vec<_>, _>>()?;\n    let strip = ctx.execute_activity(Activities::compose_strip, frames.clone(), options.clone()).await?;\n    ctx.execute_activity(Activities::make_animated_strip, frames, options.clone()).await?;\n    let key = format!(\"photobooth-{}\", input.session_id);\n    ctx.execute_activity(Activities::send_email, (strip.clone(), key), options).await?;\n    Ok(strip)\n}",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation. Rust fragments follow the 1.1.2 SDK API pinned in these demos."
+        },
+        "python": {
+          "code": "# 3. Compose the strip, then the animated version.\ndate_label = workflow.now().strftime(\"%b %d, %Y\").upper()\ncompose = ComposeInput(session_dir, list(frames), \"TEMPORAL HOLODECK\", date_label)\nst = self._step(\"strip\")\nst.state = \"running\"\nstrip = await workflow.execute_activity(compose_strip, compose, activity_id=\"strip\",\n                                        start_to_close_timeout=timedelta(seconds=60),\n                                        retry_policy=PLUMBING_RETRY)\nst.state, st.url, s.strip_url = \"done\", strip.url, strip.url\n\nst = self._step(\"animate\")\nst.state = \"running\"\nanim = await workflow.execute_activity(make_animated_strip, compose, activity_id=\"animate\",\n                                       start_to_close_timeout=timedelta(seconds=120),\n                                       retry_policy=PLUMBING_RETRY)\nst.state, st.url, s.animated_url = \"done\", anim.url, anim.url\n\n# 4. Email it.\ns.stage = \"sending\"\nst = self._step(\"email\")\nst.state = \"running\"\nawait workflow.execute_activity(\n    send_email,\n    EmailMessage(to=inp.email, subject=\"Your Temporal Holodeck photo strip \\U0001f680\",\n                 html=_email_html(inp.public_base_url, strip.url, anim.url),\n                 idempotency_key=f\"photobooth-{inp.session_id}\"),\n    activity_id=\"email\", start_to_close_timeout=timedelta(seconds=30),\n    schedule_to_close_timeout=timedelta(days=3), retry_policy=PLUMBING_RETRY)\nst.state, st.detail = \"done\", f\"Sent to {inp.email}\"\ns.stage = \"done\"\nreturn s",
+          "kind": "native-excerpt",
+          "note": "Curated native excerpt from the running implementation. Surrounding imports, setup, and other Workflow steps are omitted."
+        }
+      }
+    }
+  }
+}

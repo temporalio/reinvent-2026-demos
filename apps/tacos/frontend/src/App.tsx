@@ -203,9 +203,7 @@ function App() {
         <p className="eyebrow">Durable orders. Across the galaxy.</p>
         <h1>ZIGGY SPACE<br className="narrow-break" /> TAQUERIA</h1>
         <div className="mission-rule"><span>ORDER / DISCONNECT / RECOVER</span><i aria-hidden="true" /></div>
-        <button className="mission-options" onClick={() => setSettingsOpen(true)} aria-haspopup="dialog" disabled={saving}>
-          {saving ? 'Saving…' : pathLabel(settings)} · Demo options
-        </button>
+
       </header>
       {(error || interrupted) && <div className="mission-notices">
       {error && <div className="mission-error" role="alert">{error}<button onClick={() => setError(null)} aria-label="Dismiss error">×</button></div>}
@@ -218,8 +216,10 @@ function App() {
             <PanelViewport label="Order station"><div className="customer-app">{renderPhoneContent()}</div></PanelViewport>
           </section>
           <section className="mission-panel kitchen-panel" aria-labelledby="kitchen-title">
-            <header className="panel-label"><span>02 / MISSION CONTROL</span><h2 id="kitchen-title">Kitchen uplink</h2></header>
-            <PanelViewport label="Kitchen uplink"><KitchenDisplay onOnlineChange={setStoreOnline} /></PanelViewport>
+            <header className="panel-label"><span>02 / MISSION CONTROL</span><h2 id="kitchen-title">Kitchen uplink</h2>        <button className="mission-options" onClick={() => setSettingsOpen(true)} aria-haspopup="dialog" disabled={saving}>
+          {saving ? 'Saving…' : pathLabel(settings)} · Demo options
+        </button></header>
+            <PanelViewport label="Kitchen uplink"><KitchenDisplay onOnlineChange={setStoreOnline} activeOrderId={orderId} /></PanelViewport>
           </section>
         </div>
         <MissionInsights events={events} finalStatus={finalStatus} settings={settings} workflowId={workflowId}

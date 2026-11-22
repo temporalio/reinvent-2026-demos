@@ -72,3 +72,17 @@ Verified November 21, 2026:
 - Photo Booth and Flight Simulator backends: 20 tests each pass (`uv run --frozen --extra aws --group dev python -m pytest`), including 4 new ones: a payload carrying an email encodes to an `ExternalStorageReference` with no email bytes and decodes back; a missing object reads as absent; no `PAYLOAD_BUCKET` leaves payloads inline; with one, the threshold is 0.
 - Both images build in Docker with temporalio 1.36.1 and boto3 1.43.101.
 - Not exercised against real S3 or a real workflow run; first hosted run should confirm a Photo Booth history in the public UI shows references only.
+
+## Touchscreen panel cleanup
+
+Verified November 22, 2026 against the local candidate built from the deployed onboarding branch:
+
+- Launchpad Docker build and 23 tests pass. Banking Docker build/typecheck/ESLint and Tacos Docker build/lint/six behavioral tests pass. Twenty-one root checks include the 72-example coverage/provenance checks; native excerpts match the source and translations are explicitly illustrative, not compiled SDK programs.
+- All nine local demo pages passed measured equal upper/lower tracks, no outer or native document scrolling, no clipped upper controls, and fitting Business/Architecture tabs at 1080×1920 and 2160×3840. Each SDK selector switched among eight distinct 12–32-line examples. Code/Temporal remain their own lower content regions; Temporal UI internals were not restyled.
+- Saved zoom 75/100/125% and height 60/78/90% kept equal tracks and zero station/document overflow. Banking compact account/form/review screens were exercised; its synthetic $50 transfer completed in Temporal. A native workflow link, with its old local-preview port normalized only in the browser fixture, selected the lower Temporal tab without a new tab; passive updates preserved the selected tab.
+- Tacos menu, populated cart, checkout, and relocated Kitchen settings dialog were opened without scrolling. Its dialog measured 321px within a 641px iframe. No Tacos order was submitted in this layout check. Native zoom/Perspective/language dropdown/footer duplicates are absent from the embedded shared view.
+- Real wall-clock testing with normal hub polling showed the five-second countdown after 30 seconds. A real pointer click reset the timer beyond its old deadline; after a fresh 35-second idle period the visitor screen returned to the screensaver. Photo and staff controls remained open. Unit tests also cover Flight exemption, iframe input, and detached-frame cleanup.
+- Both embedded and standalone planet Launch returned to crew selection, removed stale demo state, and preserved station identity. Mech selection opened Tacos on Workflow code. The gradient layer measured left 0/full viewport width on both portrait and letterboxed landscape views.
+- Staff draft preview rendered width 89% while the hub remained at 90% with the same revision. Back retained the unsaved/unlocked draft. Only Save changed the hub revision/width; the isolated preview was then reset to centered defaults.
+
+No live deployment, GitHub sandbox creation, provider inference, or physical television/stylus acceptance was performed. The exact character portraits are still missing from the latest toolkit tree; see TOUCHSCREEN-UI.md. The PIN-only ingress fix is reviewed separately in PR #8.

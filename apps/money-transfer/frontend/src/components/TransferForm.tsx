@@ -49,17 +49,17 @@ export function TransferForm({
   ]
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="px-4 py-3 border-b border-border flex items-center gap-1">
+    <div className="banking-screen banking-transfer-form flex flex-col h-full">
+      <div className="banking-screen-head px-4 py-3 border-b border-border flex items-center gap-1">
         <BackButton onClick={onBack} />
         <h1 className="text-xl font-light tracking-tight">Send Money</h1>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 grid gap-5 content-start">
+      <div className="banking-screen-body transfer-fields flex-1 overflow-y-auto px-4 py-4 grid gap-5 content-start">
         <Select label="From" value={fromAccount} options={fromOptions} onChange={onFromChange} />
         <Select label="To" value={toAccount} options={toOptions} onChange={onToChange} />
 
-        <div className="field">
+        <div className="amount-field field">
           <span id="amount-label">Amount</span>
           <div className="amount-input">
             <span aria-hidden="true">$</span>
@@ -76,7 +76,7 @@ export function TransferForm({
           </div>
         </div>
 
-        <div className="chips" role="group" aria-label="Quick amounts">
+        <div className="quick-amounts chips" role="group" aria-label="Quick amounts">
           {QUICK_AMOUNTS.map((val) => (
             <button
               key={val}
@@ -91,7 +91,7 @@ export function TransferForm({
         </div>
       </div>
 
-      <div className="p-4 border-t border-border">
+      <div className="banking-screen-actions p-4 border-t border-border">
         <button
           type="button"
           onClick={onNext}
