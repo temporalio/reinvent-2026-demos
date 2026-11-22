@@ -1,7 +1,7 @@
 import '../shared/theme.css';
 import './photobooth.css';
 import { h, mount, sleep } from '../shared/dom';
-import { api, poll } from '../shared/api';
+import { api, poll, withBase } from '../shared/api';
 import { installChrome } from '../shared/chrome';
 import { onScreenKeyboard } from '../shared/keyboard';
 import { CONSENT_TEXT_VERSION, consentNote } from '../shared/consent';
@@ -281,11 +281,12 @@ function processing(s: Started): void {
 // ---------- 7. Result ----------
 function result(st: Status): void {
   let animated = !!st.animated_url;
-  const img = h('img', { class: 'pb-strip', src: (animated ? st.animated_url : st.strip_url) ?? '', alt: 'Your photo strip' });
+  // The backend returns /media/... URLs, relative to the app's own prefix.
+  const img = h('img', { class: 'pb-strip', src: withBase((animated ? st.animated_url : st.strip_url) ?? ''), alt: 'Your photo strip' });
   const toggle = st.animated_url
     ? h('button', { class: 'btn ghost', onclick: () => {
         animated = !animated;
-        img.src = (animated ? st.animated_url : st.strip_url)!;
+        img.src = withBase((animated ? st.animated_url : st.strip_url)!);
         toggle!.textContent = animated ? 'Show still' : 'Show animated';
       } }, 'Show still')
     : null;
