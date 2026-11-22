@@ -6,7 +6,8 @@ interface StoreOrder {
   status: string
 }
 
-export function KitchenDisplay({ onOnlineChange }: { onOnlineChange: (online: boolean | null) => void }) {
+export function KitchenDisplay({ onOnlineChange, activeOrderId }: { onOnlineChange: (online: boolean | null) => void; activeOrderId?: string | null }) {
+  const sharedStage = new URLSearchParams(window.location.search).get('sharedStage') === '1'
   const [orders, setOrders] = useState<StoreOrder[]>([])
   const [online, setOnline] = useState<boolean | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -74,8 +75,8 @@ export function KitchenDisplay({ onOnlineChange }: { onOnlineChange: (online: bo
       {error && <p className="mission-error" role="alert">{error}</p>}
       <div className="kitchen-orders" aria-label="Kitchen orders">
         <p className="eyebrow">DOCK 42 / ORDER QUEUE</p>
-        {orders.length === 0 && <p className="mission-empty">No orders at the dock yet.<br />Place an order at the station on the left.</p>}
-        {orders.map((order) => (
+        {(sharedStage ? !orders.some(order=>order.order_id===activeOrderId) : orders.length===0) && <p className="mission-empty">No orders at the dock yet.<br />Place an order at the station on the left.</p>}
+        {(sharedStage ? orders.filter(order=>order.order_id===activeOrderId) : orders).map((order) => (
           <article className="kitchen-order" key={order.order_id}>
             <div className="order-heading"><h3>#{order.order_id.slice(0, 6).toUpperCase()}</h3><span>{order.status}</span></div>
             {order.items.map((item, index) => <p key={index}>{item.quantity} × {item.name}</p>)}

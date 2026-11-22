@@ -130,3 +130,165 @@ html[data-booth=true][data-execution-mode=native] .stat-card:has(#stat-lambda) :
 html[data-booth=true][data-execution-mode=native] .charts-grid .card:first-child :is(.spark,.chart-time,.chart-peak) { display:none; }
 html[data-booth=true][data-execution-mode=native] .stat-card:has(#stat-lambda)::after,
 html[data-booth=true][data-execution-mode=native] .charts-grid .card:first-child::after { content:'Not emulated'; display:block; margin-top:1rem; color:var(--text-muted); font:.8rem var(--font-mono); }
+
+/* Shared stage: each native app fills the upper half. Its own lower explainer is redundant. */
+html[data-shared-stage=true],html[data-shared-stage=true] body { width:100%; height:100%; min-height:0; margin:0; overflow:hidden; }
+html[data-shared-stage=true] #root,html[data-shared-stage=true] #app { height:100%; min-height:0; overflow:hidden; }
+html[data-shared-stage=true] :is(button,select,input:not([type=checkbox]):not([type=radio])) { min-height:44px; }
+html[data-shared-stage=true][data-demo=banking] { font-size:16px; }
+html[data-shared-stage=true][data-demo=banking] .app-header { flex:none; padding:.4rem .6rem; gap:.5rem; }
+html[data-shared-stage=true][data-demo=banking] .app-header :is(.brand,.booth-scenario-dialog,.booth-temporal-summary) { display:none; }
+html[data-shared-stage=true][data-demo=banking] .topbar-actions { flex:1; justify-content:flex-end; min-width:0; }
+html[data-shared-stage=true][data-demo=banking] .booth-scenario { display:flex; align-items:center; gap:.4rem; margin:0; min-width:0; }
+html[data-shared-stage=true][data-demo=banking] .booth-scenario select { width:min(18rem,40vw); min-width:0; padding:.4rem; font-size:.85rem; }
+html[data-shared-stage=true][data-demo=banking] #root > main { flex:1; min-height:0; overflow:hidden; }
+html[data-shared-stage=true][data-demo=banking] .pane-layout { grid-template-columns:repeat(2,minmax(0,1fr)); gap:.5rem; height:100%; overflow:hidden; }
+html[data-shared-stage=true][data-demo=banking] :is(.pane,.pane-stack,.booth-banking-product,.banking-screen) { min-height:0; height:100%; overflow:hidden; }
+html[data-shared-stage=true][data-demo=banking] .booth-banking-product { display:flex; flex-direction:column; }
+html[data-shared-stage=true][data-demo=banking] .pane-head { flex:none; padding:.4rem .6rem; }
+html[data-shared-stage=true][data-demo=banking] .pane-head .eyebrow { display:none; }
+html[data-shared-stage=true][data-demo=banking] .pane-head h2 { font-size:1rem; }
+html[data-shared-stage=true][data-demo=banking] .banking-screen-head { flex:none; padding:.35rem .6rem; gap:.25rem; }
+html[data-shared-stage=true][data-demo=banking] .banking-screen-head h1 { font-size:1rem; }
+html[data-shared-stage=true][data-demo=banking] .banking-screen-body { flex:1; min-height:0; padding:.5rem .6rem; overflow:visible; }
+html[data-shared-stage=true][data-demo=banking] .banking-screen-actions { flex:none; padding:.4rem .6rem; }
+html[data-shared-stage=true][data-demo=banking] .banking-screen-actions button { min-height:44px; padding:.4rem; }
+html[data-shared-stage=true][data-demo=banking] .banking-total { display:flex; flex-direction:row; align-items:center; justify-content:space-between; gap:.5rem; padding:.5rem; margin:0; }
+html[data-shared-stage=true][data-demo=banking] .banking-total .stat-value { font-size:1.5rem; }
+html[data-shared-stage=true][data-demo=banking] .account-overview { display:flex; flex-direction:column; gap:.5rem; }
+html[data-shared-stage=true][data-demo=banking] .account-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.5rem; }
+html[data-shared-stage=true][data-demo=banking] .account-grid > * { margin:0; }
+html[data-shared-stage=true][data-demo=banking] .account-tile { padding:.5rem; }
+html[data-shared-stage=true][data-demo=banking] .account-tile > div { display:grid; grid-template-columns:1fr; gap:.25rem; }
+html[data-shared-stage=true][data-demo=banking] .account-tile svg { display:none; }
+html[data-shared-stage=true][data-demo=banking] .account-tile .text-right { text-align:left; }
+html[data-shared-stage=true][data-demo=banking] .account-meta { font-size:.7rem; }
+html[data-shared-stage=true][data-demo=banking] .transfer-fields { grid-template-columns:repeat(2,minmax(0,1fr)); gap:.5rem; }
+html[data-shared-stage=true][data-demo=banking] .transfer-fields > :is(.amount-field,.quick-amounts) { grid-column:1 / -1; }
+html[data-shared-stage=true][data-demo=banking] .transfer-fields .field { gap:.25rem; min-width:0; }
+html[data-shared-stage=true][data-demo=banking] .transfer-fields :is(select,input) { width:100%; min-height:44px; padding:.4rem; font-size:.85rem; }
+html[data-shared-stage=true][data-demo=banking] .amount-input input { padding-left:1.8rem; font-size:1.25rem; }
+html[data-shared-stage=true][data-demo=banking] .quick-amounts { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:.25rem; }
+html[data-shared-stage=true][data-demo=banking] .review-detail { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.5rem; align-content:start; }
+html[data-shared-stage=true][data-demo=banking] .review-amount { grid-column:1 / -1; margin:0; gap:.1rem; }
+html[data-shared-stage=true][data-demo=banking] .review-amount > p:first-child { font-size:2rem; }
+html[data-shared-stage=true][data-demo=banking] .review-account { margin:0; padding:.5rem; gap:.3rem; }
+html[data-shared-stage=true][data-demo=banking] .review-account > div { display:block; }
+html[data-shared-stage=true][data-demo=banking] .review-account svg,html[data-shared-stage=true][data-demo=banking] .review-direction { display:none; }
+html[data-shared-stage=true][data-demo=banking] .review-account .text-right { text-align:left; margin-top:.3rem; }
+html[data-shared-stage=true][data-demo=banking] .tracking-hero { margin:0 0 .5rem; padding:.6rem; }
+html[data-shared-stage=true][data-demo=banking] .tracking-hero > span { display:none; }
+html[data-shared-stage=true][data-demo=banking] .tracking-hero h2 { font-size:1.15rem; }
+html[data-shared-stage=true][data-demo=banking] .tracking-progress { padding:0 .6rem; margin-bottom:.5rem; min-height:5rem; }
+html[data-shared-stage=true][data-demo=banking] .tracking-security { display:none; }
+html[data-shared-stage=true][data-demo=banking] .card.backstage { height:100%; padding:.5rem .6rem; gap:.45rem; overflow:hidden; }
+html[data-shared-stage=true][data-demo=banking] .backstage > .card-head { flex:none; }
+html[data-shared-stage=true][data-demo=banking] .backstage .heading { font-size:1rem; }
+html[data-shared-stage=true][data-demo=banking] .backstage .steps { flex:none; overflow:visible; padding:0; gap:.2rem; }
+html[data-shared-stage=true][data-demo=banking] .backstage .step { grid-template-columns:1.25rem minmax(0,1fr) auto; gap:.1rem .4rem; padding-bottom:.35rem; }
+html[data-shared-stage=true][data-demo=banking] .backstage .dot { width:1.25rem; height:1.25rem; font-size:.65rem; }
+html[data-shared-stage=true][data-demo=banking] .backstage .step-label { font-size:.85rem; }
+html[data-shared-stage=true][data-demo=banking] .backstage .step-detail { font-size:.72rem; }
+html[data-shared-stage=true][data-demo=banking] .backstage .step-note,html[data-shared-stage=true][data-demo=banking] .backstage .legend { display:none; }
+html[data-shared-stage=true][data-demo=banking] .backstage:has(.state-banner) .step-detail { display:none; }
+html[data-shared-stage=true][data-demo=banking] .backstage .state-banner { padding:.4rem; font-size:.78rem; }
+html[data-shared-stage=true][data-demo=banking] .backstage .execution-foot { margin-top:auto; padding-top:.3rem; gap:.3rem; }
+html[data-shared-stage=true][data-demo=banking] .execution-foot .wfid { font-size:.65rem; }
+html[data-shared-stage=true][data-demo=banking] .execution-foot a { min-height:44px; font-size:.7rem; padding:.3rem; white-space:nowrap; }
+
+/* Tacos contributes one live customer/chaos session. The launchpad owns all lower tabs. */
+html[data-shared-stage=true][data-demo=dejavutacos] { font-size:16px; }
+html[data-shared-stage=true][data-demo=dejavutacos] :is(.mission-header,.mission-footer,.insight-panel,.panel-zoom) { display:none !important; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-shell { height:100%; min-height:0; padding:.5rem; display:flex; flex-direction:column; gap:.4rem; overflow:hidden; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-shell::before { display:none; }
+html[data-shared-stage=true][data-demo=dejavutacos] .mission-workspace { flex:1; min-height:0; display:flex; flex-direction:column; padding:0; margin:0; overflow:hidden; }
+html[data-shared-stage=true][data-demo=dejavutacos] .mission-top { flex:1; min-height:0; grid-template-columns:repeat(2,minmax(0,1fr)); grid-template-rows:minmax(0,1fr); gap:.5rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] :is(.mission-panel,.panel-viewport,.panel-scroll,.panel-zoom-content,.customer-app) { min-height:0; overflow:visible; }
+html[data-shared-stage=true][data-demo=dejavutacos] .mission-panel { overflow:hidden; }
+html[data-shared-stage=true][data-demo=dejavutacos] .panel-scroll { flex:1; overflow:hidden; }
+html[data-shared-stage=true][data-demo=dejavutacos] .panel-zoom-content { zoom:1 !important; height:100%; }
+html[data-shared-stage=true][data-demo=dejavutacos] .panel-label { padding:.4rem .6rem; gap:.2rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .panel-label h2 { font-size:1rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .panel-label > span { font-size:.6rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .customer-app > .h-full { height:100%; min-height:0; }
+html[data-shared-stage=true][data-demo=dejavutacos] .customer-app .overflow-y-auto { min-height:0; overflow:visible; }
+html[data-shared-stage=true][data-demo=dejavutacos] .customer-app > div > :first-child { flex:none; padding:.4rem .6rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .customer-app > div > :first-child h1 { font-size:1rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-menu-items { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.4rem; padding:.4rem; align-content:start; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-menu-category,html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-menu-category > div { display:contents; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-menu-category > h2,html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-menu-description { display:none; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-menu-item { min-width:0; min-height:68px; margin:0; padding:.35rem; gap:.25rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-menu-item > span { display:none; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-menu-item h3 { font-size:.75rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-menu-item button { flex:none; min-width:44px; min-height:44px; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-cart-items { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); align-content:start; gap:.4rem; padding:.4rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-cart-item { flex-wrap:wrap; min-width:0; margin:0; gap:.25rem; padding:.35rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-cart-item > div { min-width:0; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-cart-item h3 { font-size:.72rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-cart-item button { min-width:44px; min-height:44px; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-cart-totals { padding:.4rem .6rem; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.3rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-cart-totals > div { display:block; margin:0; font-size:.7rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-cart-totals button { grid-column:1 / -1; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-checkout-content { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); align-content:start; gap:.4rem; padding:.4rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-checkout-card { margin:0; padding:.4rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-checkout-card h2 { margin-bottom:.25rem; font-size:.75rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-checkout-card p { font-size:.68rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-checkout-summary { grid-column:1 / -1; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.15rem .5rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-checkout-summary > h2,html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-checkout-totals { grid-column:1 / -1; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-checkout-summary > div { font-size:.7rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .kitchen-content { height:100%; padding:.5rem .6rem; overflow:hidden; }
+html[data-shared-stage=true][data-demo=dejavutacos] .uplink { padding:0; }
+html[data-shared-stage=true][data-demo=dejavutacos] .uplink-orbit { display:none; }
+html[data-shared-stage=true][data-demo=dejavutacos] .uplink h3 { font-size:1.25rem; margin:.3rem 0; }
+html[data-shared-stage=true][data-demo=dejavutacos] .uplink > p { font-size:.75rem; margin:.3rem 0; }
+html[data-shared-stage=true][data-demo=dejavutacos] .mission-note { display:none; }
+html[data-shared-stage=true][data-demo=dejavutacos] .kitchen-orders { margin-top:.6rem; padding-top:.6rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .kitchen-order { padding:.5rem; margin:.35rem 0 0; }
+html[data-shared-stage=true][data-demo=dejavutacos] .kitchen-order h3 { font-size:.85rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .kitchen-order p { font-size:.75rem; }
+/* Presenter controls belong to mission control, including when the outer header is absent. */
+html[data-booth=true][data-demo=dejavutacos] .kitchen-panel > .panel-label { position:relative; padding-right:9rem; }
+html[data-booth=true][data-demo=dejavutacos] .kitchen-panel .mission-options { position:absolute; right:.5rem; top:.4rem; margin:0; max-width:8rem; padding:.3rem .5rem; font-size:.65rem; line-height:1.2; }
+html[data-shared-stage=true][data-demo=dejavutacos] .settings-dialog { width:min(50rem,calc(100vw - 1rem)); max-height:calc(100dvh - 1rem); padding:.7rem; gap:.5rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .settings-body { grid-template-columns:repeat(3,minmax(0,1fr)); gap:.6rem; overflow:visible; }
+html[data-shared-stage=true][data-demo=dejavutacos] .settings-group { gap:.35rem; align-content:start; }
+html[data-shared-stage=true][data-demo=dejavutacos] .scenario-list { gap:.35rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .scenario { padding:.45rem; min-height:44px; }
+html[data-shared-stage=true][data-demo=dejavutacos] .scenario-note { display:none; }
+html[data-shared-stage=true] [data-booth-scrollfit=true] { overflow:visible !important; max-height:none !important; }
+html[data-shared-stage=true]:is([data-demo=no-roads],[data-demo=loans],[data-demo=travel-agent],[data-demo=agentic-sdlc],[data-demo=data-pipeline]) { font-size:16px; }
+html[data-shared-stage=true][data-demo=no-roads] body { height:auto; min-height:var(--booth-canvas-height); padding:.5rem; }
+html[data-shared-stage=true][data-demo=no-roads] .no-roads-booth-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:.5rem; }
+html[data-shared-stage=true][data-demo=no-roads] :is(.no-roads-interaction,.no-roads-controls) { padding:.5rem; }
+html[data-shared-stage=true][data-demo=no-roads] .charts-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+html[data-shared-stage=true][data-demo=no-roads] .stat-value { font-size:1.25rem; }
+html[data-shared-stage=true][data-demo=no-roads] .stat-card { padding:.4rem; }
+html[data-shared-stage=true][data-demo=loans] .loan-entry-grid { height:auto; min-height:0; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.6rem; }
+html[data-shared-stage=true][data-demo=loans] .loan-entry-grid .form-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+html[data-shared-stage=true][data-demo=loans] .profile-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+html[data-shared-stage=true][data-demo=loans] :is(.screen,#screen-1) { padding:.5rem; }
+html[data-shared-stage=true][data-demo=loans] .hero-sub { margin:.3rem 0 .5rem !important; }
+html[data-shared-stage=true][data-demo=loans] .bulk-button-row { flex-direction:row; flex-wrap:wrap; }
+html[data-shared-stage=true][data-demo=travel-agent] .app { height:auto; min-height:var(--booth-canvas-height); padding:.5rem; }
+html[data-shared-stage=true][data-demo=travel-agent] .workspace { grid-template-columns:repeat(2,minmax(0,1fr)); gap:.5rem; }
+html[data-shared-stage=true][data-demo=travel-agent] .workspace > .travel { grid-column:2; grid-row:1; }
+html[data-shared-stage=true][data-demo=travel-agent] .travel > :is(.map,.route-map,.departures) { min-height:7rem; }
+html[data-shared-stage=true][data-demo=agentic-sdlc] .shell { height:auto; min-height:var(--booth-canvas-height); padding:.5rem; grid-template-columns:minmax(0,1fr) minmax(14rem,.6fr); grid-template-rows:auto minmax(0,1fr); }
+html[data-shared-stage=true][data-demo=agentic-sdlc] .presenter-bar { grid-column:2; max-height:none; padding:.5rem; }
+/* Holodeck overlays fit their actual upper iframe; live canvases keep native coordinates. */
+html[data-shared-stage=true][data-demo=flightsim] .fd-screen { padding:1rem; gap:.7rem; overflow:visible; }
+html[data-shared-stage=true][data-demo=flightsim] .fd-title { font-size:clamp(2rem,8vh,5rem); }
+html[data-shared-stage=true][data-demo=flightsim] .fd-howto { grid-template-columns:repeat(4,minmax(0,1fr)); gap:.5rem; }
+html[data-shared-stage=true][data-demo=flightsim] .fd-howto > div { padding:.6rem; font-size:.75rem; }
+html[data-shared-stage=true][data-demo=flightsim] .fd-howto b { font-size:.85rem; }
+html[data-shared-stage=true][data-demo=flightsim] .fd-howto .big { font-size:1.5rem; }
+html[data-shared-stage=true][data-demo=photobooth] .screen { padding:.75rem; gap:.6rem; overflow:visible; }
+html[data-shared-stage=true][data-demo=photobooth] .screen > div:first-child { gap:.3rem !important; flex:none; }
+html[data-shared-stage=true][data-demo=photobooth] h1 { font-size:clamp(1.5rem,5vh,2.5rem); margin:.2rem 0; }
+html[data-shared-stage=true][data-demo=photobooth] .pb-split { min-height:0; gap:.75rem; }
+html[data-shared-stage=true][data-demo=photobooth] .pb-viewfinder { height:min(58vh,60vw); }
+html[data-shared-stage=true][data-demo=photobooth] .pb-side { gap:.65rem; }
+html[data-shared-stage=true][data-demo=photobooth] .panel { padding:.7rem; }
+html[data-shared-stage=true][data-demo=flightsim] .fd-screen:has(.fd-howto) .fd-lb tbody { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 .75rem; }
+html[data-shared-stage=true][data-demo=flightsim] .fd-screen:has(.fd-howto) .fd-lb tr { display:grid; grid-template-columns:2rem minmax(0,1fr) auto; }
+html[data-shared-stage=true][data-demo=flightsim] .fd-screen:has(.fd-howto) .fd-lb td { padding:.2rem .3rem; width:auto; min-width:0; font-size:.7rem; overflow-wrap:anywhere; }

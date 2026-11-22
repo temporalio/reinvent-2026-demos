@@ -31,10 +31,10 @@ export function Menu({ cart, onAddToCart, onViewCart }: MenuProps) {
       </div>
 
       {/* Menu items */}
-      <div className="flex-1 overflow-y-auto px-3 py-2 space-y-4">
+      <div className="taqueria-menu-items flex-1 overflow-y-auto px-3 py-2 space-y-4">
         {error && <p role="alert">The menu is unavailable. Check the API connection and reload.</p>}
         {categories.map((cat) => (
-          <div key={cat}>
+          <div key={cat} className="taqueria-menu-category">
             <h2 className="text-sm font-bold text-orange-800 uppercase tracking-wider mb-2">
               {cat}
             </h2>
@@ -44,14 +44,14 @@ export function Menu({ cart, onAddToCart, onViewCart }: MenuProps) {
                 .map((item) => (
                   <div
                     key={item.id}
-                    className="bg-white rounded-xl p-3 shadow-sm flex items-center gap-3"
+                    className="taqueria-menu-item bg-white rounded-xl p-3 shadow-sm flex items-center gap-3"
                   >
                     <span className="text-3xl">{item.image}</span>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold text-gray-900 text-sm">
                         {item.name}
                       </h3>
-                      <p className="text-xs text-gray-500">
+                      <p className="taqueria-menu-description text-xs text-gray-500">
                         {item.description}
                       </p>
                       <p className="text-sm font-bold text-orange-600">

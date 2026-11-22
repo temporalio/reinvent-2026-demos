@@ -45,6 +45,5 @@ export function TemporalCodeView({ events, finalStatus, runningLanguage }: { eve
       const status = state === 'pending' ? undefined : state
       return <span key={index} className={`ln ${status === 'completed' ? 'done' : status ? 'hl' : ''}`} data-status={status}>{'  '.repeat(line.indent)}{line.text || ' '}{'\n'}</span>
     }) : fullSource}</code></pre>
-    <p className="mission-note">{finalStatus ? `Order outcome: ${finalStatus}. ` : ''}Language selection changes this viewer only. {showExcerpt ? 'Highlighted lines follow the order event stream.' : 'Full source is static; use the annotated excerpt to follow live steps.'}</p>
   </div>
 }
