@@ -42,3 +42,11 @@ class MonorepoTests(unittest.TestCase):
             lines=(ROOT/item['path']).read_text().splitlines()
             self.assertEqual(item['code'],'\n'.join(lines[:180]))
             self.assertEqual(item['truncated'],len(lines)>180)
+
+    def test_booth_control_routes_do_not_require_fieldkit_sso(self):
+        ingress=yaml.safe_load((ROOT/'deploy/reinvent-2026.yaml').read_text())['spec']['ingress']
+        for path in ['/config','/control-api/state','/control-api/login','/control-api/logout','/control-api/global','/control-api/stations/4']:
+            with self.subTest(path=path):
+                route=max((r for r in ingress['routes'] if path.startswith(r['pathPrefix'])),key=lambda r:len(r['pathPrefix']))
+                auth='public' if route.get('public') else route.get('auth',ingress['auth'])
+                self.assertEqual(auth,'public')

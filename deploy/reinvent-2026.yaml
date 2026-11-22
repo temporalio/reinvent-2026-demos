@@ -463,10 +463,8 @@ spec:
         loan:
           id: us.anthropic.claude-sonnet-5-5
           env: BEDROCK_MODEL_ID
-  # No sign-in for the demos: attendees and kiosks reach every app. Only
-  # changing booth settings needs a Fieldkit sign-in: the /config page and the
-  # control hub's writes. Kiosks poll /control-api/state, the longer (public)
-  # prefix, without one.
+  # Kiosks and staff need no Fieldkit session. The control hub authenticates
+  # writes with its daily PIN/session cookie and enforces same-origin requests.
   ingress:
     subdomain: reinvent-booth
     auth: public
@@ -478,14 +476,14 @@ spec:
     - pathPrefix: /config
       component: gateway
       port: http
-      auth: required
+      auth: public
     - pathPrefix: /control-api/state
       component: control-hub
       port: http
     - pathPrefix: /control-api
       component: control-hub
       port: http
-      auth: required
+      auth: public
     - pathPrefix: /
       component: gateway
       port: http
