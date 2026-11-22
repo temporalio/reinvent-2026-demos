@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { DemoStage } from './DemoStage'
 import catalog from './catalog.json'
 import './index.css'
+import './missionArtwork.css'
 import { useStationControl } from './stationControl'
 import { DisplayArea } from './DisplayArea'
 import { launchRestriction } from './stationPolicy'
@@ -9,11 +10,11 @@ import StationControl from './StationControl'
 import { initialLaunchScreen } from './launchNavigation'
 import { missionMetadata } from './missionMetadata'
 import { LogoMarquee } from './LogoMarquee'
+import { CrewPicker, type Persona } from './CrewPicker'
 import { idleScreensaverEnabled, useIdleScreensaver } from './useIdleScreensaver'
 
 const initialDemo = catalog.find(d=>d.id===new URLSearchParams(window.location.search).get('demo')) || null
 
-type Persona = 'Captain' | 'Mech' | 'Envoy' | 'Solarian'
 export default function App() {
   const control = useStationControl()
   const [configurationOpen,setConfigurationOpen] = useState(false)
@@ -69,12 +70,12 @@ export default function App() {
     // The embedded template emits an explicit event so planet taps stay interactive.
     doc?.addEventListener('reinvent:exit', showCrew, { once: true })
   }} />
-  return <div className="launchpad">
+  return <div className={`launchpad${screen === 'crew' ? ' launchpad-crew' : ''}`}>
     <LogoMarquee side="top" /><LogoMarquee side="bottom" />
     <header><img src="/assets/brand/temporal-logo.svg" alt="Temporal" />{screen === 'demo' && selected && <h1 className="demo-title">{selected.title}</h1>}</header>
     {runtime.notice && <aside className="local-notice">{runtime.notice}</aside>}
     <DisplayArea display={control.effective.display} mode={screen === 'demo' ? 'demo' : 'browse'}>
-      {screen === 'crew' && <><p className="eyebrow">SECTOR 01 / CHOOSE YOUR CREW</p><h1>CREW</h1><div className="crew">{(['Captain','Mech','Envoy','Solarian'] as Persona[]).map((name,i) => <button data-persona={name.toLowerCase()} key={name} onClick={() => {setPersona(name);setFilter('all');setScreen('missions')}}><span>0{i+1}</span><strong>{name}</strong><p>{['Business outcomes and durable customer experiences','Workflow code and application architecture','Operations, reliability, and recovery','Creative, content, and growth workflows'][i]}</p></button>)}<button onClick={() => {setFilter('aws-ai');setScreen('missions')}}><strong>Space Wizard</strong><p>AWS and AI missions</p></button><button onClick={() => {setFilter('holodeck');setScreen('missions')}}><strong>Holodeck</strong><p>Flight simulator and AI Photo Booth</p></button></div></>}
+      {screen === 'crew' && <><p className="eyebrow">SECTOR 01 / CHOOSE YOUR CREW</p><h1>CREW</h1><CrewPicker onPersona={name => {setPersona(name);setFilter('all');setScreen('missions')}} onWizard={() => {setFilter('aws-ai');setScreen('missions')}} onHolodeck={() => {setFilter('holodeck');setScreen('missions')}} /></>}
       {screen === 'missions' && <><p className="eyebrow">SECTOR 02 / {filter === 'all' ? persona : filter === 'holodeck' ? 'HOLODECK' : 'SPACE WIZARD'}</p><h1>MISSION</h1><div className="missions">{missions.map(d => {
         const metadata=missionMetadata[d.id]
         const restriction=unavailable(d)
