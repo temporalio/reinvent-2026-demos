@@ -18,7 +18,8 @@ Run scripts/validate-fieldkit.sh with access to the pinned platform checkout. sc
 - Agentic SDLC remains disabled in the launchpad until the booth sandbox GitHub repository, scoped token, signed webhook, runtime secret, and provider account are configured. The manifest references a project-owned sandbox setting rather than the live SA storefront repository.
 - Each build and every app's prefixed asset/API/stream route must pass. Only the tested builds and checks in VERIFICATION.md count.
 - Ingress (decided November 21, 2026): host reinvent-booth on live, `auth: public`, so attendees and the kiosks reach every demo without signing in. Only booth settings need a Fieldkit sign-in: `/config` and the control hub's writes (`/control-api`, `auth: required`). Kiosks poll `/control-api/state`, a public route. Every paid or outbound action (image generation, SDLC runs, Photo Booth email) is reachable by anyone who finds the host; provider spend caps are the limit, and the project is removed after re:Invent.
-- publicUI is on (decided November 21, 2026). Every workflow input, result and history in the namespace, including Photo Booth attendee email addresses, is readable by anyone at `/_temporal/primary/`. The hosted launchpad embeds that route (`apps/launchpad/public/runtime-config.json`).
+- publicUI is on (decided November 21, 2026). Every workflow history in the namespace is readable by anyone at `/_temporal/primary/`, and the hosted launchpad embeds that route (`apps/launchpad/public/runtime-config.json`). Photo Booth and Flight Simulator, which take attendee emails, keep every payload (inputs, results, activity data, query answers) in the `payloads` S3 bucket through Temporal's external storage (`holodeck/temporal_client.py`: the SDK's `S3StorageDriver`, threshold 0), so their histories show only storage references; the UI's reader cannot read the bucket. Their event types, activity names, timings, retries and failure messages stay visible. Other demos' payloads are public; anything an attendee types into Travel Agent or Agentic SDLC is readable there.
+- Buckets keep objects 30 days (`expirationDays`), past the namespace's 7-day retention, so stored payloads and photos can be retrieved after their workflows expire. The project and its buckets are deleted after re:Invent.
 - Secrets live under the new project's Secrets Manager scope. No SA live provider keys or credentials are copied. The platform provisions Cloud credentials; do not install AWS IAM keys on the browser-only stations.
 
 ## Embedded Temporal UI
@@ -27,7 +28,7 @@ Reference: [Michael’s public Tacos viewscreen example](https://dejavu-tacos.tm
 
 Michael confirmed that the live catalog can expose a self-hosted temporalio/ui pod backed by Temporal Cloud through a proxy sidecar with a separate read-only service account. Credentials stay inside the pods, so the booth can embed the UI without attendee Cloud logins. Fieldkit exposes this through temporal.publicUI, with per-namespace UI routes where supported.
 
-Read-only access still exposes workflow payloads and histories. publicUI is on for this project (see "Other required gates"), so treat everything an attendee types into a workflow as public.
+Read-only access still exposes workflow payloads and histories. publicUI is on for this project (see "Other required gates"): Photo Booth and Flight Simulator payloads are in S3, and everything else an attendee types into a workflow is public.
 
 ## Catalog workflow
 

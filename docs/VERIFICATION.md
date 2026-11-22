@@ -64,3 +64,11 @@ Verified November 21, 2026 with the combined portrait/dependency candidate:
 - All nine application routes and the local Temporal UI still pass route checks. The temporary station gateway fixtures were removed, and their synthetic configuration changes were reset.
 
 These are local browser/container checks, not tests on four physical Mac Minis or booth televisions. Online/offline controls govern new launch availability; they do not switch worker connections, disconnect hardware networking, or provision providers. Full demo touch keyboards, arbitrary panel pinch handling, fleet process restart/forced-demo commands, and automatic hub/database failover remain separate work. Hosted control data needs durable storage support before its configuration writes can be relied on across pod replacement.
+
+## Holodeck external payload storage
+
+Verified November 21, 2026:
+
+- Photo Booth and Flight Simulator backends: 20 tests each pass (`uv run --frozen --extra aws --group dev python -m pytest`), including 4 new ones: a payload carrying an email encodes to an `ExternalStorageReference` with no email bytes and decodes back; a missing object reads as absent; no `PAYLOAD_BUCKET` leaves payloads inline; with one, the threshold is 0.
+- Both images build in Docker with temporalio 1.36.1 and boto3 1.43.101.
+- Not exercised against real S3 or a real workflow run; first hosted run should confirm a Photo Booth history in the public UI shows references only.

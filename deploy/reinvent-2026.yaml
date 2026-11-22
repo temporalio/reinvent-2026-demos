@@ -429,6 +429,7 @@ spec:
     - travel-web
     - travel-worker
     - photobooth-web
+    - flightsim-web
     - loan-worker
     - control-hub
     dynamodb:
@@ -441,12 +442,16 @@ spec:
           ttlAttribute: expires_at
     s3:
       buckets:
+        # Temporal external payload storage. Photo Booth and Flight Simulator
+        # keep every payload here (attendee emails stay out of the public UI);
+        # Agent Harness only its large ones. Kept 30 days, past the namespace's
+        # 7-day retention, so stored data can still be retrieved afterwards.
         payloads:
           env: PAYLOAD_BUCKET
-          expirationDays: 7
+          expirationDays: 30
         photos:
           env: PHOTO_MEDIA_BUCKET
-          expirationDays: 7
+          expirationDays: 30
     bedrock:
       models:
         loan:

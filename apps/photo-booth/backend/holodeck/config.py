@@ -24,6 +24,9 @@ class Settings:
     temporal_namespace: str = os.getenv("TEMPORAL_NAMESPACE", "default")
     temporal_api_key: str | None = os.getenv("TEMPORAL_API_KEY") or None
     station: str = os.getenv("HOLODECK_STATION", "laptop")
+    # S3 bucket that holds every workflow payload (temporal_client.payload_storage);
+    # Fieldkit provisions it from spec.aws. Unset: payloads stay in history.
+    payload_bucket: str | None = os.getenv("PAYLOAD_BUCKET") or None
 
     # mock | bedrock | openai. Unset = openai when OPENAI_API_KEY is present, else mock.
     image_provider: str = os.getenv("HOLODECK_IMAGE_PROVIDER") or ("openai" if os.getenv("OPENAI_API_KEY") else "mock")
