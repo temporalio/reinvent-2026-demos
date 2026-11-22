@@ -43,9 +43,10 @@ class Settings:
     openai_image_model: str = os.getenv("HOLODECK_OPENAI_IMAGE_MODEL", "gpt-image-2.5-flare")
     openai_image_quality: str = os.getenv("HOLODECK_OPENAI_IMAGE_QUALITY", "medium")
     openai_image_size: str = os.getenv("HOLODECK_OPENAI_IMAGE_SIZE", "1536x1024")
-    # Likeness to the reference photo: "high" (default; new poses cost likeness) | "low" | "" to omit.
-    # gpt-image-2.5-* support it; gpt-image-2 ignores it.
-    openai_input_fidelity: str | None = os.getenv("HOLODECK_OPENAI_INPUT_FIDELITY", "high") or None
+    # Likeness to the reference photo: "high" | "low" | unset or "" to omit (the default).
+    # Only for a model that accepts it: OpenAI answers 400 "does not support the
+    # 'input_fidelity' parameter" for gpt-image-2.5-flare, the default model above.
+    openai_input_fidelity: str | None = os.getenv("HOLODECK_OPENAI_INPUT_FIDELITY") or None
     # inspired = new cinematic scene featuring someone who looks like the visitor; photo = edit their photo.
     photobooth_style: str = os.getenv("HOLODECK_PHOTOBOOTH_STYLE", "inspired")
     # auto (default, stricter) | low
