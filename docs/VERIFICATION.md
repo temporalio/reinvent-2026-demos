@@ -49,3 +49,18 @@ The single hosted YAML still fails the Fieldkit AWS/Lambda validator. Loan's wor
 The combined portrait/dependency candidate was also built and exercised locally: all nine routes passed, the three provider-limited mutation guards returned 503, and all six synthetic Workflows completed. This includes the updated FastAPI/Starlette/AnyIO stack, native Go gRPC worker, and Pillow 13 image generation. The candidate is assembled from two independent review branches; this is not a claim that main or the hosted catalog already contains them.
 
 The platform was rechecked at main b3347fe on November 21. Its AWS/Lambda validation remains unchanged from the pinned commit. No hosted provisioning was attempted.
+
+## Four-station control hub
+
+Verified November 21, 2026 with the combined portrait/dependency candidate:
+
+- The control image passes 11 real HTTP tests without external networking, including PIN expiry/date boundaries, same-origin writes, validation, simultaneous-save conflicts, and SQLite restart persistence. Resource warnings also fail the test run.
+- The launchpad passes 12 policy/store regression checks and builds with TypeScript. These include query-based station identity across navigation, offline Inherit, cached authentication, a fresh backup hub with a lower revision, and stale poll/logout races. Eighteen root/generator tests and the structure/credential-pattern scan pass.
+- Four isolated browser sessions used four gateway origins connected to the same hub. Global Tacos Off disabled launches on stations 1, 3, and 4; station 2 On overrode it. The already-running station 1 iframe survived the policy update, and its card became disabled after returning to missions.
+- The laptop UI saved a 50-pixel right move. Station 2 measured width 80%, height 70%, x 75px, y 50px, and content zoom 90%, while its existing iframe marker remained intact. Ziggy overlay open/close also retained that iframe.
+- Desktop, 1080×1920, and 2160×3840 browser checks had no horizontal overflow. Portrait demo geometry stayed inside the frame; visible control buttons measured at least 44 CSS pixels high. Unsaved drafts survived repeated polling.
+- Replacing the actual control container preserved saved settings in its named volume. Stopping the hub left the station running with cached settings. Its PIN-gated device-only width change applied locally; restarting the hub restored its saved width, removed the fallback, and relocked recovery controls without losing the iframe.
+- Two-hop gateway fixtures preserve URI/query, Host/Origin, scheme, and session cookies. HTTPS fixtures reject untrusted certificates and accept the trusted certificate/SNI path.
+- All nine application routes and the local Temporal UI still pass route checks. The temporary station gateway fixtures were removed, and their synthetic configuration changes were reset.
+
+These are local browser/container checks, not tests on four physical Mac Minis or booth televisions. Online/offline controls govern new launch availability; they do not switch worker connections, disconnect hardware networking, or provision providers. Full demo touch keyboards, arbitrary panel pinch handling, fleet process restart/forced-demo commands, and automatic hub/database failover remain separate work. Hosted control data needs durable storage support before its configuration writes can be relied on across pod replacement.
