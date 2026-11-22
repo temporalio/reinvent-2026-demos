@@ -34,7 +34,7 @@ def render(fidelity: str | None) -> dict:
 
 
 def test_default_omits_input_fidelity():
-    # gpt-image-2.5-flare, the default model, rejects the parameter with a 400.
+    # OpenAI rejects it for gpt-image-2.5-flare and documents it only for older models.
     assert settings.openai_input_fidelity is None
     assert "input_fidelity" not in render(None)
 
