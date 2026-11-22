@@ -455,7 +455,7 @@ spec:
     bedrock:
       models:
         loan:
-          id: us.anthropic.claude-sonnet-4-5-20250929-v1:0
+          id: us.anthropic.claude-sonnet-5-5
           env: BEDROCK_MODEL_ID
   # No sign-in for the demos: attendees and kiosks reach every app. Only
   # changing booth settings needs a Fieldkit sign-in: the /config page and the
