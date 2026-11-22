@@ -13,7 +13,7 @@ Keep one Fieldkit YAML. Include the control component and route /control-api thr
 ## Phases
 
 1. Design and API contract (complete).
-2. Implement persistent API and touch controls, integrate the launchpad/runtime and local runner.
+2. Implement persistent API and touch controls, integrate the launchpad/runtime and local runner (complete; Docker API/model/build checks passed).
 3. Exercise authenticated writes, overrides, conflict/restart persistence, geometry and active-demo behavior in Docker/browser; document LAN setup and limitations.
 
 The roadmap/Obsidian plugins are unavailable; this committed plan is the work tracker.

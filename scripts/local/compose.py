@@ -4,6 +4,8 @@ import argparse
 import importlib.util
 import json
 from pathlib import Path
+import re
+from urllib.parse import urlsplit
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -34,7 +36,35 @@ NOTICES = {
 
 MOTO = 'motoserver/moto:5.2.5@sha256:59a1965d845249b04def37a0e2565f9cc6c44543cb89b68e90f28f344b3b0d1a'
 
-def render(apps, port=15101):
+DEFAULT_CONTROL_HUB_URL = 'http://control-hub:8090'
+
+
+def control_hub_url(value):
+    """Only accept a base HTTP(S) origin; never interpolate nginx directives."""
+    if not re.fullmatch(r'[A-Za-z0-9:/\[\].-]+', value):
+        raise ValueError('CONTROL_HUB_URL must not contain whitespace, controls, or nginx syntax')
+    parsed = urlsplit(value)
+    if (parsed.scheme not in {'http', 'https'} or not parsed.hostname
+            or parsed.username is not None or parsed.password is not None
+            or parsed.path not in {'', '/'} or parsed.query or parsed.fragment
+            or not re.fullmatch(r'[A-Za-z0-9.:-]+', parsed.hostname)):
+        raise ValueError('CONTROL_HUB_URL must be an HTTP(S) origin with no credentials, path, or query')
+    try:
+        port = parsed.port
+        if port is not None and port < 1:
+            raise ValueError('port must be positive')
+        if parsed.netloc.endswith(':'):
+            raise ValueError('port is empty')
+    except ValueError as error:
+        raise ValueError('CONTROL_HUB_URL has an invalid port') from error
+    return value.rstrip('/')
+
+
+def render(apps, port=15101, bind_address='127.0.0.1', hub_url=DEFAULT_CONTROL_HUB_URL):
+    if bind_address not in {'127.0.0.1', '0.0.0.0'}:
+        raise ValueError('BOOTH_BIND_ADDRESS must be 127.0.0.1 or 0.0.0.0')
+    hub_url = control_hub_url(hub_url)
+
     spec = yaml.safe_load((ROOT / 'deploy/reinvent-2026.yaml').read_text())['spec']
     unknown = set(apps) - GROUPS.keys()
     if unknown:
@@ -66,7 +96,7 @@ def render(apps, port=15101):
             'depends_on': {'temporal': {'condition': 'service_healthy'}},
         },
     }
-    selected = ['launchpad', 'gateway'] + [name for app in apps for name in GROUPS[app]]
+    selected = ['launchpad', 'gateway', 'control-hub'] + [name for app in apps for name in GROUPS[app]]
     for name in selected:
         component = spec['components'][name]
         recipe = spec['builds'][component['build']]
@@ -96,9 +126,13 @@ def render(apps, port=15101):
         if 'command' in component: service['entrypoint'] = component['command']
         elif 'args' in component: service['command'] = component['args']
         if name == 'gateway':
-            service['ports'] = [f'127.0.0.1:{port}:8080']
+            service['ports'] = [f'{bind_address}:{port}:8080']
+            env['CONTROL_HUB_URL'] = hub_url
             service['volumes'] = [str(ROOT / 'tmp/local/gateway.conf.template') + ':/etc/nginx/templates/default.conf.template:ro']
-            service['depends_on'] = {'launchpad': {'condition': 'service_started'}, 'aws-seed': {'condition': 'service_completed_successfully'}, 'temporal-init': {'condition': 'service_completed_successfully'}}
+            service['depends_on'] = {'launchpad': {'condition': 'service_started'}, 'aws-seed': {'condition': 'service_completed_successfully'}, 'temporal-init': {'condition': 'service_completed_successfully'}, 'control-hub': {'condition': 'service_healthy'}}
+        if name == 'control-hub':
+            service['volumes'] = ['control-data:/data']
+            service['healthcheck'] = {'test': ['CMD', 'python', '-c', "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/healthz')"], 'interval': '3s', 'timeout': '3s', 'retries': 30}
         if name == 'launchpad':
             service['volumes'] = [str(ROOT / 'tmp/local/runtime-config.json') + ':/usr/share/nginx/html/runtime-config.json:ro']
         services[name] = service
@@ -107,14 +141,14 @@ def render(apps, port=15101):
         if web in services: services[web]['depends_on'] = {api: {'condition': 'service_started'}}
     SERVERLESS.apply(services, spec, ROOT, apps, port)
     AGENTS.apply(services, spec, ROOT, apps, port)
-    volumes = {'temporal-data': {}}
+    volumes = {'temporal-data': {}, 'control-data': {}}
     volumes.update({name+'-data': {} for name in ['flightsim-web','photobooth-web'] if name in services})
     return {'name': 'reinvent-2026-local', 'services': services, 'volumes': volumes}
 
-def write(apps, port):
+def write(apps, port, bind_address='127.0.0.1', hub_url=DEFAULT_CONTROL_HUB_URL):
     target = ROOT / 'tmp/local'
     target.mkdir(parents=True, exist_ok=True)
-    config = render(apps, port)
+    config = render(apps, port, bind_address, hub_url)
     (target / 'compose.yaml').write_text(yaml.safe_dump(config, sort_keys=False))
     gateway = (ROOT / 'apps/gateway/default.conf.template').read_text()
     gateway = gateway.replace('  location / {', '  location /_temporal/primary/ {\n    set $ui temporal:8233;\n    proxy_pass http://$ui;\n    proxy_set_header Host $http_host;\n  }\n  location / {')
@@ -126,5 +160,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--apps', default=','.join(GROUPS))
     parser.add_argument('--port', type=int, default=15101)
+    parser.add_argument('--bind-address', choices=['127.0.0.1', '0.0.0.0'], default='127.0.0.1')
+    parser.add_argument('--control-hub-url', default=DEFAULT_CONTROL_HUB_URL)
     options = parser.parse_args()
-    write(options.apps.split(','), options.port)
+    write(options.apps.split(','), options.port, options.bind_address, options.control_hub_url)

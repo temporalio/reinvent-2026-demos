@@ -28,6 +28,9 @@ spec:
     gateway:
       context: apps/gateway
       dockerfile: apps/gateway/Dockerfile
+    control-hub:
+      context: apps/booth-control
+      dockerfile: apps/booth-control/Dockerfile
     tacos-web:
       context: apps/tacos
       dockerfile: apps/tacos/docker/frontend.Dockerfile
@@ -110,10 +113,29 @@ spec:
         servicePort: 8080
     gateway:
       build: gateway
+      env:
+      - name: CONTROL_HUB_URL
+        value: http://control-hub:8090
       ports:
       - name: http
         containerPort: 8080
         servicePort: 8080
+    # Hosted SQLite is ephemeral with the current Fieldkit Component schema.
+    # Keep one replica, but do not treat disruption: never as persistent storage.
+    # See docs/STATION-CONTROL.md before enabling hosted configuration writes.
+    control-hub:
+      build: control-hub
+      replicas: 1
+      disruption: never
+      ports:
+      - name: http
+        containerPort: 8090
+        servicePort: 8090
+      env:
+      - name: CONTROL_DB
+        value: /data/control.sqlite3
+      - name: CONTROL_TIMEZONE
+        value: America/Denver
     tacos-web:
       build: tacos-web
       ports:

@@ -1,0 +1,113 @@
+import assert from 'node:assert/strict'
+import {readFileSync} from 'node:fs'
+import {dirname,resolve} from 'node:path'
+import {fileURLToPath} from 'node:url'
+import vm from 'node:vm'
+import test from 'node:test'
+import ts from 'typescript'
+
+const root=resolve(dirname(fileURLToPath(import.meta.url)),'..')
+const source=readFileSync(resolve(root,'src/stationControl.ts'),'utf8')
+const code=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2023,module:ts.ModuleKind.CommonJS,esModuleInterop:true}}).outputText
+const catalog=JSON.parse(readFileSync(resolve(root,'src/catalog.json'),'utf8'))
+const display={width:90,height:78,x:0,y:0,zoom:100}
+function state(revision=9){return {revision,global:{demo_enabled:{tacos:true},network_mode:'online'},stations:Object.fromEntries(['1','2','3','4'].map(id=>[id,{label:'Mac Mini '+id,display:{...display},overrides:{demo_enabled:{}},last_seen:null}])),authenticated:false,server_time:'2026-11-21T12:00:00Z'}}
+function load({url='http://booth.invalid/?station=1',storage=new Map(),fetch=async()=>{throw Error('Hub unavailable')}}={}){
+  const location=new URL(url)
+  const exports={}
+  const context={exports,module:{exports},require(name){if(name==='react')return {useSyncExternalStore:(_subscribe,getSnapshot)=>getSnapshot()};if(name==='./catalog.json')return catalog;throw Error('Unexpected import: '+name)},window:{location,localStorage:{getItem:key=>storage.get(key)??null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)},history:{replaceState:(_state,_title,next)=>{location.href=String(next)}}},URL,URLSearchParams,Date,Intl,AbortController,setTimeout,clearTimeout,setInterval,clearInterval,fetch,console}
+  vm.runInNewContext(code,context,{filename:'stationControl.cjs'})
+  return {api:exports,get:()=>exports.useStationControl(),storage}
+}
+const response=(value,status=200)=>({ok:status>=200&&status<300,status,json:async()=>value})
+
+test('explicit station URL persists through a screensaver full-page launch',()=>{
+  const storage=new Map()
+  assert.equal(load({url:'http://booth.invalid/?station=3',storage}).get().stationId,'3')
+  assert.equal(load({url:'http://booth.invalid/?demo=tacos',storage}).get().stationId,'3')
+})
+
+test('cached control settings never restore hub authentication',()=>{
+  const cached=state();cached.authenticated=true
+  const {get}=load({storage:new Map([['reinvent-control-cache-v1',JSON.stringify(cached)]])})
+  assert.equal(get().state.authenticated,false)
+  assert.equal(get().authenticated,false)
+  assert.equal(get().source,'cache')
+})
+
+test('offline Inherit removes cached demo and network overrides, including after reload',()=>{
+  const cached=state();cached.stations['1'].overrides={demo_enabled:{tacos:false},network_mode:'offline'}
+  const storage=new Map([['reinvent-control-cache-v1',JSON.stringify(cached)]])
+  const {get}=load({storage})
+  assert.equal(get().effective.demo_enabled.tacos,false)
+  get().saveDeviceFallback('1',{overrides:{demo_enabled:{tacos:null},network_mode:null}})
+  assert.equal(get().effective.demo_enabled.tacos,true)
+  assert.equal(get().effective.network_mode,'online')
+  const reloaded=load({storage}).get()
+  assert.equal(reloaded.effective.demo_enabled.tacos,true)
+  assert.equal(reloaded.effective.network_mode,'online')
+  assert.equal(reloaded.authenticated,false)
+})
+
+test('backup hub can replace a cached higher revision and clears device-only overrides',async()=>{
+  const storage=new Map([['reinvent-control-cache-v1',JSON.stringify(state(9))]])
+  const fresh=state(0);fresh.global.demo_enabled.tacos=false
+  const {get}=load({storage,fetch:async()=>response(fresh)})
+  get().saveDeviceFallback('1',{display:{...display,width:60}})
+  assert.equal(get().effective.display.width,60)
+  await get().refresh()
+  assert.equal(get().state.revision,0)
+  assert.equal(get().source,'hub')
+  assert.equal(get().effective.display.width,90)
+  assert.equal(get().effective.demo_enabled.tacos,false)
+  assert.equal(storage.has('reinvent-control-device-only-v1'),false)
+})
+
+test('controller-only config page does not impersonate a station heartbeat',async()=>{
+  const requests=[]
+  const {get}=load({url:'http://booth.invalid/config',fetch:async path=>{requests.push(path);return response(state())}})
+  await get().refresh()
+  assert.equal(requests[0],'/control-api/state')
+})
+
+test('a slow pre-login poll cannot overwrite a successful authenticated response',async()=>{
+  let resolvePoll
+  const loggedIn=state(2);loggedIn.authenticated=true
+  const {get}=load({fetch:path=>path.includes('/state')?new Promise(resolve=>{resolvePoll=resolve}):Promise.resolve(response(loggedIn))})
+  const poll=get().refresh()
+  await get().login('1121')
+  resolvePoll(response(state(1)))
+  await poll
+  assert.equal(get().authenticated,true)
+  assert.equal(get().state.revision,2)
+})
+
+test('stale writes expose the new state and never apply the rejected draft',async()=>{
+  const latest=state(10);latest.authenticated=true
+  const {get,api}=load({storage:new Map([['reinvent-control-cache-v1',JSON.stringify(state(9))]]),fetch:async()=>response({error:'stale_revision',message:'Changed elsewhere',state:latest},409)})
+  await assert.rejects(()=>get().saveStation('1',{display:{...display,width:40}},9),error=>error instanceof api.ControlConflictError)
+  assert.equal(get().state.revision,10)
+  assert.equal(get().effective.display.width,90)
+})
+
+
+test('a failed logout stays locked when an older authenticated poll arrives',async()=>{
+  const authenticated=state(2);authenticated.authenticated=true
+  let reads=0
+  let resolvePoll
+  const {get}=load({fetch:async path=>{
+    if(path.endsWith('/logout'))throw Error('Hub unavailable')
+    reads++
+    if(reads===1)return response(authenticated)
+    return new Promise(resolve=>{resolvePoll=resolve})
+  }})
+  await get().refresh()
+  assert.equal(get().authenticated,true)
+  const poll=get().refresh()
+  await assert.rejects(()=>get().logout(),/locked locally/)
+  assert.equal(get().authenticated,false)
+  resolvePoll(response(authenticated))
+  await poll
+  assert.equal(get().authenticated,false)
+  assert.equal(get().state.authenticated,false)
+})

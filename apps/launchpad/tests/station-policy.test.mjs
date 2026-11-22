@@ -1,0 +1,20 @@
+import {test} from 'node:test'
+import assert from 'node:assert/strict'
+import {launchRestriction} from '../src/stationPolicy.ts'
+const demo={id:'tacos',tentative:false}
+const online={demo_enabled:{},network_mode:'online'}
+test('saved enablement cannot bypass a missing local process',()=>{
+  assert.equal(launchRestriction(demo,{mode:'local',availableDemos:[]},{...online,demo_enabled:{tacos:true}},true),'Not running on this station')
+})
+test('offline policy cannot make a hosted process local',()=>{
+  assert.equal(launchRestriction(demo,{mode:'hosted'},{...online,network_mode:'offline'},true),'Offline mode requires the local demo runner')
+})
+test('offline mode allows tested local adapters and blocks model-dependent previews',()=>{
+  const settings={...online,network_mode:'offline'}
+  assert.equal(launchRestriction(demo,{mode:'local'},settings,true),null)
+  assert.equal(launchRestriction({id:'loan',tentative:false},{mode:'local'},settings,true),'Internet required')
+})
+test('unloaded settings and explicit disablement gate new launches',()=>{
+  assert.equal(launchRestriction(demo,{mode:'local'},online,false),'Loading station settings…')
+  assert.equal(launchRestriction(demo,{mode:'local'},{...online,demo_enabled:{tacos:false}},true),'Disabled for this station')
+})

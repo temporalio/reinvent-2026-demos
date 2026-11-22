@@ -1,3 +1,10 @@
+# Preserve the browser scheme across a station -> laptop gateway hop.
+map $http_x_forwarded_proto $control_forwarded_proto {
+  default $scheme;
+  http http;
+  https https;
+}
+
 server {
   listen 8080;
   resolver ${DNS_RESOLVER} valid=10s ipv6=off;
@@ -6,6 +13,20 @@ server {
   proxy_buffering off;
   proxy_set_header Host $http_host;
   proxy_set_header X-Forwarded-Proto $scheme;
+  location /control-api/ {
+    set $control_hub "${CONTROL_HUB_URL}";
+    proxy_connect_timeout 2s;
+    proxy_read_timeout 5s;
+    proxy_set_header Host $http_host;
+    proxy_set_header Origin $http_origin;
+    proxy_set_header X-Forwarded-Proto $control_forwarded_proto;
+    proxy_redirect off;
+    proxy_ssl_server_name on;
+    proxy_ssl_name $proxy_host;
+    proxy_ssl_verify on;
+    proxy_ssl_trusted_certificate /etc/ssl/cert.pem;
+    proxy_pass $control_hub$request_uri;
+  }
   location = /healthz { default_type application/json; return 200 '{"ok":true}'; }
   location = /flightsim { return 308 /flightsim/$is_args$args; }
   location /flightsim/ {

@@ -10,7 +10,7 @@ fi
 command="${1:-up}"
 shift || true
 if [[ "$command" == up || "$command" == render ]]; then
-  "$PYTHON" scripts/local/compose.py "$@"
+  "$PYTHON" scripts/local/compose.py --bind-address "${BOOTH_BIND_ADDRESS:-127.0.0.1}" --control-hub-url "${CONTROL_HUB_URL:-http://control-hub:8090}" "$@"
 fi
 compose=(docker compose -p reinvent-2026-local -f "$ROOT/tmp/local/compose.yaml")
 case "$command" in
@@ -19,5 +19,5 @@ case "$command" in
   down) "${compose[@]}" down ;;
   status) "${compose[@]}" ps -a ;;
   logs) "${compose[@]}" logs --tail 100 "$@" ;;
-  *) echo 'Usage: scripts/local.sh up|render [--apps tacos,money-transfer,data-pipeline,flight-simulator,photo-booth] [--port 15101] | down|status|logs' >&2; exit 2 ;;
+  *) echo 'Usage: scripts/local.sh up|render [--apps comma-separated-demo-ids] [--port 15101] | down|status|logs. BOOTH_BIND_ADDRESS=0.0.0.0 opts the gateway into LAN access; CONTROL_HUB_URL selects a shared hub origin.' >&2; exit 2 ;;
 esac

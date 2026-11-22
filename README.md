@@ -12,6 +12,12 @@ This is an initial migration, not a deployed booth release. See [deployment bloc
 
 With Docker Desktop running, use `./scripts/local.sh up`, then open http://localhost:15101. This starts the launchpad, all nine demo presentation routes, Temporal OSS, and Moto. Six demos execute local Temporal workflows, with mock providers for Holodeck. Loan, Agent Harness, and Agentic SDLC provide provider-limited UI/API previews. See [local development](docs/LOCAL-DEVELOPMENT.md) for supported apps and limits.
 
+## Manage the four stations
+
+Open http://localhost:15101/config on the laptop, or tap Ziggy on a station and enter the daily date PIN. Controls include global and per-station demo switches, online/offline launch policy, and saved display width, height, zoom, and position. A station On override takes precedence over global Off; existing demos continue running.
+
+Follow [station control setup](docs/STATION-CONTROL.md) to connect the four Mac gateways to the laptop hub over the private LAN. Settings persist in a local Docker volume. Offline policy does not provision fallback services or change worker connections.
+
 ## Local checks
 
 ```bash

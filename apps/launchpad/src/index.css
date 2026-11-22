@@ -52,3 +52,18 @@ button:disabled { opacity: .55; cursor: default; }
 @keyframes logos-left { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 @keyframes logos-right { from { transform: translateX(-50%); } to { transform: translateX(0); } }
 @media(prefers-reduced-motion:reduce) { .logo-track { animation: none; } }
+
+/* The adjustable rectangle stays inside the logo frame and fixed navigation. */
+.launchpad { height:100dvh; min-height:0; overflow:hidden; padding-top:3.5rem; padding-bottom:3.5rem; }
+.launchpad > header, .launchpad > footer { flex-shrink:0; }
+.launchpad > footer { margin-top:0; }
+.station-status { font: .65rem var(--font-mono); margin:.4rem 0; color:var(--text-muted); }
+.local-notice { font-size:.65rem; flex-shrink:0; }
+.presentation-bounds { flex:1; min-height:0; position:relative; overflow:hidden; }
+main.station-surface { position:absolute; top:50%; left:50%; max-width:none; margin:0; padding:0; overflow:auto; overscroll-behavior:contain; border:1px solid var(--border-default); background:var(--surface-overlay); transition:none; }
+.station-content { min-height:100%; padding:1rem; }
+.station-surface .demo-stage { height:calc(100dvh - 20rem); min-height:42rem; }
+.station-surface .native-stage { height:calc(100dvh - 20rem); min-height:42rem; }
+.ziggy-settings { margin-left:auto; display:flex; align-items:center; min-width:48px; min-height:48px; }
+
+.station-settings-overlay { position:fixed; inset:0; z-index:30; overflow:auto; background:var(--surface-page); overscroll-behavior:contain; }
