@@ -2,6 +2,7 @@ import '../shared/theme.css';
 import './flight.css';
 import { h, sleep } from '../shared/dom';
 import { installChrome } from '../shared/chrome';
+import { withBase } from '../shared/api';
 import { onScreenKeyboard } from '../shared/keyboard';
 import { consentNote, CONSENT_TEXT_VERSION } from '../shared/consent';
 import { CONFIG, SYSTEMS, type SystemId } from './config';
@@ -145,9 +146,11 @@ void loadOfficialLogo();
 async function loadOfficialLogo(): Promise<void> {
   // Drop an official logo at web/public/flight/temporal-logo.svg to replace the placeholder emblem.
   try {
-    const r = await fetch(CONFIG.LOGO_URL, { method: 'HEAD' });
+    // Under the app's prefix: from the site root the launchpad answers 200 with its own page.
+    const logo = withBase(CONFIG.LOGO_URL);
+    const r = await fetch(logo, { method: 'HEAD' });
     if (r.ok && (r.headers.get('content-type') ?? '').includes('svg')) {
-      emblemBox.replaceChildren(h('img', { src: CONFIG.LOGO_URL, alt: 'Temporal' }));
+      emblemBox.replaceChildren(h('img', { src: logo, alt: 'Temporal' }));
     }
   } catch { /* keep placeholder */ }
 }

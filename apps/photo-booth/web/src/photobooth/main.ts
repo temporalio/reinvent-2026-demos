@@ -234,7 +234,7 @@ function fillThumbs(thumbs: HTMLElement, st: Status): void {
   st.steps.filter((s) => s.key.startsWith('render-')).forEach((r, i) => {
     const slot = thumbs.children[i] as HTMLElement | undefined;
     if (slot && r.url && !slot.querySelector('img')) {
-      slot.replaceChildren(h('img', { src: r.url, alt: r.label }));
+      slot.replaceChildren(h('img', { src: withBase(r.url), alt: r.label })); // /media/... from the backend
       slot.style.animation = 'none';
     }
   });
