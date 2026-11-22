@@ -7,7 +7,7 @@ import { usePoll } from "../live";
 import { CRITERIA, LIFECYCLE, RECAP, STATS } from "../story";
 import { StorefrontPanel } from "./Panels";
 
-export function ResultAct({ session, config, onOpenRun, onStart }: { session: Overview; config: Config; onOpenRun: (id: string) => void; onStart: () => void }) {
+export function ResultAct({ session, config, onOpenRun, onStart, canStart = true }: { session: Overview; config: Config; onOpenRun: (id: string) => void; onStart: () => void; canStart?: boolean }) {
   const shipped = session.runs.find((r) => r.kind === "issue" && r.status === "completed");
   return (
     <div className="act act-result">
@@ -18,7 +18,7 @@ export function ResultAct({ session, config, onOpenRun, onStart }: { session: Ov
           <div className="state-banner">
             <strong>No change has shipped in this session yet.</strong>
             <span>Start an issue scenario and the finished change appears here.</span>
-            <button className="button small primary ultraviolet" onClick={onStart}>Start a scenario</button>
+            <button className="button small primary ultraviolet" disabled={!canStart} onClick={onStart}>Start a scenario</button>
           </div>
         )}
       </section>

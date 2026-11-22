@@ -6,7 +6,6 @@ import { defineConfig } from "vite";
 export default defineConfig({
   base: '/travel-agent/',
   plugins: [svelte()],
-  base: "./",
   build: { outDir: "../agent_harness_demo/ui_dist", emptyOutDir: true },
   server: {
     proxy: { "/api": "http://localhost:8000", "/console": "http://localhost:8000" },

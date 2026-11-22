@@ -191,6 +191,22 @@ def create_app() -> FastAPI:
     app = FastAPI(lifespan=lifespan)
     api = APIRouter()
 
+    @app.middleware("http")
+    async def local_preview_guard(request: Request, call_next):
+        if os.environ.get("LOCAL_PREVIEW") == "1" and request.method not in {"GET", "HEAD", "OPTIONS"}:
+            return JSONResponse(
+                {"detail": "Local presentation preview: Gemini inference is not configured. No agent run was started.",
+                 "preview": True, "capabilities": {"inference": False}},
+                status_code=503,
+            )
+        return await call_next(request)
+
+    @api.get("/local-preview")
+    async def local_preview_status():
+        preview = os.environ.get("LOCAL_PREVIEW") == "1"
+        return {"preview": preview, "capabilities": {"inference": not preview},
+                "notice": "Presentation preview only. Gemini inference is disabled." if preview else None}
+
     def temporal() -> Client:
         return app.state.temporal
 
@@ -248,6 +264,8 @@ def create_app() -> FastAPI:
         return JSONResponse(
             {
                 "session_prefix": prefix,
+                "preview": os.environ.get("LOCAL_PREVIEW") == "1",
+                "preview_notice": "Presentation preview only. Gemini inference is disabled." if os.environ.get("LOCAL_PREVIEW") == "1" else None,
                 "temporal_ui_url": config.temporal_ui_url(temporal().namespace),
                 "sessions": await running_sessions(prefix),
             },

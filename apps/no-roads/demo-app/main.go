@@ -38,6 +38,17 @@ func main() {
 	// --- Routes ---
 	mux := http.NewServeMux()
 
+	// The local preview uses a native worker, never a Lambda emulator.
+	mux.HandleFunc("/api/runtime", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		mode := os.Getenv("NO_ROADS_EXECUTION_MODE")
+		if mode == "native" {
+			_, _ = w.Write([]byte(`{"mode":"native","lambda":false,"notice":"Local native worker: backlog and workflow behavior are real; AWS Lambda scaling is not emulated."}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"mode":"lambda","lambda":true}`))
+	})
+
 	// Audience submission
 	mux.HandleFunc("/api/submit", api.SubmitHandler(temporalClient))
 

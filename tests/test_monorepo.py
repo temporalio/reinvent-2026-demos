@@ -34,3 +34,11 @@ class MonorepoTests(unittest.TestCase):
         self.assertEqual(len(logos),25)
         for file in logos:self.assertTrue((ROOT/'apps/launchpad/public/assets/brand/customer-logos'/file).is_file())
         self.assertTrue((ROOT/'apps/launchpad/public/assets/js/starfield.js').is_file())
+
+    def test_shared_code_excerpts_match_repository_sources(self):
+        snippets=json.loads((ROOT/'apps/launchpad/public/booth/snippets.json').read_text())
+        self.assertEqual(set(snippets),{d['id'] for d in json.loads((ROOT/'apps/launchpad/src/catalog.json').read_text()) if d['id']!='tacos'})
+        for item in snippets.values():
+            lines=(ROOT/item['path']).read_text().splitlines()
+            self.assertEqual(item['code'],'\n'.join(lines[:180]))
+            self.assertEqual(item['truncated'],len(lines)>180)

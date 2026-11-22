@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import re
 import secrets
 import time
@@ -112,6 +113,30 @@ app = FastAPI(title="Agentic SDLC demo", lifespan=lifespan)
 
 
 @app.middleware("http")
+async def local_preview_guard(request: Request, call_next):
+    path = request.scope["path"]
+    prefix = request.scope.get("root_path", "")
+    if prefix and path.startswith(prefix):
+        path = path[len(prefix):]
+    if os.environ.get("LOCAL_PREVIEW") == "1" and (
+        request.method not in {"GET", "HEAD", "OPTIONS"} or path.startswith("/apps/")
+    ):
+        return JSONResponse(
+            {"detail": "Local presentation preview: GitHub and model providers are disabled. No pipeline action was performed.",
+             "preview": True, "capabilities": {"github": False, "inference": False}},
+            status_code=503,
+        )
+    return await call_next(request)
+
+
+@app.get("/api/local-preview")
+async def local_preview_status():
+    preview = os.environ.get("LOCAL_PREVIEW") == "1"
+    return {"preview": preview, "capabilities": {"github": not preview, "inference": not preview},
+            "notice": "Presentation preview only. GitHub mutations and model inference are disabled." if preview else None}
+
+
+@app.middleware("http")
 async def server_timing(request: Request, call_next):
     started = time.perf_counter()
     response = await call_next(request)
@@ -190,6 +215,8 @@ async def get_config(ctx: Ctx = Depends(context)):
     lease = ctx.lease
     return {
         "owner_label": lease.owner_label if lease else None,
+        "preview": os.environ.get("LOCAL_PREVIEW") == "1",
+        "preview_notice": "Presentation preview only. GitHub actions and model inference are disabled." if os.environ.get("LOCAL_PREVIEW") == "1" else None,
         "models": allowlist(require_keys=False),
         "settings": (await _settings_for(lease.queue) if lease else webhooks.RunSettings()).model_dump(),
         "issues": ISSUES,

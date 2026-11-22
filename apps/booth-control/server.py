@@ -1,0 +1,443 @@
+"""Private-LAN booth availability and display settings, with durable revisions."""
+from __future__ import annotations
+
+from contextlib import closing, contextmanager
+from copy import deepcopy
+from datetime import datetime, timezone
+import hashlib
+import hmac
+from http.cookies import CookieError, SimpleCookie
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import json
+import math
+import os
+from pathlib import Path
+import re
+import secrets
+import sqlite3
+import threading
+import time
+from urllib.parse import parse_qs, urlsplit
+from zoneinfo import ZoneInfo
+
+DEMO_IDS = frozenset({
+    'tacos', 'money-transfer', 'data-pipeline', 'loan', 'no-roads',
+    'agent-harness', 'agentic-sdlc', 'flight-simulator', 'photo-booth',
+})
+STATION_IDS = ('1', '2', '3', '4')
+DEFAULT_DISPLAY = {'width': 90, 'height': 78, 'x': 0, 'y': 0, 'zoom': 100}
+DISPLAY_BOUNDS = {'width': (40, 100), 'height': (30, 100), 'x': (-7680, 7680), 'y': (-7680, 7680), 'zoom': (50, 150)}
+COOKIE_NAME = 'booth_control_session'
+SESSION_SECONDS = 8 * 60 * 60
+MAX_BODY_BYTES = 16 * 1024
+
+
+class ApiError(Exception):
+    def __init__(self, status, code, message, *, state=None, retry_after=None):
+        super().__init__(message)
+        self.status, self.code, self.message = status, code, message
+        self.state, self.retry_after = state, retry_after
+
+
+def timestamp(now):
+    return datetime.fromtimestamp(now, timezone.utc).isoformat().replace('+00:00', 'Z')
+
+
+def default_config():
+    return {
+        'global': {'demo_enabled': {}, 'network_mode': 'online'},
+        'stations': {
+            station: {'label': f'Mac Mini {station}', 'overrides': {'demo_enabled': {}},
+                      'display': dict(DEFAULT_DISPLAY), 'last_seen': None}
+            for station in STATION_IDS
+        },
+    }
+
+
+def token_hash(token):
+    return hashlib.sha256(token.encode('ascii')).hexdigest() if token else ''
+
+
+class Store:
+    """Serialize config/auth/presence transactions; keep presence outside revisions."""
+    def __init__(self, filename):
+        self.filename = str(filename)
+        Path(self.filename).parent.mkdir(parents=True, exist_ok=True)
+        self.lock = threading.RLock()
+        with self.connection(write=True) as db:
+            db.execute('CREATE TABLE IF NOT EXISTS config (id INTEGER PRIMARY KEY CHECK(id=1), revision INTEGER NOT NULL, payload TEXT NOT NULL)')
+            db.execute('CREATE TABLE IF NOT EXISTS presence (station TEXT PRIMARY KEY, last_seen TEXT NOT NULL)')
+            db.execute('CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY, expires REAL NOT NULL)')
+            db.execute('CREATE INDEX IF NOT EXISTS sessions_expires ON sessions(expires)')
+            db.execute('INSERT OR IGNORE INTO config VALUES (1, 0, ?)', (json.dumps(default_config()),))
+        with closing(sqlite3.connect(self.filename)) as db:
+            db.execute('PRAGMA journal_mode=WAL')
+
+    @contextmanager
+    def connection(self, *, write=False):
+        with self.lock:
+            db = sqlite3.connect(self.filename, timeout=10, isolation_level=None)
+            try:
+                db.execute('BEGIN IMMEDIATE' if write else 'BEGIN')
+                yield db
+                db.commit()
+            except BaseException:
+                db.rollback()
+                raise
+            finally:
+                db.close()
+
+    @staticmethod
+    def _cleanup(db, now):
+        db.execute('DELETE FROM sessions WHERE expires <= ?', (now,))
+
+    @staticmethod
+    def _authenticated(db, token, now):
+        return bool(token and db.execute('SELECT 1 FROM sessions WHERE token_hash=? AND expires>?', (token_hash(token), now)).fetchone())
+
+    def _snapshot(self, db, token, now):
+        revision, payload = db.execute('SELECT revision,payload FROM config WHERE id=1').fetchone()
+        result = json.loads(payload)
+        for station, seen in db.execute('SELECT station,last_seen FROM presence'):
+            if station in result['stations']:
+                result['stations'][station]['last_seen'] = seen
+        return {'revision': revision, **result, 'authenticated': self._authenticated(db, token, now), 'server_time': timestamp(now)}
+
+    def state(self, token, now, station=None):
+        with self.connection(write=True) as db:
+            self._cleanup(db, now)
+            if station:
+                db.execute('INSERT INTO presence VALUES (?,?) ON CONFLICT(station) DO UPDATE SET last_seen=excluded.last_seen', (station, timestamp(now)))
+            return self._snapshot(db, token, now)
+
+    def login(self, token, old_token, now):
+        with self.connection(write=True) as db:
+            self._cleanup(db, now)
+            if old_token:
+                db.execute('DELETE FROM sessions WHERE token_hash=?', (token_hash(old_token),))
+            db.execute('INSERT INTO sessions VALUES (?,?)', (token_hash(token), now + SESSION_SECONDS))
+            return self._snapshot(db, token, now)
+
+    def logout(self, token, now):
+        with self.connection(write=True) as db:
+            self._cleanup(db, now)
+            if token:
+                db.execute('DELETE FROM sessions WHERE token_hash=?', (token_hash(token),))
+            return self._snapshot(db, '', now)
+
+    def patch(self, revision, mutate, token, now):
+        with self.connection(write=True) as db:
+            self._cleanup(db, now)
+            if not self._authenticated(db, token, now):
+                raise ApiError(401, 'authentication_required', 'Enter the station PIN before saving settings.')
+            current_revision, payload = db.execute('SELECT revision,payload FROM config WHERE id=1').fetchone()
+            if revision != current_revision:
+                raise ApiError(409, 'stale_revision', 'Settings changed elsewhere. Review the current settings before saving.', state=self._snapshot(db, token, now))
+            config = json.loads(payload)
+            updated = deepcopy(config)
+            mutate(updated)
+            if config != updated:
+                db.execute('UPDATE config SET revision=revision+1,payload=? WHERE id=1', (json.dumps(updated, allow_nan=False),))
+            return self._snapshot(db, token, now)
+
+
+class PinLimiter:
+    """Coarse socket-peer limit; never trust a client-supplied forwarding header."""
+    def __init__(self, limit=5, window=60):
+        self.limit, self.window = limit, window
+        self.failures = {}
+        self.lock = threading.Lock()
+
+    def check(self, peer, valid, now):
+        with self.lock:
+            # Bound memory even when many disconnected peers try once each.
+            self.failures = {key: [value for value in values if value > now - self.window]
+                             for key, values in self.failures.items() if any(value > now - self.window for value in values)}
+            failures = self.failures.get(peer, [])
+            if len(failures) >= self.limit:
+                retry = max(1, math.ceil(self.window - (now - failures[0])))
+                raise ApiError(429, 'pin_rate_limited', 'Too many PIN attempts. Try again shortly.', retry_after=retry)
+            if valid:
+                self.failures.pop(peer, None)
+            else:
+                self.failures[peer] = [*failures, now]
+
+
+def object_fields(value, allowed, name):
+    if not isinstance(value, dict):
+        raise ApiError(422, 'invalid_settings', f'{name} must be an object.')
+    if set(value) - set(allowed):
+        raise ApiError(422, 'invalid_settings', f'{name} contains unsupported fields.')
+
+
+def revision_of(body):
+    revision = body.get('revision')
+    if type(revision) is not int or revision < 0 or revision > 9007199254740991:
+        raise ApiError(422, 'invalid_revision', 'A nonnegative integer revision is required.')
+    return revision
+
+
+def validate_demos(value):
+    if not isinstance(value, dict) or set(value) - DEMO_IDS:
+        raise ApiError(422, 'invalid_settings', 'Demo settings must name known demo IDs.')
+    if any(item is not None and type(item) is not bool for item in value.values()):
+        raise ApiError(422, 'invalid_settings', 'Demo settings must be true, false, or null to inherit.')
+
+
+def apply_demos(target, patch):
+    for name, value in patch.items():
+        if value is None:
+            target.pop(name, None)
+        else:
+            target[name] = value
+
+
+def global_mutation(body):
+    object_fields(body, {'revision', 'settings'}, 'Request')
+    revision = revision_of(body)
+    settings = body.get('settings')
+    object_fields(settings, {'demo_enabled', 'network_mode'}, 'Global settings')
+    if 'demo_enabled' in settings:
+        validate_demos(settings['demo_enabled'])
+    if 'network_mode' in settings and settings['network_mode'] not in ('online', 'offline'):
+        raise ApiError(422, 'invalid_settings', 'Global network mode must be online or offline.')
+    def mutate(config):
+        target = config['global']
+        if 'demo_enabled' in settings:
+            apply_demos(target['demo_enabled'], settings['demo_enabled'])
+        if 'network_mode' in settings:
+            target['network_mode'] = settings['network_mode']
+    return revision, mutate
+
+
+def station_mutation(body, station):
+    object_fields(body, {'revision', 'overrides', 'display', 'label'}, 'Request')
+    revision = revision_of(body)
+    if not set(body) - {'revision'}:
+        raise ApiError(422, 'invalid_settings', 'Provide station overrides, display settings, or a label.')
+    if 'label' in body and (not isinstance(body['label'], str) or not 1 <= len(body['label'].strip()) <= 64):
+        raise ApiError(422, 'invalid_settings', 'Station label must contain 1–64 characters.')
+    overrides = body.get('overrides', {})
+    object_fields(overrides, {'demo_enabled', 'network_mode'}, 'Station overrides')
+    if 'demo_enabled' in overrides:
+        validate_demos(overrides['demo_enabled'])
+    if 'network_mode' in overrides and overrides['network_mode'] not in (None, 'online', 'offline'):
+        raise ApiError(422, 'invalid_settings', 'Station network mode must be online, offline, or null to inherit.')
+    display = body.get('display', {})
+    object_fields(display, DISPLAY_BOUNDS, 'Display settings')
+    for key, value in display.items():
+        low, high = DISPLAY_BOUNDS[key]
+        if type(value) not in (int, float) or not low <= value <= high or not math.isfinite(value):
+            raise ApiError(422, 'invalid_settings', f'{key} must be a finite number between {low} and {high}.')
+    def mutate(config):
+        target = config['stations'][station]
+        if 'label' in body:
+            target['label'] = body['label'].strip()
+        if 'demo_enabled' in overrides:
+            apply_demos(target['overrides']['demo_enabled'], overrides['demo_enabled'])
+        if 'network_mode' in overrides:
+            if overrides['network_mode'] is None:
+                target['overrides'].pop('network_mode', None)
+            else:
+                target['overrides']['network_mode'] = overrides['network_mode']
+        target['display'].update(display)
+    return revision, mutate
+
+
+def reject_constant(_value):
+    raise ValueError('Non-finite JSON number')
+
+
+def unique_object(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError('Duplicate JSON key')
+        result[key] = value
+    return result
+
+
+class ControlServer(ThreadingHTTPServer):
+    daemon_threads = True
+    request_queue_size = 32
+    def __init__(self, address, store, *, timezone_name='America/Denver', clock=time.time):
+        self.store, self.clock = store, clock
+        self.pin_timezone = ZoneInfo(timezone_name)
+        self.pin_limiter = PinLimiter()
+        super().__init__(address, Handler)
+
+
+class Handler(BaseHTTPRequestHandler):
+    protocol_version = 'HTTP/1.1'
+    server_version = 'BoothControl'
+    sys_version = ''
+
+    def setup(self):
+        super().setup()
+        self.connection.settimeout(10)
+
+    def log_message(self, *_args):
+        # Never log request bodies, Cookie headers, PINs, or session tokens.
+        pass
+
+    def json_response(self, status, payload, *, cookie=None, retry_after=None):
+        body = json.dumps(payload, allow_nan=False, separators=(',', ':')).encode()
+        self.send_response(status)
+        self.send_header('Content-Type', 'application/json; charset=utf-8')
+        self.send_header('Content-Length', str(len(body)))
+        self.send_header('Cache-Control', 'no-store')
+        self.send_header('X-Content-Type-Options', 'nosniff')
+        self.send_header('Connection', 'close')
+        if cookie:
+            self.send_header('Set-Cookie', cookie)
+        if retry_after:
+            self.send_header('Retry-After', str(retry_after))
+        self.end_headers()
+        self.close_connection = True
+        self.wfile.write(body)
+
+    def fail(self, error):
+        payload = {'error': error.code, 'message': error.message}
+        if error.state is not None:
+            payload['state'] = error.state
+        self.json_response(error.status, payload, retry_after=error.retry_after)
+
+    def session_token(self):
+        try:
+            cookie = SimpleCookie()
+            cookie.load(self.headers.get('Cookie', ''))
+            value = cookie[COOKIE_NAME].value if COOKIE_NAME in cookie else ''
+            return value if re.fullmatch(r'[A-Za-z0-9_-]{32,128}', value) else ''
+        except CookieError:
+            return ''
+
+    def require_origin(self):
+        origin = self.headers.get('Origin', '')
+        scheme = self.headers.get('X-Forwarded-Proto', 'http')
+        host = self.headers.get('Host', '')
+        try:
+            parsed = urlsplit(origin)
+            target = urlsplit(f'{scheme}://{host}')
+            if scheme not in ('http', 'https') or parsed.scheme != scheme or parsed.username or parsed.password or parsed.path not in ('', '/') or parsed.query or parsed.fragment:
+                raise ValueError()
+            def authority(url):
+                if not url.hostname or any(character.isspace() for character in url.netloc):
+                    raise ValueError()
+                return url.hostname.lower(), url.port or (443 if url.scheme == 'https' else 80)
+            if target.username or target.password or target.path or target.query or target.fragment or authority(parsed) != authority(target):
+                raise ValueError()
+        except ValueError:
+            raise ApiError(403, 'origin_rejected', 'Use this station’s same-origin control panel to save settings.') from None
+        return scheme
+
+    def read_body(self):
+        if self.headers.get('Transfer-Encoding'):
+            raise ApiError(400, 'invalid_body', 'Chunked request bodies are not accepted.')
+        length = self.headers.get('Content-Length')
+        if length is None:
+            raise ApiError(411, 'length_required', 'Content-Length is required.')
+        try:
+            length = int(length)
+        except ValueError:
+            raise ApiError(400, 'invalid_body', 'Content-Length must be an integer.') from None
+        if length < 0:
+            raise ApiError(400, 'invalid_body', 'Content-Length must not be negative.')
+        if length > MAX_BODY_BYTES:
+            raise ApiError(413, 'body_too_large', 'The settings request is too large.')
+        if self.headers.get('Content-Type', '').split(';')[0].strip().lower() != 'application/json':
+            raise ApiError(415, 'json_required', 'Content-Type must be application/json.')
+        try:
+            raw = self.rfile.read(length)
+            if len(raw) != length:
+                raise ValueError()
+            body = json.loads(raw.decode('utf-8'), parse_constant=reject_constant, object_pairs_hook=unique_object)
+        except (ValueError, UnicodeDecodeError):
+            raise ApiError(400, 'invalid_json', 'Provide one valid JSON settings object.') from None
+        if not isinstance(body, dict):
+            raise ApiError(400, 'invalid_json', 'Provide one JSON settings object.')
+        return body
+
+    def do_GET(self):
+        try:
+            url = urlsplit(self.path)
+            if url.path in ('/healthz', '/control-api/healthz') and not url.query:
+                self.json_response(200, {'ok': True})
+                return
+            if url.path != '/control-api/state':
+                raise ApiError(404, 'not_found', 'Control route not found.')
+            query = parse_qs(url.query, keep_blank_values=True)
+            if set(query) - {'station'} or ('station' in query and len(query['station']) != 1):
+                raise ApiError(400, 'invalid_station', 'Provide at most one station ID.')
+            station = query.get('station', [None])[0]
+            if station is not None and station not in STATION_IDS:
+                raise ApiError(422, 'invalid_station', 'Station must be 1, 2, 3, or 4.')
+            self.json_response(200, self.server.store.state(self.session_token(), self.server.clock(), station))
+        except ApiError as error:
+            self.fail(error)
+        except (OSError, sqlite3.Error):
+            self.fail(ApiError(503, 'storage_unavailable', 'Settings storage is unavailable. Try again shortly.'))
+
+    def do_POST(self):
+        self.write_request('POST')
+
+    def do_PATCH(self):
+        self.write_request('PATCH')
+
+    def do_OPTIONS(self):
+        self.fail(ApiError(405, 'method_not_allowed', 'Cross-origin control requests are not supported.'))
+
+    def write_request(self, method):
+        try:
+            scheme = self.require_origin()
+            body = self.read_body()
+            path = urlsplit(self.path)
+            if path.query or path.fragment:
+                raise ApiError(400, 'invalid_route', 'Control write routes do not accept query parameters.')
+            now, token = self.server.clock(), self.session_token()
+            if method == 'POST' and path.path == '/control-api/login':
+                object_fields(body, {'pin'}, 'Login')
+                pin = body.get('pin')
+                expected = datetime.fromtimestamp(now, self.server.pin_timezone).strftime('%m%d')
+                valid = isinstance(pin, str) and bool(re.fullmatch(r'[0-9]{4}', pin)) and hmac.compare_digest(pin, expected)
+                self.server.pin_limiter.check(self.client_address[0], valid, now)
+                if not valid:
+                    raise ApiError(401, 'invalid_pin', 'That PIN was not accepted.')
+                new_token = secrets.token_urlsafe(32)
+                state = self.server.store.login(new_token, token, now)
+                cookie = f'{COOKIE_NAME}={new_token}; Path=/control-api; HttpOnly; SameSite=Strict; Max-Age={SESSION_SECONDS}' + ('; Secure' if scheme == 'https' else '')
+                self.json_response(200, state, cookie=cookie)
+                return
+            if method == 'POST' and path.path == '/control-api/logout':
+                object_fields(body, set(), 'Logout')
+                state = self.server.store.logout(token, now)
+                self.json_response(200, state, cookie=f'{COOKIE_NAME}=; Path=/control-api; HttpOnly; SameSite=Strict; Max-Age=0' + ('; Secure' if scheme == 'https' else ''))
+                return
+            if method == 'PATCH' and path.path == '/control-api/global':
+                revision, mutate = global_mutation(body)
+            elif method == 'PATCH' and re.fullmatch(r'/control-api/stations/[1-4]', path.path):
+                revision, mutate = station_mutation(body, path.path[-1])
+            else:
+                raise ApiError(404, 'not_found', 'Control route not found.')
+            self.json_response(200, self.server.store.patch(revision, mutate, token, now))
+        except ApiError as error:
+            self.fail(error)
+        except (OSError, sqlite3.Error):
+            self.fail(ApiError(503, 'storage_unavailable', 'Settings storage is unavailable. Try again shortly.'))
+
+
+def main():
+    store = Store(os.environ.get('CONTROL_DB', '/data/control.sqlite3'))
+    server = ControlServer(
+        (os.environ.get('CONTROL_LISTEN_ADDRESS', '127.0.0.1'), int(os.environ.get('CONTROL_PORT', '8090'))),
+        store, timezone_name=os.environ.get('CONTROL_TIMEZONE', 'America/Denver'),
+    )
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.server_close()
+
+
+if __name__ == '__main__':
+    main()

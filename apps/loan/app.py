@@ -5,8 +5,8 @@ import re
 from typing import Optional
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from nanoid import generate
 from pydantic import BaseModel, Field
@@ -32,6 +32,37 @@ async def get_client() -> Client:
         address, connect_kwargs = temporal_connect_args()
         _client = await Client.connect(address, **connect_kwargs)
     return _client
+
+
+def provider_mode() -> str:
+    """Return the deliberate runtime mode, without discovering shell credentials."""
+    return os.getenv("LOAN_PROVIDER_MODE", "bedrock")
+
+
+@app.middleware("http")
+async def require_inference_provider(request: Request, call_next):
+    # Fail before starting a Workflow when this UI-only preview has no worker.
+    # Hosted runs default to Bedrock and keep the existing execution path.
+    path = request.scope["path"]
+    root_path = request.scope.get("root_path", "")
+    if root_path and path.startswith(root_path):
+        path = path[len(root_path):] or "/"
+    if provider_mode() == "unavailable" and path.startswith(("/apply", "/decide")):
+        return JSONResponse(status_code=503, content={
+            "detail": "Local presentation preview: loan inference is unavailable. Configure a Bedrock-enabled worker to run underwriting.",
+            "code": "provider_unavailable",
+        })
+    return await call_next(request)
+
+
+@app.get("/api/runtime")
+async def runtime_capabilities():
+    enabled = provider_mode() != "unavailable"
+    return {
+        "provider": provider_mode(),
+        "execution_available": enabled,
+        "notice": "Bedrock model access is required for underwriting." if enabled else "Local presentation preview. Profiles and forms are available; Bedrock inference is not running.",
+    }
 
 
 # ------------------------------------------------------------------

@@ -91,6 +91,7 @@ def _field(assessment: str, label: str) -> str:
 class FraudIdentityAgent:
     def __init__(self) -> None:
         self.agent = TemporalAgent(
+            model="loan-fraud",
             start_to_close_timeout=timedelta(seconds=60),
             tools=[
                 activity_as_tool(
@@ -156,6 +157,7 @@ class FraudIdentityAgent:
 class EmploymentVerificationAgent:
     def __init__(self) -> None:
         self.agent = TemporalAgent(
+            model="loan-employment",
             start_to_close_timeout=timedelta(seconds=60),
             tools=[
                 activity_as_tool(verify_employer, start_to_close_timeout=timedelta(seconds=30)),

@@ -16,9 +16,9 @@ from dotenv import load_dotenv
 load_dotenv()  # must run before local imports so workflow.py reads TEMPORAL_ENV at class-definition time
 
 from temporalio.client import Client
-from temporalio.contrib.strands import StrandsPlugin
 from temporalio.worker import Worker
 
+from model_config import build_strands_plugin
 from shared import temporal_connect_args
 from tools import calculate_debt_to_income, credit_check
 from workflow import LoanUnderwritingWorkflow
@@ -37,7 +37,7 @@ TASK_QUEUE = os.getenv("TEMPORAL_TASK_QUEUE", "loan-underwriting")
 
 
 async def main() -> None:
-    plugin = StrandsPlugin()
+    plugin = build_strands_plugin()
     address, connect_kwargs = temporal_connect_args()
     client = await Client.connect(address, plugins=[plugin], **connect_kwargs)
 
