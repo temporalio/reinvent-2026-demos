@@ -1,0 +1,54 @@
+<!-- Replay _design.html layout; wordmark is supplied as an inline attachment. Photo Booth has its own contact footer. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="supported-color-schemes" content="dark" />
+  <title>{{ subject }}</title>
+</head>
+<body style="margin:0; padding:0; background-color:#242231; font-family:Helvetica, Arial, sans-serif;">
+  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background-color:#242231;">
+    <tr>
+      <td align="center" style="padding:32px 16px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:560px;">
+          <!-- The brand strip: coral, pink, gold, sky, orange, at the site's widths. -->
+          <tr>
+            <td style="padding:0;">
+              <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+                <tr>
+                  <td width="22%" height="6" style="height:6px; line-height:6px; font-size:0; background-color:#f47c54;">&nbsp;</td>
+                  <td width="19%" height="6" style="height:6px; line-height:6px; font-size:0; background-color:#e54e8e;">&nbsp;</td>
+                  <td width="22%" height="6" style="height:6px; line-height:6px; font-size:0; background-color:#f1b84a;">&nbsp;</td>
+                  <td width="19%" height="6" style="height:6px; line-height:6px; font-size:0; background-color:#57a7ba;">&nbsp;</td>
+                  <td width="18%" height="6" style="height:6px; line-height:6px; font-size:0; background-color:#f39a4a;">&nbsp;</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td align="left" style="padding:24px 0 20px; line-height:1;"><img src="{{ logo_src }}" alt="REPLAY" width="240" height="49" border="0" style="display:block; width:240px; max-width:100%; height:auto; border:0; outline:none; text-decoration:none; color:#f3e8d2; font-family:Helvetica, Arial, sans-serif; font-size:28px; font-weight:800; letter-spacing:0.18em;" /></td>
+          </tr>
+          <tr>
+            <td style="padding:32px; background-color:#2d2b3b; border:1px solid #4a4757; border-radius:20px; color:#ffffff; font-family:Helvetica, Arial, sans-serif; font-size:16px; line-height:1.6; text-align:left;">
+{{ content }}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px 4px 0;">
+              <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+                <tr>
+                  <td style="padding-top:16px; border-top:1px solid #f5784a; color:#aaa397; font-family:Helvetica, Arial, sans-serif; font-size:12px; line-height:1.6; text-align:left;">
+{{ footer }}
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

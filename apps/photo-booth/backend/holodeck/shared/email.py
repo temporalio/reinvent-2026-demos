@@ -1,12 +1,12 @@
 """Email activity: SendGrid in production, a local outbox folder otherwise.
 
-Every message gets the Temporal logo header added here, so no demo can send
-an unbranded email.
+Every Photo Booth message uses the Replay email wrapper and inline wordmark.
 """
 
 from __future__ import annotations
 
 import base64
+import html
 import os
 import re
 from dataclasses import dataclass, field
@@ -18,8 +18,9 @@ from temporalio import activity
 from ..config import settings
 
 OUTBOX = settings.data_dir / "outbox"
-LOGO_PNG = Path(__file__).parent / "assets" / "temporal-logo-white.png"
-LOGO_CID = "temporal-logo"
+LOGO_PNG = Path(__file__).parent / "assets" / "replay-logo.png"
+REPLAY_TEMPLATE = Path(__file__).with_name("replay_email.html")
+LOGO_CID = "replay-logo"
 # Public URL for the logo once assets are hosted (S3/CloudFront). Most
 # reliable across mail clients; otherwise SendGrid sends it as an inline
 # attachment and the local outbox embeds it.
@@ -36,28 +37,13 @@ class EmailMessage:
     attachments: list[str] = field(default_factory=list)  # paths under media_dir
 
 
-def branded_html(body: str, logo_src: str) -> str:
-    """Wrap a demo's email body with the Temporal logo header."""
-    return f"""<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="dark"></head>
-<body style="margin:0;padding:0;background-color:#1a1a1a;font-family:Arial, Helvetica, sans-serif;">
-<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background-color:#1a1a1a;">
-<tr><td align="center" style="padding:32px 16px;">
-<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:560px;">
-<tr><td style="padding:0 0 24px;text-align:left;">
-<img src="{logo_src}" width="44" height="44" alt="Temporal" style="vertical-align:middle;border:0;">
-<span style="vertical-align:middle;margin-left:12px;color:#ffffff;font-family:Arial, Helvetica, sans-serif;font-size:26px;font-weight:700;">Temporal</span>
-</td></tr>
-<tr><td style="padding:0;color:#ffffff;font-family:Arial, Helvetica, sans-serif;font-size:16px;line-height:1.5;text-align:left;">
-{body}
-</td></tr>
-<tr><td style="padding-top:24px;border-top:1px solid #333333;color:#9ca3af;font-family:Arial, Helvetica, sans-serif;font-size:12px;line-height:1.6;text-align:left;">
-<p style="margin:0 0 8px;">Need help? Email us at <a href="mailto:replay@temporal.io" style="color:#dbff4b;text-decoration:underline;">replay@temporal.io</a>.</p>
-</td></tr>
-</table></td></tr></table>
-</body></html>"""
+def branded_html(body: str, logo_src: str, subject: str = "Temporal Photo Booth") -> str:
+    """Use Replay’s HTML branding with Photo Booth content and its own contact footer."""
+    return (REPLAY_TEMPLATE.read_text()
+            .replace("{{ subject }}", html.escape(subject))
+            .replace("{{ logo_src }}", html.escape(logo_src, quote=True))
+            .replace("{{ content }}", body)
+            .replace("{{ footer }}", '<p style="margin:0 0 8px;color:#aaa397;font-family:Helvetica, Arial, sans-serif;font-size:12px;line-height:1.6;">If you have questions about Replay, contact us at <a href="mailto:replay@temporal.io" style="color:#f47c54;text-decoration:underline;">replay@temporal.io</a>.</p>'))
 
 
 def _logo_b64() -> str:
@@ -76,12 +62,12 @@ async def send_email(msg: EmailMessage) -> str:
             "personalizations": [{"to": [{"email": msg.to}]}],
             "from": {"email": settings.email_from, "name": "Temporal Holodeck"},
             "subject": msg.subject,
-            "content": [{"type": "text/html", "value": branded_html(msg.html, LOGO_URL or f"cid:{LOGO_CID}")}],
+            "content": [{"type": "text/html", "value": branded_html(msg.html, LOGO_URL or f"cid:{LOGO_CID}", msg.subject)}],
             "custom_args": {"idempotency_key": msg.idempotency_key},
         }
         if not LOGO_URL:
             payload["attachments"] = [{
-                "content": _logo_b64(), "type": "image/png", "filename": "temporal-logo.png",
+                "content": _logo_b64(), "type": "image/png", "filename": "replay-logo.png",
                 "disposition": "inline", "content_id": LOGO_CID,
             }]
         for relative in msg.attachments:
@@ -110,7 +96,7 @@ async def send_email(msg: EmailMessage) -> str:
     OUTBOX.mkdir(parents=True, exist_ok=True)
     safe = re.sub(r"[^\w.-]", "_", msg.idempotency_key)
     path = OUTBOX / f"{safe}.html"
-    html = branded_html(msg.html, LOGO_URL or f"data:image/png;base64,{_logo_b64()}")
+    html = branded_html(msg.html, LOGO_URL or f"data:image/png;base64,{_logo_b64()}", msg.subject)
     path.write_text(f"<!-- to: {msg.to} | subject: {msg.subject} -->\n{html}")
     activity.logger.info("Email written to outbox: %s", path)
     return str(path)

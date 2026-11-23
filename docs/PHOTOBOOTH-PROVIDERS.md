@@ -56,7 +56,12 @@ Booth worker has picked up the new secret version before testing delivery.
 Missing/placeholder SendGrid credentials now fail the email Activity rather than
 silently producing an outbox file. Temporal can retry delivery after configuration
 is repaired. The outgoing email includes the static JPEG strip as an attachment,
-with Replay’s charcoal, white, and lime email layout. The subject is
+with Replay’s purple page, raised card, five-color bar, coral links, and Replay
+wordmark. The HTML layout follows `temporal-events-data-workers/templates/email/_design.html`
+from Replay dev commit `e16bb888`; Replay’s footer Markdown is not included. A Photo Booth contact footer links
+`replay@temporal.io` for Replay questions.
+The bundled wordmark is the PNG rendition referenced by that template, attached
+inline so the message does not need to fetch its branding remotely. The subject is
 “Thanks for visiting Temporal's Photo Booth”. The Replay link uses
 `utm_source=reinvent`, `utm_medium=email`, and `utm_campaign=photobooth_2026`.
 Attendee images are attached rather than loaded remotely when the email opens.
