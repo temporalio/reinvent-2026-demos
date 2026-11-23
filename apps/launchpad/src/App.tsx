@@ -1,4 +1,5 @@
-import { useEffect, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { createMissionArtwork } from './missionArt'
 import { missionVisible } from './missionCatalog'
 import { DemoStage } from './DemoStage'
 import catalog from './catalog.json'
@@ -57,6 +58,7 @@ export default function App() {
   }, [screen, selected, blocked])
   const mayRun = selected && (admitted === selected.id || !blocked)
   const missions = catalog.filter(d => missionVisible(d,filter))
+  const mainArtwork=useMemo(()=>createMissionArtwork(catalog.filter(d=>missionVisible(d,'all')).map(d=>d.id)),[screen,filter])
   function showCrew() {
     setMediaPlaying(false);setSelected(null);setAdmitted(null);setFilter('all');setPersona('Captain');setScreen('crew')
     const url=new URL(window.location.href);url.pathname='/';url.searchParams.delete('demo');url.searchParams.set('screen','crew');window.history.replaceState(null,'',url)
@@ -82,6 +84,15 @@ export default function App() {
     doc?.addEventListener('screensaver:next', showCrew, { once: true })
     // The embedded template emits an explicit event so planet taps stay interactive.
     doc?.addEventListener('reinvent:exit', showCrew, { once: true })
+    doc?.addEventListener('reinvent:launch', event=>{
+      const id=(event as CustomEvent<{demoId?:string}>).detail?.demoId
+      const demo=catalog.find(item=>item.id===id)
+      if(!demo)return
+      setMediaPlaying(false);setAdmitted(null);setSelected(demo);setPersona('Captain')
+      setFilter(demo.kind==='video'?'aws-ai':['flight-simulator','photo-booth'].includes(demo.id)?'holodeck':'all')
+      setScreen('demo')
+      const url=new URL(window.location.href);url.pathname='/';url.searchParams.delete('screen');url.searchParams.set('demo',demo.id);window.history.replaceState(null,'',url)
+    })
   }} />
   return <div className={`launchpad${screen === 'crew' ? ' launchpad-crew' : ''}`}>
     <BoothBackground />
@@ -92,7 +103,7 @@ export default function App() {
       {screen === 'missions' && <><p className="eyebrow">SECTOR 02 / {filter === 'all' ? persona : filter === 'holodeck' ? 'HOLODECK' : 'SPACE WIZARD'}</p><h1>MISSION</h1><div className={`missions${filter==='holodeck'?' missions-holodeck':filter==='aws-ai'?' missions-aws-ai':' missions-main'}`} style={{'--mission-rows':Math.ceil(missions.length/2),'--mission-wide-columns':Math.min(4,missions.length),'--mission-wide-rows':Math.ceil(missions.length/4)} as CSSProperties}>{missions.map(d => {
         const metadata=missionMetadata[d.id]
         const restriction=unavailable(d)
-        return <article key={d.id} className="mission-card" aria-disabled={!!restriction}>
+        return <article key={d.id} className="mission-card" style={filter==='all'?mainArtwork[d.id] as CSSProperties:undefined} aria-disabled={!!restriction}>
           <div className="mission-card-heading"><span className="mission-icon"><img src={`/assets/brand/icons/${metadata.icon}.svg`} alt="" /></span><h2>{metadata.title}</h2></div>
           <p className="mission-description">{metadata.description}</p>
           {filter!=='all' && metadata.previewImage && <div className="mission-preview"><img src={metadata.previewImage} alt={metadata.previewAlt} /></div>}

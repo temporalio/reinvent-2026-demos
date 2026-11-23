@@ -78,6 +78,10 @@ AgentCore adds two AI/AWS cards below the existing four. Cornelia Davis’s 66-s
 
 Footer navigation offers Crew, All missions, and AI / AWS missions. All missions always chooses the eight-card list; AI / AWS missions always chooses the six-card Space Wizard list.
 
-The eleven screensaver planets use shared Cosmic Pop colors: Emerald for Tacos/Money Transfer/Data Pipeline; Solar Yellow for Loan/No Roads; Cobalt for Travel Agent/SDLC; Violet for Photo Booth/Flight Simulator; Mars Orange for the two AgentCore entries. All planet exits still start at Crew selection.
+The eleven screensaver planets use shared Cosmic Pop colors: Emerald for Tacos/Money Transfer/Data Pipeline; Solar Yellow for Loan/No Roads; Cobalt for Travel Agent/SDLC; Violet for Photo Booth/Flight Simulator; Mars Orange for the two AgentCore entries. Planet Launch goes directly to the selected demo. Background taps still start at Crew selection.
 
 Video surround and station border are transparent; the MP4 is byte-for-byte identical to the supplied original. All booth keyboards use QWERTY, numbers above letters, square shared-theme keys, and email punctuation including plus and underscore. Staff station labels reuse the React keyboard; native demos use the same layout and shared `/booth/keyboard.css` appearance.
+
+Direct planet launches select the default Captain information view and still pass through the usual station availability/readiness policy. Launching a Holodeck planet retains its manual timeout exemption; the video retains its playback exemption.
+
+Main mission cards shuffle eight edge-anchored asteroid poses and vary starfield crop/flip on each visit. Artwork stays steady during the visit; a dark title backing preserves contrast.
