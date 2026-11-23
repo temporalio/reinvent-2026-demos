@@ -140,3 +140,22 @@ main.station-surface { position:absolute; top:50%; left:50%; max-width:none; mar
 .station-surface-missions .missions-holodeck .mission-preview { grid-column:2; grid-row:1 / 5; margin:0; }
 .station-surface-missions .missions-holodeck .mission-preview img { object-fit:contain; }
 .station-surface-missions .missions-holodeck .mission-tags { align-self:end; }
+
+/* Larger mission copy fills the cards while preserving the fixed viewport budget. */
+.station-surface-missions .missions-main .mission-card-heading h2 { font-size:clamp(18px,2.8cqw,54px); line-height:1.08; }
+.station-surface-missions .missions-main .mission-icon { flex-basis:clamp(40px,6cqw,112px); width:clamp(40px,6cqw,112px); height:clamp(40px,6cqw,112px); }
+.station-surface-missions .missions-main .mission-description { font-size:clamp(12px,1.8cqw,35px); line-height:1.35; margin:1cqh 0; }
+.station-surface-missions .missions-main .mission-tags li { font-size:clamp(9px,1.05cqw,21px); }
+.station-surface-missions .missions-main .mission-card > button { font-size:clamp(14px,1.65cqw,32px); }
+.station-surface-missions .missions-aws-ai .mission-card-heading h2 { font-size:clamp(16px,2.5cqw,48px); }
+.station-surface-missions .missions-aws-ai .mission-preview { flex:1; min-height:0; overflow:hidden; border:1px solid var(--border-default); background:var(--surface-page); margin:.8cqh 0; }
+.station-surface-missions .missions-aws-ai .mission-preview img { object-fit:contain; }
+.station-surface-missions .missions-aws-ai .mission-tags { flex-shrink:0; margin:.5cqh 0; }
+@container mission-surface (min-aspect-ratio:1/1) {
+  .station-surface-missions .missions-main .mission-card-heading h2 { font-size:clamp(13px,2.8cqh,29px); }
+  .station-surface-missions .missions-main .mission-icon { flex-basis:clamp(28px,5cqh,52px); width:clamp(28px,5cqh,52px); height:clamp(28px,5cqh,52px); }
+  .station-surface-missions .missions-main .mission-description { font-size:clamp(10px,2.2cqh,23px); margin:.5cqh 0; }
+  .station-surface-missions .missions-main .mission-tags li { font-size:clamp(7px,1.5cqh,15px); }
+  .station-surface-missions .missions-main .mission-card > button { font-size:clamp(12px,2cqh,21px); }
+  .station-surface-missions .missions-aws-ai .mission-card-heading h2 { font-size:clamp(13px,2.5cqh,26px); }
+}

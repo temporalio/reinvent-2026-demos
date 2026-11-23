@@ -51,7 +51,7 @@ hidden tabs pause the loop. Automatic selection never launches a demo.
 ## Idle navigation and Holodeck
 
 Normal demos return to the current mission picker after 30 seconds without input.
-The mission picker starts a fresh 30-second interval before returning to the planet
+The mission picker starts a fresh 60-second interval before returning to the planet
 screensaver. The last five seconds show the destination beside the Screensaver
 button. Touch, stylus input, and reachable same-origin iframe input reset the clock.
 Leaving a demo screen does not cancel its backend Workflow.
@@ -71,3 +71,5 @@ Touch controls cover steering, continuous blaster fire, repairs, and Deploy Temp
 keyboard shortcuts remain optional and no longer appear in visitor instructions.
 Practice hazards arrive every two seconds; later hazard and enemy intervals shorten
 as the round progresses. Announcements stay between the side control columns.
+
+The AI/AWS mission picker includes static screenshots from the local demo interfaces. These screenshots appear only in that filtered picker. The main seven-mission picker uses larger titles, icons, and description text without screenshots. Both timed mission pickers expire after 60 seconds including the final five-second warning; ordinary demos still expire after 30 seconds.
