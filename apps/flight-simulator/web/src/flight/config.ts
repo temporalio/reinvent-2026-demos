@@ -38,9 +38,9 @@ export const CONFIG = {
   MAX_BROKEN: 3,
   /** A single collision breaks at most this many systems (mines/enemy fire: this, others: 1). */
   MAX_BREAKS_PER_HIT: 2,
-  /** Practice opening: no enemies, just 1-2 small, slow hazards. */
+  /** Practice opening: no enemies, small, slow hazards at a steady pace. */
   EASY_SECONDS: 15,
-  EASY_SPAWN_GAP: 6.5,
+  EASY_SPAWN_GAP: 2.0,
   /** The ship launches slowly and reaches MAX_SPEED at MAX_AT_S, holding it to the end. */
   START_SPEED: 16,
   MAX_SPEED: 76,
@@ -57,12 +57,12 @@ export const CONFIG = {
 export type SystemId = 'engines' | 'shields' | 'navigation' | 'sensors' | 'life_support' | 'cargo';
 
 export const SYSTEMS: { id: SystemId; name: string; fix: string; effect: string; icon: string }[] = [
-  { id: 'engines', name: 'Engines', fix: 'Fix engine', effect: 'Ship slows', icon: '⚙' },
-  { id: 'shields', name: 'Shields', fix: 'Restore shields', effect: 'Hits do 2× damage', icon: '⛨' },
-  { id: 'navigation', name: 'Navigation', fix: 'Recalibrate', effect: 'Steering drifts', icon: '⌖' },
-  { id: 'sensors', name: 'Sensors', fix: 'Reboot sensors', effect: 'Hazards cloaked', icon: '◎' },
-  { id: 'life_support', name: 'Life Support', fix: 'Restore air', effect: 'Vision fading', icon: '♥' },
-  { id: 'cargo', name: 'Cargo Hold', fix: 'Seal cargo', effect: 'Cargo leaking', icon: '▦' },
+  { id: 'engines', name: 'Engines', fix: 'Restore', effect: 'Ship slows', icon: '⚙' },
+  { id: 'shields', name: 'Shields', fix: 'Restore', effect: 'Hits do 2× damage', icon: '⛨' },
+  { id: 'navigation', name: 'Navigation', fix: 'Reboot', effect: 'Steering drifts', icon: '⌖' },
+  { id: 'sensors', name: 'Sensors', fix: 'Reboot', effect: 'Hazards cloaked', icon: '◎' },
+  { id: 'life_support', name: 'Life Support', fix: 'Restore', effect: 'Vision fading', icon: '♥' },
+  { id: 'cargo', name: 'Cargo Hold', fix: 'Restore', effect: 'Cargo leaking', icon: '▦' },
 ];
 
 /** Taps needed to repair a system that breaks at `elapsedMs`. */

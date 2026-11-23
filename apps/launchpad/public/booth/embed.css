@@ -295,3 +295,19 @@ html[data-shared-stage=true][data-demo=flightsim] .fd-screen:has(.fd-howto) .fd-
 /* A translated full-height screen temporarily extends the document during entry. */
 @keyframes booth-screen-enter { from { opacity:0; } to { opacity:1; } }
 html[data-shared-stage=true]:is([data-demo=flightsim],[data-demo=photobooth]) .fade-in { animation-name:booth-screen-enter; }
+
+/* Photo Booth follows the same square controls and semantic colors as the missions. */
+html[data-booth=true][data-demo=photobooth] { --radius:0px; --tap:48px; --u:clamp(6px,min(.85vw,.85vh),16px); }
+html[data-booth=true][data-demo=photobooth] :is(button,select,.field,.panel,.panel-tab,.pb-viewfinder,.osk,.osk-key,.wf-step,.temporal-badge) { border-radius:0; box-shadow:none; }
+html[data-booth=true][data-demo=photobooth] .btn { border:1px solid var(--border-default); background:var(--surface-overlay); color:var(--text-primary); font:400 clamp(14px,2.1vh,24px)/1.3 var(--font-mono); letter-spacing:0; padding:.6rem 1rem; min-height:48px; }
+html[data-booth=true][data-demo=photobooth] .btn.mint { background:var(--brand-highlight); border-color:var(--brand-highlight); color:var(--surface-page); }
+html[data-booth=true][data-demo=photobooth] .btn.amber { background:var(--status-waiting); color:var(--surface-page); }
+html[data-booth=true][data-demo=photobooth] .panel-tab { position:static; display:block; width:fit-content; padding:0 0 .4rem; background:transparent; color:var(--text-muted); font:400 .65rem/1.3 var(--font-mono); }
+html[data-booth=true][data-demo=photobooth] .panel { border:1px solid var(--border-default); background:var(--surface-overlay); }
+html[data-booth=true][data-demo=photobooth] .temporal-badge { background:transparent; border:0; color:var(--text-muted); }
+html[data-booth=true][data-demo=photobooth] .pb-camera-controls { display:flex; flex-wrap:wrap; gap:.4rem; align-items:end; }
+html[data-booth=true][data-demo=photobooth] .pb-camera-controls label { display:flex; flex:1; min-width:0; flex-direction:column; gap:.25rem; font:.7rem var(--font-mono); }
+html[data-booth=true][data-demo=photobooth] .pb-camera-controls select { width:100%; padding:.4rem; color:var(--text-primary); background:var(--surface-page); border:1px solid var(--border-default); font:.7rem var(--font-sans); }
+html[data-booth=true][data-demo=photobooth] .pb-camera-controls p { flex-basis:100%; margin:0; font-size:.65rem; }
+html[data-booth=true][data-demo=photobooth] .pb-camera-controls p:empty { display:none; }
+html[data-booth=true][data-demo=photobooth] .screen { overflow:hidden; }

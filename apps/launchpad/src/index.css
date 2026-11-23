@@ -117,3 +117,26 @@ main.station-surface { position:absolute; top:50%; left:50%; max-width:none; mar
   .station-surface-missions .mission-tags li { font-size:clamp(7px,1.4cqh,14px); }
   .station-surface-missions .mission-connectivity,.station-surface-missions .mission-card .pending { font-size:clamp(8px,1.5cqh,15px); }
 }
+
+/* Holodeck is a manual two-choice menu, with two equal cards filling the available height. */
+.station-surface-missions .missions.missions-holodeck {
+  flex:1; grid-template-columns:minmax(0,1fr); grid-template-rows:repeat(2,minmax(0,1fr));
+  align-content:start; max-width:100%; overflow:hidden;
+}
+.station-surface-missions .missions-holodeck .mission-card { padding:clamp(12px,1.8cqh,32px) clamp(12px,2cqw,38px); }
+.station-surface-missions .missions-holodeck .mission-description { margin:1cqh 0; }
+.station-surface-missions .missions-holodeck .mission-tags { margin:.8cqh 0 1.4cqh; }
+.station-surface-missions .missions-holodeck .pending { margin-bottom:1cqh; }
+
+.station-surface-missions .missions-holodeck .mission-preview { flex:1 1 0; min-height:0; margin:.5cqh 0; overflow:hidden; border:1px solid var(--border-default); background:#090b12; }
+.station-surface-missions .mission-preview img { display:block; width:100%; height:100%; object-fit:cover; object-position:center; }
+@container mission-surface (min-aspect-ratio:1/1) {
+  .station-surface-missions .missions-holodeck .mission-card { padding:.8cqh 1cqw; }
+  .station-surface-missions .missions-holodeck .mission-description { margin:.5cqh 0; }
+  .station-surface-missions .missions-holodeck .mission-tags { margin:.4cqh 0; }
+}
+.station-surface-missions .missions-holodeck .mission-card { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); grid-template-rows:auto minmax(0,1fr) auto auto; column-gap:1.5cqw; }
+.station-surface-missions .missions-holodeck .mission-card-heading,.station-surface-missions .missions-holodeck .mission-description,.station-surface-missions .missions-holodeck .mission-tags,.station-surface-missions .missions-holodeck .mission-card > button { grid-column:1; }
+.station-surface-missions .missions-holodeck .mission-preview { grid-column:2; grid-row:1 / 5; margin:0; }
+.station-surface-missions .missions-holodeck .mission-preview img { object-fit:contain; }
+.station-surface-missions .missions-holodeck .mission-tags { align-self:end; }

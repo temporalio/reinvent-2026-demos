@@ -10,9 +10,15 @@ type MonitorOptions = {
   countdownMs?:number
 }
 
-/** Only real visitor screens time out; the two running Holodeck apps and staff controls do not. */
-export function idleScreensaverEnabled(screen:string,demoId:string|undefined,running:boolean,staffOpen:boolean):boolean {
-  return screen!=='screensaver' && !staffOpen && !(screen==='demo' && running && (demoId==='flight-simulator' || demoId==='photo-booth'))
+/** Staff controls, Holodeck selection, and running Holodeck demos stay manual. */
+export function idleScreensaverEnabled(screen:string,demoId:string|undefined,running:boolean,staffOpen:boolean,filter:string='all'):boolean {
+  return screen!=='screensaver' && !staffOpen && !(screen==='missions' && filter==='holodeck') && !(screen==='demo' && running && (demoId==='flight-simulator' || demoId==='photo-booth'))
+}
+
+/** Return one navigation step at a time; each mounted screen starts a fresh clock. */
+export function idleNavigationTarget(screen:string,demoId:string|undefined,running:boolean,staffOpen:boolean,filter:string='all'):'missions'|'screensaver'|null {
+  if(!idleScreensaverEnabled(screen,demoId,running,staffOpen,filter))return null
+  return screen==='demo'?'missions':'screensaver'
 }
 
 /** Watch user input in the host and every reachable same-origin iframe document. */

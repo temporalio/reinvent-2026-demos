@@ -40,6 +40,5 @@ export function CrewPicker({ onPersona, onWizard, onHolodeck }: {
       </div>
     </button>)}
     <button className="crew-holodeck" onClick={onHolodeck}><div><strong>Holodeck</strong><p>Step into the flight simulator or create an AI Photo Booth portrait.</p></div><span className="crew-holodeck-launch">Launch Holodeck ↗</span></button>
-    <p className="crew-stat-note">Stats show each tour’s focus. Every crew can explore all four information tabs.</p>
   </div>
 }

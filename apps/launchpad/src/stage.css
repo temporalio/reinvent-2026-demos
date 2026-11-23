@@ -37,3 +37,6 @@
 .architecture-story .architecture-explanation { flex-shrink:0; margin:.25em 0 0; font-size:clamp(.55rem,2.9cqh,.8rem); color:var(--text-primary); }
 @keyframes architecture-flow { to { stroke-dashoffset:-48; } }
 @media(prefers-reduced-motion:reduce) { .architecture-links { animation:none; stroke-dasharray:none; } }
+
+/* Holodeck games occupy the complete configured station rectangle. */
+.demo-stage-holodeck { grid-template-rows:minmax(0,1fr); }
