@@ -3,6 +3,7 @@ import catalog from './catalog.json'
 import './stage.css'
 import { CodeSamples } from './CodeSamples'
 import { workflowTarget } from './workflowNavigation'
+import { showInTemporalFrame, styleTemporalFrame } from './temporalFrame'
 
 type Tab = 'business' | 'architecture' | 'code' | 'temporal'
 const tabs: { id: Tab; label: string }[] = [
@@ -24,13 +25,19 @@ const stories: Record<string, [string,string,string]> = {
 export function DemoStage({ demo, persona, temporalUi, notice }: {demo:(typeof catalog)[number];persona:string;temporalUi:string|null;notice?:string}) {
   const initialTab: Tab = persona.toLowerCase() === 'mech' ? 'code' : persona.toLowerCase() === 'envoy' ? 'architecture' : 'business'
   const [tab,setTab] = useState<Tab>(initialTab)
-  const [workflowUrl,setWorkflowUrl] = useState<string|null>(null)
   const appFrame = useRef<HTMLIFrameElement>(null)
+  const temporalFrame = useRef<HTMLIFrameElement>(null)
+  const lastWorkflow = useRef<string|null>(null)
   useEffect(()=>{
     function focusWorkflow(event:MessageEvent) {
       if(event.origin!==window.location.origin || event.source!==appFrame.current?.contentWindow || event.data?.type!=='booth:workflow' || typeof event.data.url!=='string' || !temporalUi)return
       const url=workflowTarget(event.data.url,temporalUi,window.location.origin)
-      if(url) {setWorkflowUrl(url); if(event.data.activate===true) {setTab('temporal'); buttons.current[3]?.focus()}}
+      if(!url)return
+      const activate=event.data.activate===true
+      // A repeated background announcement must not pull the panel away from where the visitor browsed.
+      if(temporalFrame.current && (activate || url!==lastWorkflow.current))showInTemporalFrame(temporalFrame.current,url)
+      lastWorkflow.current=url
+      if(activate) {setTab('temporal'); buttons.current[3]?.focus()}
     }
     window.addEventListener('message',focusWorkflow); return ()=>window.removeEventListener('message',focusWorkflow)
   },[temporalUi])
@@ -54,7 +61,7 @@ export function DemoStage({ demo, persona, temporalUi, notice }: {demo:(typeof c
         {t.id==='business' && <div className="business-story"><h2>{story?.[0]}</h2><p>{story?.[1]}</p><p className="business-detail">{notice || story?.[2]}</p></div>}
         {t.id==='architecture' && <div className="architecture-story"> <p className="eyebrow">DEPLOYMENT OVERVIEW · NOT LIVE TELEMETRY</p><svg className="stage-architecture" viewBox="0 0 760 270" role="img" aria-label="The demo browser calls its API. The API starts a Workflow in Temporal. Workers poll Temporal and execute the demo's work."><defs><marker id={`${id}-arrow`} markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="var(--brand-highlight)" /></marker></defs><g fill="none" stroke="var(--brand-highlight)" strokeWidth="2" markerEnd={`url(#${id}-arrow)`}><path d="M180 75H270"/><path d="M450 75H540"/><path d="M630 115V180H450"/></g>{[[0,35,'Demo browser'],[270,35,'Demo API'],[540,35,'Temporal'],[270,155,'Worker / activities']].map(([x,y,label])=><g key={String(label)} transform={`translate(${x},${y})`}><rect width="180" height="80" rx="4"/><text x="90" y="46" textAnchor="middle">{label}</text></g>)}</svg></div>}
         {t.id==='code' && <CodeSamples demoId={demo.id} />}
-        {t.id==='temporal' && (temporalUi ? <iframe title={`${demo.title}: Temporal workflow history`} src={workflowUrl || temporalUi} className="stage-temporal" /> : <p>The hosted Temporal UI route has not been enabled for this project. Local preview connects this tab to Temporal OSS.</p>)}
+        {t.id==='temporal' && (temporalUi ? <iframe ref={temporalFrame} title={`${demo.title}: Temporal workflow history`} src={temporalUi} onLoad={event=>styleTemporalFrame(event.currentTarget)} className="stage-temporal" /> : <p>The hosted Temporal UI route has not been enabled for this project. Local preview connects this tab to Temporal OSS.</p>)}
       </div>)}
     </section>
   </div>
