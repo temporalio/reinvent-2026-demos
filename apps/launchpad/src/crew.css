@@ -3,7 +3,7 @@
 .station-surface-crew .station-content { position:absolute; inset:0 auto auto 0; display:flex; flex-direction:column; min-height:0; padding:clamp(8px,1.6cqw,30px); overflow:hidden; }
 .station-surface-crew .eyebrow { flex-shrink:0; margin:0; font-size:clamp(9px,1.1cqw,22px); }
 .station-surface-crew h1 { flex-shrink:0; margin:.5cqh 0 1.3cqh; font-size:clamp(28px,6cqh,100px); line-height:1; }
-.crew { flex:1; min-width:0; min-height:0; display:grid; grid-template-columns:minmax(0,1fr); grid-template-rows:repeat(5,minmax(0,1fr)) minmax(48px,.6fr) auto; gap:clamp(6px,.8cqh,20px); }
+.crew { flex:1; min-width:0; min-height:0; display:grid; grid-template-columns:minmax(0,1fr); grid-template-rows:repeat(5,minmax(0,1fr)) minmax(48px,.6fr); gap:clamp(6px,.8cqh,20px); }
 .crew .crew-card { --crew-accent:var(--persona-captain); display:grid; grid-template-columns:minmax(0,.17fr) minmax(0,1fr); align-items:stretch; gap:clamp(8px,1.6cqw,30px); width:100%; max-width:100%; min-width:0; min-height:0; margin:0; padding:clamp(7px,1.1cqh,24px) clamp(8px,1.6cqw,30px); white-space:normal; text-align:left; background:linear-gradient(115deg,transparent,color-mix(in srgb,var(--crew-accent) 18%,transparent)),#08090d55; }
 .crew [data-persona=mech] { --crew-accent:var(--persona-mech,var(--brand-highlight)); }
 .crew [data-persona=envoy] { --crew-accent:var(--persona-envoy); }

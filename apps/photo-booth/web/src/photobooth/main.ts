@@ -77,7 +77,12 @@ function header(title: string, sub?: string): HTMLElement {
 
 // ---------- 1. Attract ----------
 async function attract(): Promise<void> {
-  camera ??= await openCamera();
+  if (!camera) {
+    let preferred: string | undefined;
+    try { preferred = localStorage.getItem('holodeck.camera') || undefined; } catch { /* Use the default camera. */ }
+    camera = await openCamera(preferred);
+    if (!camera.live && preferred) { camera.stop(); camera = await openCamera(); }
+  }
   screen(
     header('Holo-Booth', 'Step into the frame. Our AI will beam you across the galaxy.'),
     h('div', { class: 'pb-split' },
@@ -86,11 +91,42 @@ async function attract(): Promise<void> {
         h('div', { class: 'panel' },
           h('span', { class: 'panel-tab' }, 'How it works'),
           h('p', { style: 'margin:0' }, 'One photo. Four AI-generated frames: become an alien, fly a starship, explore a strange new world. We email you the strip.')),
-        !camera.live ? h('p', { class: 'dim' }, 'No camera found, so we’ll use our test visitor.') : null,
+        h('div', {class:'pb-camera-slot'}),
         h('button', { class: 'btn mint big', onclick: emailScreen }, 'Start'),
       ),
     ),
   );
+  root.querySelector('.pb-camera-slot')?.append(cameraControls());
+}
+
+/** Camera choice is local to this browser; only the captured portrait is submitted. */
+function cameraControls(): HTMLElement {
+  const controls = h('div', { class:'pb-camera-controls' });
+  if (new URLSearchParams(location.search).has('testcam')) return controls;
+  const status = h('p', { class:'dim', role:'status' }, camera?.error ?? '');
+  const select = h('select', { 'aria-label':'Camera' }, h('option', { value:'' }, 'Default camera'));
+  const retry = h('button', { class:'btn ghost', onclick:() => void change(select.value) }, camera?.live ? 'Reconnect camera' : 'Enable camera');
+  async function devices(): Promise<void> {
+    try {
+      const cameras = (await navigator.mediaDevices.enumerateDevices()).filter(device => device.kind==='videoinput' && device.deviceId);
+      select.replaceChildren(h('option', {value:''}, 'Default camera'), ...cameras.map((device,index) => h('option', {value:device.deviceId}, device.label || `Camera ${index+1}`)));
+      select.value = camera?.deviceId ?? '';
+    } catch { status.textContent = 'Allow camera access to see available cameras.'; }
+  }
+  async function change(deviceId: string): Promise<void> {
+    select.disabled = retry.disabled = true;
+    camera?.stop();
+    camera = await openCamera(deviceId || undefined);
+    if (camera.live && camera.deviceId) { try { localStorage.setItem('holodeck.camera',camera.deviceId); } catch { /* Browser storage may be disabled. */ } }
+    await attract();
+  }
+  select.addEventListener('change', () => void change(select.value));
+  controls.append(h('label', {}, 'Camera', select), retry, status);
+  const deviceChange = () => void devices();
+  navigator.mediaDevices?.addEventListener('devicechange', deviceChange);
+  cleanups.push(() => navigator.mediaDevices?.removeEventListener('devicechange', deviceChange));
+  void devices();
+  return controls;
 }
 
 // ---------- 2. Email (required) ----------

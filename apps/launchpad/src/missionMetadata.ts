@@ -1,4 +1,4 @@
-type MissionMetadata = {title:string;icon:string;description:string;tags:string[]}
+type MissionMetadata = {title:string;icon:string;description:string;tags:string[];previewImage?:string;previewAlt?:string}
 
 /** Capability labels follow each demo's README; hosted services need their deployed runtime. */
 export const missionMetadata:Record<string,MissionMetadata> = {
@@ -39,11 +39,13 @@ export const missionMetadata:Record<string,MissionMetadata> = {
   },
   'flight-simulator': {
     title:'Flight Simulator',icon:'long-running',
+    previewImage:'/assets/holodeck/flight-simulator.png',previewAlt:'Spaceflight cockpit navigating an asteroid field',
     description:'Take the controls for a spaceflight mission powered by Temporal Workflows.',
     tags:['Interactive flight','Temporal Workflows'],
   },
   'photo-booth': {
     title:'AI Photo Booth',icon:'customer-acquisition',
+    previewImage:'/assets/holodeck/photo-booth.png',previewAlt:'Photo booth showing a sample galactic portrait strip',
     description:'Capture your crew portrait and turn it into a galactic keepsake to take home.',
     tags:['Image generation','Camera','Email delivery'],
   },

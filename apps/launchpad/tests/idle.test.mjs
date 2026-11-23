@@ -1,14 +1,14 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
-import {createIdleMonitor,idleScreensaverEnabled} from '../src/useIdleScreensaver.ts'
+import {createIdleMonitor,idleScreensaverEnabled,idleNavigationTarget} from '../src/useIdleScreensaver.ts'
 class FakeDocument extends EventTarget {
   frames=[]
   querySelectorAll(){return this.frames}
 }
-function setup() {
+function setup(options={}) {
   let time=0,tick=()=>{},expired=0,cancelled=0
   const countdown=[],doc=new FakeDocument()
-  const stop=createIdleMonitor({rootDocument:doc,now:()=>time,schedule:callback=>{tick=callback;return ()=>cancelled++},onCountdown:value=>countdown.push(value),onTimeout:()=>expired++})
+  const stop=createIdleMonitor({rootDocument:doc,now:()=>time,schedule:callback=>{tick=callback;return ()=>cancelled++},onCountdown:value=>countdown.push(value),onTimeout:()=>expired++,...options})
   return {doc,countdown,stop,at:value=>{time=value;tick()},expired:()=>expired,cancelled:()=>cancelled}
 }
 function input(doc,type,fields={}) {const event=new Event(type);Object.assign(event,fields);doc.dispatchEvent(event)}
@@ -49,4 +49,27 @@ test('only actually running Flight/Photo and staff configuration are exempt',()=
   assert.equal(idleScreensaverEnabled('demo','tacos',true,false),true)
   assert.equal(idleScreensaverEnabled('crew',undefined,false,true),false)
   assert.equal(idleScreensaverEnabled('crew',undefined,false,false),true)
+})
+
+test('demo and mission timers expire at thirty seconds including the five-second warning',()=>{
+  const x=setup({idleMs:25_000,countdownMs:5_000});x.at(24_999);assert.deepEqual(x.countdown,[])
+  x.at(25_000);assert.equal(x.countdown.at(-1),5);x.at(29_999);assert.equal(x.expired(),0)
+  x.at(30_000);assert.equal(x.expired(),1)
+})
+test('idle navigation advances demo to missions, then missions to the screensaver',()=>{
+  assert.equal(idleNavigationTarget('demo','tacos',true,false),'missions')
+  assert.equal(idleNavigationTarget('missions',undefined,false,false),'screensaver')
+  assert.equal(idleNavigationTarget('missions',undefined,false,false,'aws-ai'),'screensaver')
+  assert.equal(idleNavigationTarget('crew',undefined,false,false),'screensaver')
+  assert.equal(idleNavigationTarget('screensaver',undefined,false,false),null)
+})
+test('Holodeck picker and running fun demos never time out; staff controls remain exempt',()=>{
+  assert.equal(idleNavigationTarget('missions',undefined,false,false,'holodeck'),null)
+  for(const id of ['flight-simulator','photo-booth'])assert.equal(idleNavigationTarget('demo',id,true,false,'holodeck'),null)
+  for(const screen of ['crew','missions','demo'])assert.equal(idleNavigationTarget(screen,'tacos',true,true),null)
+})
+test('a nested tap restarts the complete thirty-second demo interval',()=>{
+  const x=setup({idleMs:25_000}),app=new FakeDocument();x.doc.frames=[{contentDocument:app}]
+  x.at(29_000);input(app,'pointerdown',{pointerType:'touch'});assert.equal(x.countdown.at(-1),null)
+  x.at(58_999);assert.equal(x.expired(),0);x.at(59_000);assert.equal(x.expired(),1)
 })

@@ -248,6 +248,7 @@
   <script src="../../assets/js/starfield.js"></script>
   <script src="./navigation.js"></script>
   <script src="preview-rotation.js"></script>
+  <script src="asteroid-bounds.js"></script>
   <script>
     Starfield.start(document.getElementById("stars"));
     // No long-press menu on the touch screen.
@@ -503,7 +504,10 @@
     // Keyframes for a curved trip from one point to another. The path bows out
     // towards `toward` (a corner of the screen) by 12-22% of its length, and the rock
     // turns slowly on the way. `fade` fades it in and out at the ends.
-    function arc([fromX, fromY], [toX, toY], [towardX, towardY], { turn, spin, fade }) {
+    function arc([fromX, fromY], [toX, toY], [towardX, towardY], { turn, spin, fade, width=94.26 }) {
+      const top=document.querySelector(".marquee.top").getBoundingClientRect().bottom/scale;
+      const bottom=document.querySelector(".marquee.bottom").getBoundingClientRect().top/scale;
+      const safe=window.asteroidTravelBounds(top,bottom,width);
       const midX = (fromX + toX) / 2, midY = (fromY + toY) / 2;
       const len = Math.hypot(toX - fromX, toY - fromY);
       let nx = (toY - fromY) / len, ny = -(toX - fromX) / len;
@@ -514,7 +518,8 @@
       for (let i = 0; i <= 24; i++) {
         const t = i / 24, u = 1 - t;
         const x = u * u * fromX + 2 * u * t * ctrlX + t * t * toX;
-        const y = u * u * fromY + 2 * u * t * ctrlY + t * t * toY;
+        const rawY = u * u * fromY + 2 * u * t * ctrlY + t * t * toY;
+        const y = window.reflectAsteroidPosition(rawY,safe.min,safe.max);
         const frame = { transform: `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) rotate(${(turn + spin * t).toFixed(1)}deg)` };
         if (fade) frame.opacity = Math.min(1, t / .15, (1 - t) / .15) * .9;
         frames.push(frame);
@@ -546,27 +551,25 @@
         rock.style.width = `${size}px`;
         ambient.append(rock);
         drifting++;
-        const frames = arc(from, to, corner, { turn: between(0, 360), spin: between(-1, 1) * between(40, 140), fade: true });
-        rock.animate(frames, { duration: between(30, 50) * 1000, easing: "linear" }).finished.then(() => {
-          rock.remove();
-          drifting--;
-        });
+        const frames = arc(from, to, corner, { turn: between(0, 360), spin: between(-1, 1) * between(40, 140), fade: true, width:size });
+        const cleanup=()=>{rock.remove();drifting--;};
+        rock.animate(frames, { duration: between(30, 50) * 1000, easing: "linear" }).finished.then(cleanup,cleanup);
       }
       setTimeout(drift, between(8, 18) * 1000);
     }
 
-    // The big asteroid: it falls away off the bottom of the screen along an arc that
-    // bows towards the bottom-right corner. The first fall starts at once from its
-    // Figma spot at the right edge; after a pause off screen it comes back in from a
-    // random height on the right and leaves at a random point along the bottom.
+    // The larger asteroid arcs in from the right, reflects above the lower logo
+    // strip, and fades before the next trip. All paths share the logo clearance.
     const asteroid = document.querySelector(".asteroid");
 
+    let fallDelay=null;
     function fall(from) {
+      clearTimeout(fallDelay);
       const to = [between(ambientWidth * .23, ambientWidth * .88), ambientHeight + 120];
-      const frames = arc(from, to, [ambientWidth, ambientHeight], { turn: 149.13, spin: between(30, 90) });
+      const frames = arc(from, to, [ambientWidth, ambientHeight], { turn: 149.13, spin: between(30, 90), fade:true });
       asteroid.animate(frames, { duration: between(25, 40) * 1000, easing: "linear", fill: "forwards" }).finished.then(() => {
-        setTimeout(() => fall([ambientWidth + 40, between(ambientHeight * .36, ambientHeight * .86)]), between(15, 45) * 1000);
-      });
+        fallDelay=setTimeout(() => fall([ambientWidth + 40, between(ambientHeight * .36, ambientHeight * .86)]), between(15, 45) * 1000);
+      },()=>{});
     }
 
     if (reduceMotion) {
@@ -574,6 +577,11 @@
     } else {
       fall([ambientWidth - 47.5, ambientHeight - 390.8]);
       setTimeout(drift, between(2, 5) * 1000);
+      addEventListener("resize",()=>{
+        document.querySelectorAll(".drifter").forEach(rock=>rock.getAnimations().forEach(animation=>animation.cancel()));
+        asteroid.getAnimations().forEach(animation=>animation.cancel());
+        fall([ambientWidth-47.5,ambientHeight*.65]);
+      });
     }
   </script>
 </body>

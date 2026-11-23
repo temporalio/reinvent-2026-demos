@@ -2,7 +2,7 @@
 
 The saved station rectangle is the complete demo budget. Its upper application area and lower information area each receive half the height. Titles sit outside that budget. The stage and its iframe wrappers do not scroll. Station zoom scales a bounded inner surface, with inverse dimensions so 75%, 100%, or 125% cannot push the bottom half outside the rectangle.
 
-Banking and Tacos have compact native customer/control views. Other legacy dashboards measure their content into the upper viewport instead of nesting scrollable panels. Flight and Photo Booth keep a combined upper application area. Temporal UI itself is not restyled.
+Banking and Tacos have compact native customer/control views. Other legacy dashboards measure their content into the upper viewport instead of nesting scrollable panels. Flight and Photo Booth fill the complete configured demo area. Temporal UI itself is not restyled.
 
 Business impact and Architecture fit in the lower half. Workflow code has one scrolling code region beneath eight SDK icon buttons; each demo has one short example in each language. Temporal UI scrolls in its iframe with no enclosing scrolling stage. See [code provenance](CODE-EXAMPLES.md). Workflow links from the owned application iframe select the lower Temporal tab; background workflow updates do not select a tab. The Temporal UI iframe loads once and later workflows navigate inside it, without a full reload. The launchpad hides Temporal UI's sidebar and namespace top bar and zooms the panel to 120%. Other frame origins/sources are rejected.
 
@@ -46,3 +46,28 @@ decorative layer. They are clipped only at the real screen edges, independently 
 the centered interactive artboard. After a preview closes, a five-second pause
 precedes the next planet's preview. A manual planet tap cancels a pending selection;
 hidden tabs pause the loop. Automatic selection never launches a demo.
+
+
+## Idle navigation and Holodeck
+
+Normal demos return to the current mission picker after 30 seconds without input.
+The mission picker starts a fresh 30-second interval before returning to the planet
+screensaver. The last five seconds show the destination beside the Screensaver
+button. Touch, stylus input, and reachable same-origin iframe input reset the clock.
+Leaving a demo screen does not cancel its backend Workflow.
+
+The Holodeck picker, running Flight Simulator and Photo Booth, and staff controls
+remain open until manually dismissed. Holodeck uses two equal vertically stacked
+cards filling the available height, with screenshots from the running apps. Crew selection retains its earlier 30-second idle plus five-second warning.
+
+Asteroids reflect at the top and bottom logo strips. The travel bounds include the
+asteroid's full rotated extent and a 12-pixel design-space margin. A resize cancels
+old rock paths and recalculates the bounds. Reduced-motion mode keeps rocks hidden.
+
+Photo Booth uses the shared Cosmic Pop fonts, square controls, and highlight-colored primary actions. Its Camera selector lists permitted video inputs and remembers the chosen device in this browser. Enable camera retries access after a permission or device failure; macOS and Island must both allow camera access.
+
+Flight Deck repair tiles show only the system, Restore/Reboot, and remaining tap count.
+Touch controls cover steering, continuous blaster fire, repairs, and Deploy Temporal;
+keyboard shortcuts remain optional and no longer appear in visitor instructions.
+Practice hazards arrive every two seconds; later hazard and enemy intervals shorten
+as the round progresses. Announcements stay between the side control columns.

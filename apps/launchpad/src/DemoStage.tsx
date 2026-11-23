@@ -51,11 +51,12 @@ export function DemoStage({ demo, persona, temporalUi, notice }: {demo:(typeof c
     if(index<0)return
     event.preventDefault(); setTab(tabs[index].id); buttons.current[index]?.focus()
   }
-  return <div className="demo-stage">
+  const holodeck = demo.id==='photo-booth' || demo.id==='flight-simulator'
+  return <div className={`demo-stage${holodeck?' demo-stage-holodeck':''}`}>
     <section className="stage-application" aria-label="Live demo interaction and controls">
       <div className="app-viewport"><iframe ref={appFrame} title={`${demo.title}: live interaction and controls`} src={`${demo.path}?persona=${persona.toLowerCase()}&booth=1&sharedStage=1`} allow="camera; fullscreen" /></div>
     </section>
-    <section className="stage-information" aria-label="Under the hood">
+    {!holodeck && <section className="stage-information" aria-label="Under the hood">
       <div className="stage-heading"><span>UNDER THE HOOD</span><span>{persona.toUpperCase()}</span></div>
       <div role="tablist" aria-label="Demo information" className="stage-tabs" onKeyDown={navigate}>{tabs.map((t,index)=><button key={t.id} ref={element=>{buttons.current[index]=element}} id={`${id}-${t.id}`} role="tab" aria-selected={tab===t.id} aria-controls={`${id}-panel-${t.id}`} tabIndex={tab===t.id?0:-1} onClick={()=>setTab(t.id)}>{t.label}</button>)}</div>
       {tabs.map(t=><div key={t.id} id={`${id}-panel-${t.id}`} role="tabpanel" aria-labelledby={`${id}-${t.id}`} tabIndex={0} hidden={tab!==t.id} className="stage-tab-content">
@@ -64,6 +65,6 @@ export function DemoStage({ demo, persona, temporalUi, notice }: {demo:(typeof c
         {t.id==='code' && <CodeSamples demoId={demo.id} />}
         {t.id==='temporal' && (temporalUi ? <iframe ref={temporalFrame} title={`${demo.title}: Temporal workflow history`} src={temporalUi} onLoad={event=>styleTemporalFrame(event.currentTarget)} className="stage-temporal" /> : <p>The hosted Temporal UI route has not been enabled for this project. Local preview connects this tab to Temporal OSS.</p>)}
       </div>)}
-    </section>
+    </section>}
   </div>
 }

@@ -36,7 +36,7 @@ const sweep = h('div', { class: 'fd-sweep' });
 const cockpit = h('div', { class: 'fd-cockpit', html: cockpitSvg() });
 const banner = h('div', { class: 'fd-banner' }, h('h2', {}), h('p', {}));
 const reticle = h('div', { class: 'fd-joy' }, h('i'));
-const hint = h('div', { class: 'fd-hint' }, 'Steer toward the pointer · click / Space to fire · tap red panels to repair');
+const hint = h('div', { class: 'fd-hint' }, 'Drag to steer · hold Blaster to fire · tap red panels to restore');
 const wfStrip = h('div', { class: 'fd-wf' });
 const sideL = h('div', { class: 'fd-side left' });
 const sideR = h('div', { class: 'fd-side right' });
@@ -94,18 +94,18 @@ const engine = new FlightEngine(stage, {
 });
 
 // ---------- system tiles ----------
-const tileEls = new Map<SystemId, { el: HTMLButtonElement; st: HTMLElement; fx: HTMLElement; ring: SVGCircleElement }>();
+const tileEls = new Map<SystemId, { el: HTMLButtonElement; st: HTMLElement; count: HTMLElement; ring: SVGCircleElement }>();
 const RING_LEN = 2 * Math.PI * 20;
 SYSTEMS.forEach((s, i) => {
   const st = h('span', { class: 'st' }, 'Online');
-  const fx = h('span', { class: 'fx' }, s.effect);
+  const count = h('span', { class: 'tap-count', 'aria-hidden':'true' });
   const ringWrap = h('span', { class: 'ring', html: `<svg viewBox="0 0 50 50"><circle class="bg" cx="25" cy="25" r="20"/><circle class="fg" cx="25" cy="25" r="20" stroke-dasharray="${RING_LEN}" stroke-dashoffset="${RING_LEN}"/></svg>` });
   const el = h('button', { class: 'fd-tile' },
-    h('span', { class: 'nm' }, h('span', { class: 'ic' }, s.icon), s.name), ringWrap, st, fx);
+    h('span', { class: 'nm' }, h('span', { class: 'ic' }, s.icon), s.name), ringWrap, st, count);
   // The whole tile is the tap target (children have pointer-events: none).
   el.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); repair(s.id); });
   (i < 3 ? sideL : sideR).append(el);
-  tileEls.set(s.id, { el, st, fx, ring: ringWrap.querySelector('.fg') as SVGCircleElement });
+  tileEls.set(s.id, { el, st, count, ring: ringWrap.querySelector('.fg') as SVGCircleElement });
 });
 
 function repair(id: SystemId): void {
@@ -128,8 +128,9 @@ function renderTiles(): void {
     t.el.classList.toggle('durable', durable);
     const p = st?.progress ?? 0, need = st?.need ?? 1;
     const left = need - p;
-    t.st.textContent = broken ? (p ? `${left} more tap${left === 1 ? '' : 's'}` : `${s.fix}: tap ${need}×`) : durable ? '🔒 Durable' : 'Online';
-    t.fx.textContent = `${s.effect} · −${Math.round(CONFIG.RATE_PENALTY_PER_BROKEN * 100)}% pts`;
+    t.st.textContent = broken ? s.fix : durable ? 'Durable' : 'Online';
+    t.count.textContent = broken ? `${left}×` : '';
+    t.el.setAttribute('aria-label', `${s.name}: ${broken ? `${s.fix}, ${left} tap${left===1?'':'s'} remaining` : durable ? 'Durable' : 'Online'}`);
     t.ring.style.strokeDashoffset = String(RING_LEN * (1 - p / need));
   }
 }
@@ -170,7 +171,7 @@ function renderTemporal(): void {
     tSub.textContent = CONFIG.LOCK_FOR_REST_OF_GAME ? 'All systems durable' : `All systems durable · ${Math.ceil(game.durableLeftMs / 1000)}s`;
   } else if (ready) {
     tCap.textContent = 'Deploy Temporal';
-    tSub.textContent = 'Tap (or press T) to lock every system';
+    tSub.textContent = 'Tap to restore and protect all systems';
   } else {
     tCap.textContent = 'Temporal';
     tSub.textContent = `${Math.max(0, Math.ceil(game.nextThreshold - game.score)).toLocaleString()} pts to unlock`;
@@ -305,7 +306,7 @@ function newGame(): Game {
       if (!byTemporal) toast(`${SYSTEMS.find((x) => x.id === id)!.name} restored`, 'var(--mint)');
       renderTiles();
     },
-    onCharge: () => { sfx.charge(); showBanner('Temporal ready', 'Tap the glowing button (or press T) to deploy', '#a99fff', false, 2200); },
+    onCharge: () => { sfx.charge(); showBanner('Temporal ready', 'Tap Deploy Temporal to protect all systems', '#a99fff', false, 2200); },
     onDeploy: () => {
       sfx.whoosh();
       sweep.classList.remove('on'); void sweep.offsetWidth; sweep.classList.add('on');
@@ -573,9 +574,9 @@ async function toAttract(): Promise<void> {
     h('button', { class: 'btn big mint fd-launch', onclick: () => askEmailToFly() }, 'Tap to launch'),
     h('div', { class: 'fd-howto' },
       h('div', {}, h('span', { class: 'big' }, '✋'), h('b', {}, 'Fly'), 'Point or drag where you want to turn. Your heading stays put.'),
-      h('div', {}, h('span', { class: 'big' }, '✦'), h('b', {}, 'Blast'), 'Hold BLASTER, click, or Space. Enemy ships pay big.'),
+      h('div', {}, h('span', { class: 'big' }, '✦'), h('b', {}, 'Blast'), 'Hold BLASTER to fire. Enemy ships pay big.'),
       h('div', {}, h('span', { class: 'big' }, '🔧'), h('b', {}, 'Repair'), 'Tap red panels. Repairs take more taps as time runs out.'),
-      h('div', {}, h('span', { class: 'big' }, '✨'), h('b', {}, 'Deploy'), `Every ${CONFIG.THRESHOLD.toLocaleString()} pts, Temporal locks every system (T).`)),
+      h('div', {}, h('span', { class: 'big' }, '✨'), h('b', {}, 'Deploy'), `Every ${CONFIG.THRESHOLD.toLocaleString()} pts, tap Deploy Temporal to protect every system.`)),
     lbBox,
   ));
   const board = await net.leaderboard();
@@ -615,7 +616,7 @@ function frame(now: number): void {
   engine.update(dt, {
     turn: playing ? steerInput() : { x: 0, y: 0 },
     speed: attract ? 45 : mode === 'countdown' ? 20 + warpKick * 40 : game.speed,
-    spawnGap: playing ? game.spawnGap : attract ? 1.1 : Infinity,
+    spawnGap: playing ? game.spawnGap : attract ? 0.7 : Infinity,
     sizeScale: playing ? game.sizeScale : 1,
     hazardSpeed: playing ? game.hazardSpeed : 0,
     kinds: attract ? ['asteroid', 'asteroid', 'debris', 'ring'] : [...game.scenario.kinds],
