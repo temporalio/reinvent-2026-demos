@@ -45,9 +45,11 @@ No Cloud credentials or model/email provider credentials are inherited from your
 
 All nine demo entries use the portrait presentation path. Tacos retains its native two upper panels plus four lower tabs. Banking, Pipeline, No Roads, Loan, Travel, and SDLC have paired native interaction/presenter areas inside one live application frame. Flight and Photo Booth retain a combined upper area. Every demo has the lower business, architecture, source, and Temporal UI views.
 
-The shared frame and embedded apps load Ash's Cosmic Pop theme. Full native navigation preserves booth styling. The architecture tab is a labeled deployment overview, not live telemetry. The code tab displays actual repository excerpts in their native language; translated SDK examples remain future work. Local Temporal UI uses the local route; hosted publication remains a deployment gate. Parent navigation accepts only same-origin messages from the active application iframe.
+The shared frame and embedded apps load Ash's Cosmic Pop theme. The live app and information panel each receive half of the saved station viewport. Code and Temporal UI can scroll inside their own content areas; business impact and architecture use bounded layouts. Physical TV and stylus testing remains required.
 
-The local Ziggy controls are display preview controls, not the PIN-protected fleet control panel. Fleet configuration, touch keyboard, and panel-specific pinch gestures still need implementation and physical-screen testing.
+The Architecture tab shows a demo-specific logical flow, with illustrative animation and reduced-motion support. It is not live telemetry or an inventory of deployed resources. The code tab offers one short example per demo across eight official SDKs. Native examples point to repository source; other language examples are labeled illustrative. See [code examples](CODE-EXAMPLES.md).
+
+Ziggy opens the PIN-protected fleet controls. Configure per-station availability, online/offline launch policy, and the saved display size, zoom, and position. Preview position shows Tacos using the unsaved draft; Back returns to the unlocked controls, and Save persists it. See [station controls](STATION-CONTROL.md). The offline policy controls launches; it does not switch providers or worker connections. Panel-specific pinch gestures and the physical touchscreen keyboard experience still need hardware verification.
 
 ## Repeat the local smoke checks
 

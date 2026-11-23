@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { DemoStage } from './DemoStage'
 import catalog from './catalog.json'
 import './index.css'
@@ -11,6 +11,7 @@ import { initialLaunchScreen } from './launchNavigation'
 import { missionMetadata } from './missionMetadata'
 import { LogoMarquee } from './LogoMarquee'
 import { CrewPicker, type Persona } from './CrewPicker'
+import { BoothBackground } from './BoothBackground'
 import { idleScreensaverEnabled, useIdleScreensaver } from './useIdleScreensaver'
 
 const initialDemo = catalog.find(d=>d.id===new URLSearchParams(window.location.search).get('demo')) || null
@@ -71,28 +72,26 @@ export default function App() {
     doc?.addEventListener('reinvent:exit', showCrew, { once: true })
   }} />
   return <div className={`launchpad${screen === 'crew' ? ' launchpad-crew' : ''}`}>
+    <BoothBackground />
     <LogoMarquee side="top" /><LogoMarquee side="bottom" />
     <header><img src="/assets/brand/temporal-logo.svg" alt="Temporal" />{screen === 'demo' && selected && <h1 className="demo-title">{selected.title}</h1>}</header>
-    {runtime.notice && <aside className="local-notice">{runtime.notice}</aside>}
-    <DisplayArea display={control.effective.display} mode={screen === 'demo' ? 'demo' : 'browse'}>
+    <DisplayArea display={control.effective.display} mode={screen === 'demo' ? 'demo' : screen === 'crew' ? 'crew' : 'missions'}>
       {screen === 'crew' && <><p className="eyebrow">SECTOR 01 / CHOOSE YOUR CREW</p><h1>CREW</h1><CrewPicker onPersona={name => {setPersona(name);setFilter('all');setScreen('missions')}} onWizard={() => {setFilter('aws-ai');setScreen('missions')}} onHolodeck={() => {setFilter('holodeck');setScreen('missions')}} /></>}
-      {screen === 'missions' && <><p className="eyebrow">SECTOR 02 / {filter === 'all' ? persona : filter === 'holodeck' ? 'HOLODECK' : 'SPACE WIZARD'}</p><h1>MISSION</h1><div className="missions">{missions.map(d => {
+      {screen === 'missions' && <><p className="eyebrow">SECTOR 02 / {filter === 'all' ? persona : filter === 'holodeck' ? 'HOLODECK' : 'SPACE WIZARD'}</p><h1>MISSION</h1><div className="missions" style={{'--mission-rows':Math.ceil(missions.length/2),'--mission-wide-columns':Math.min(4,missions.length),'--mission-wide-rows':Math.ceil(missions.length/4)} as CSSProperties}>{missions.map(d => {
         const metadata=missionMetadata[d.id]
         const restriction=unavailable(d)
         return <article key={d.id} className="mission-card" aria-disabled={!!restriction}>
           <div className="mission-card-heading"><span className="mission-icon"><img src={`/assets/brand/icons/${metadata.icon}.svg`} alt="" /></span><h2>{metadata.title}</h2></div>
           <p className="mission-description">{metadata.description}</p>
           <ul className="mission-tags" aria-label={`${metadata.title} capabilities`}>{metadata.tags.map(tag=><li key={tag}>{tag}</li>)}</ul>
-          <p className="mission-connectivity">{d.internet === 'required' ? 'Internet required' : d.internet === 'conditional' ? 'Some features require internet' : 'Internet optional'}</p>
-          {runtime.demoNotices?.[d.id] && <p className="pending">{runtime.demoNotices[d.id]}</p>}
           {d.tentative && runtime.mode!=='local' && <p className="pending">Requires booth GitHub setup</p>}
           {restriction && <p className="pending">{restriction}</p>}
           <button disabled={!!restriction} aria-label={`Launch ${metadata.title}`} onClick={() => {setAdmitted(d.id);setSelected(d);setScreen('demo')}}><span>Launch</span><span aria-hidden="true">↗</span></button>
         </article>
       })}</div></>}
-      {screen === 'demo' && selected && <>{!mayRun ? <p role="status">{blocked || 'Choose another mission.'}</p> : <><DemoStage key={`${selected.id}-${persona}`} demo={selected} persona={persona} temporalUi={runtime.temporalUi} notice={runtime.demoNotices?.[selected.id]} /></>}</>}
+      {screen === 'demo' && selected && <>{!mayRun ? <p role="status">{blocked || 'Choose another mission.'}</p> : <><DemoStage key={`${selected.id}-${persona}`} demo={selected} persona={persona} temporalUi={runtime.temporalUi} /></>}</>}
     </DisplayArea>
-    <footer><button onClick={showCrew}>Crew</button><button onClick={() => setScreen('missions')}>Missions</button><div className="screensaver-control"><span className="idle-countdown" role="status" aria-live="polite">{idleCountdown !== null ? `Screensaver in ${idleCountdown}s` : ''}</span><button onClick={showScreensaver}>Screensaver</button></div><button className="ziggy-settings" onClick={()=>setConfigurationOpen(true)} aria-label="Open station configuration"><img src="/assets/brand/ziggy-face.png" alt="Ziggy station settings" /></button></footer>
+    <footer><button onClick={showCrew}>Crew</button><button onClick={() => setScreen('missions')}>Missions</button><div className="screensaver-control"><span className="idle-countdown" role="status" aria-live="polite">{idleCountdown !== null ? `Screensaver in ${idleCountdown}s` : ''}</span><button onClick={showScreensaver}>Screensaver</button></div><button className="ziggy-settings" onClick={()=>setConfigurationOpen(true)} aria-label="Open station configuration"><img src="/assets/frame/ziggy-astronaut.png" alt="Ziggy station settings" /></button></footer>
     {configurationOpen && <div className="station-settings-overlay" role="dialog" aria-modal="true" aria-label="Station configuration"><StationControl onExit={()=>setConfigurationOpen(false)} /></div>}
   </div>
 }

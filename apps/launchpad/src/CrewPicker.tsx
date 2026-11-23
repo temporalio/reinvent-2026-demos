@@ -26,7 +26,7 @@ export function CrewPicker({ onPersona, onWizard, onHolodeck }: {
   onHolodeck: () => void
 }) {
   return <div className="crew">
-    {profiles.map(profile => <button className="crew-card" data-persona={profile.image} key={profile.name} aria-label={`Choose ${profile.name}`} onClick={() => profile.name === 'Space Wizard' ? onWizard() : onPersona(profile.name as Persona)}>
+    {profiles.map(profile => <button className="crew-card" data-persona={profile.image} key={profile.name} aria-label={`Choose ${profile.name}`} onClick={() => profile.name === 'Space Wizard' ? onWizard() : onPersona(profile.name)}>
       <img className="crew-portrait" src={`/assets/crew/${profile.image}.png`} alt="" />
       <div className="crew-card-content">
         <span className="crew-audience">{profile.audience}</span>

@@ -49,7 +49,7 @@
       transform: translate(-50%, -50%) scale(var(--s, 1));
       overflow: hidden;
     }
-    .screensaver > * { position: absolute; }
+    .screensaver > *, .ambient-artboard > * { position: absolute; }
     .stage-art { inset: 0; width: 100%; height: 100%; overflow: visible; }
     .lines { pointer-events: none; }
 
@@ -57,6 +57,8 @@
     /* Background fills the viewport even when the portrait artboard is letterboxed. */
     .viewport-glow { position:fixed; inset:0; overflow:hidden; pointer-events:none; }
     .viewport-glow .glow { position:absolute; left:calc(-868px * var(--s, 1)); top:calc(-494.7px * var(--s, 1)); width:calc(1814.85px * var(--s, 1)); height:calc(1355.62px * var(--s, 1)); rotate:-42.34deg; scale:1 -1; }
+    .viewport-decor { position:fixed; inset:0; overflow:hidden; pointer-events:none; }
+    .ambient-artboard { position:absolute; left:0; top:0; transform:scale(var(--s,1)); transform-origin:0 0; }
     .comet-ring { fill: none; stroke: var(--status-retrying); stroke-width: .5; opacity: .7; }
     .link { stroke: var(--accent); stroke-width: 2; stroke-dasharray: 2 10; }
     /* The big asteroid starts where Figma puts it; the script then arcs it off the bottom. */
@@ -156,14 +158,17 @@
 
   <div class="viewport-glow" aria-hidden="true"><img class="glow" src="art/glow.svg" alt=""></div>
 
-  <main class="screensaver" aria-label="Crash Course: no lost state">
+  <div class="viewport-decor" aria-hidden="true"><div class="ambient-artboard">
 
-    <svg class="stage-art lines" viewBox="0 0 1080 1920" aria-hidden="true">
+    <svg class="stage-art lines" viewBox="0 0 1080 1920" preserveAspectRatio="none" aria-hidden="true">
       <ellipse class="comet-ring" cx="540.11" cy="959.75" rx="2949.2" ry="855.28" transform="rotate(25.1 540.11 959.75)"/>
     </svg>
 
     <img class="asteroid" src="art/asteroid.png" alt="">
 
+  </div></div>
+
+  <main class="screensaver" aria-label="Crash Course: no lost state">
     <svg class="stage-art orbits" viewBox="0 0 1080 1920">
       <defs>
         <!-- One wireframe planet, radius 1; each <use> scales and colours it.
@@ -242,6 +247,7 @@
 
   <script src="../../assets/js/starfield.js"></script>
   <script src="./navigation.js"></script>
+  <script src="preview-rotation.js"></script>
   <script>
     Starfield.start(document.getElementById("stars"));
     // No long-press menu on the touch screen.
@@ -279,11 +285,15 @@
       [tracks[1], [...logoImages.slice(half), ...logoImages.slice(0, half)]],
     ]);
     let scale = 1;
+    const ambient = document.querySelector(".ambient-artboard");
+    let ambientWidth = 1080, ambientHeight = 1920;
 
     // Fit the 1080 x 1920 stage inside the window.
     function fit() {
       scale = Math.min(innerWidth / 1080, innerHeight / 1920);
       document.documentElement.style.setProperty("--s", scale);
+      ambientWidth = innerWidth / scale; ambientHeight = innerHeight / scale;
+      ambient.style.width = `${ambientWidth}px`; ambient.style.height = `${ambientHeight}px`;
     }
 
     function fill(track) {
@@ -372,8 +382,13 @@
     const launch = card.querySelector(".launch");
     let selected = null;
     let timer = null;
+    const previewRotation = window.createPreviewRotation({ count:planets.length, onSelect:index=>select(planets[index]) });
+    previewRotation.setHidden(document.hidden);
+    document.addEventListener("visibilitychange",()=>previewRotation.setHidden(document.hidden));
+    addEventListener("pagehide",()=>previewRotation.stop());
 
     function select(planet) {
+      previewRotation.selected(planets.indexOf(planet));
       selected = planet;
       const { deck } = planet;
       stage.classList.remove("is-idle");
@@ -420,8 +435,9 @@
       timer.finished.then(close, () => {});
     }
 
-    // Close the card and clear the selection: only the orbits stay until the next tap.
+    // Keep the orbits clear for five seconds, then preview a different planet.
     function close() {
+      previewRotation.closed();
       selected = null;
       timer = null;
       planets.forEach(p => p.g.setAttribute("aria-pressed", false));
@@ -508,19 +524,19 @@
 
     // Little asteroids: every so often one slides in past one edge, cuts across that
     // corner of the screen and leaves past the neighbouring edge.
-    const CORNERS = [[0, 0], [1080, 0], [0, 1920], [1080, 1920]];
     let drifting = 0;
 
     function drift() {
       if (drifting < 2) {
+        const CORNERS = [[0, 0], [ambientWidth, 0], [0, ambientHeight], [ambientWidth, ambientHeight]];
         const corner = CORNERS[Math.floor(Math.random() * CORNERS.length)];
         const [cx, cy] = corner;
         const size = between(36, 80);
         const off = size + 20;
         // Enter through the side edge, leave through the top or bottom edge, so the
         // path cuts across the corner, between 150 and 600px in from it.
-        const side = [cx === 0 ? -off : 1080 + off - size, cy === 0 ? between(150, 600) : 1920 - between(150, 600)];
-        const end = [cx === 0 ? between(150, 600) : 1080 - between(150, 600), cy === 0 ? -off : 1920 + off - size];
+        const side = [cx === 0 ? -off : ambientWidth + off - size, cy === 0 ? between(150, 600) : ambientHeight - between(150, 600)];
+        const end = [cx === 0 ? between(150, 600) : ambientWidth - between(150, 600), cy === 0 ? -off : ambientHeight + off - size];
         const [from, to] = Math.random() < .5 ? [side, end] : [end, side];
 
         const rock = document.createElement("img");
@@ -528,7 +544,7 @@
         rock.src = "art/asteroid.png";
         rock.alt = "";
         rock.style.width = `${size}px`;
-        stage.insertBefore(rock, stage.querySelector(".orbits"));
+        ambient.append(rock);
         drifting++;
         const frames = arc(from, to, corner, { turn: between(0, 360), spin: between(-1, 1) * between(40, 140), fade: true });
         rock.animate(frames, { duration: between(30, 50) * 1000, easing: "linear" }).finished.then(() => {
@@ -546,17 +562,17 @@
     const asteroid = document.querySelector(".asteroid");
 
     function fall(from) {
-      const to = [between(250, 950), 1920 + 120];
-      const frames = arc(from, to, [1080, 1920], { turn: 149.13, spin: between(30, 90) });
+      const to = [between(ambientWidth * .23, ambientWidth * .88), ambientHeight + 120];
+      const frames = arc(from, to, [ambientWidth, ambientHeight], { turn: 149.13, spin: between(30, 90) });
       asteroid.animate(frames, { duration: between(25, 40) * 1000, easing: "linear", fill: "forwards" }).finished.then(() => {
-        setTimeout(() => fall([1080 + 40, between(700, 1650)]), between(15, 45) * 1000);
+        setTimeout(() => fall([ambientWidth + 40, between(ambientHeight * .36, ambientHeight * .86)]), between(15, 45) * 1000);
       });
     }
 
     if (reduceMotion) {
       asteroid.hidden = true;
     } else {
-      fall([1032.5, 1529.2]);
+      fall([ambientWidth - 47.5, ambientHeight - 390.8]);
       setTimeout(drift, between(2, 5) * 1000);
     }
   </script>

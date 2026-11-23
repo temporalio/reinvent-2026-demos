@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
 import catalog from './catalog.json'
 import './stage.css'
 import { CodeSamples } from './CodeSamples'
+import { ArchitecturePanel } from './ArchitecturePanel'
 import { workflowTarget } from './workflowNavigation'
 import { showInTemporalFrame, styleTemporalFrame } from './temporalFrame'
 
@@ -14,12 +15,12 @@ const stories: Record<string, [string,string,string]> = {
   tacos: ['Deliver every order, even through a failure.', 'Temporal keeps the order progressing across payment, preparation, and delivery.', 'Try a failure, restore the service, and follow recovery in the Workflow history.'],
   'money-transfer': ['Move credits with confidence.', 'A transfer coordinates account changes through a durable Workflow.', 'Compare the configured failure scenarios and follow recovery in the Workflow history.'],
   'data-pipeline': ['Keep the cargo pipeline moving.', 'A Workflow tracks a multi-step data job and its progress.', 'Try the signal, update, or failure scenarios to explore recovery without starting the story over.'],
-  loan: ['Coordinate a decision from application to review.', 'Loan underwriting combines agent work, specialist tools, and human decisions.', 'Model inference still needs a working provider; local storage emulation does not replace it.'],
-  'no-roads': ['Absorb work when demand changes.', 'Temporal queues durable work while workers process the backlog.', 'Lambda scaling is a hosted capability. A local worker is not a Lambda scaling test.'],
-  'agent-harness': ['Keep an agent’s journey durable.', 'Temporal coordinates agent execution and tool calls.', 'This demo needs model access; a browser preview alone does not verify inference.'],
-  'agentic-sdlc': ['Carry a change through the delivery process.', 'Durable orchestration coordinates the coding and review pipeline.', 'Use the booth sandbox repository and scoped credentials before enabling this demo.'],
+  loan: ['Coordinate a decision from application to review.', 'Loan underwriting combines agent work, specialist tools, and human decisions.', 'Follow the specialist assessments, then approve or reject the recommendation.'],
+  'no-roads': ['Absorb work when demand changes.', 'Temporal queues durable work while workers process the backlog.', 'Compare the backlog and concurrency as workers process durable tasks.'],
+  'agent-harness': ['Keep an agent’s journey durable.', 'Temporal coordinates agent execution and tool calls.', 'Review the trip plan, approve tool calls, and follow the agent’s progress.'],
+  'agentic-sdlc': ['Carry a change through the delivery process.', 'Durable orchestration coordinates the coding and review pipeline.', 'Follow planning, code review, and the human decisions that gate delivery.'],
   'flight-simulator': ['Take the controls. Follow the mission.', 'The simulator combines interactive flight with backend Workflow execution.', 'The live flight display and Workflow history show different parts of the experience.'],
-  'photo-booth': ['Turn a booth visit into a keepsake.', 'A Workflow coordinates photo processing and delivery.', 'Local preview uses mock image generation and an email outbox. It does not send attendee emails.'],
+  'photo-booth': ['Turn a booth visit into a keepsake.', 'A Workflow coordinates photo processing and delivery.', 'Follow the steps from portrait capture to the finished photo strip and delivery.'],
 }
 
 export function DemoStage({ demo, persona, temporalUi, notice }: {demo:(typeof catalog)[number];persona:string;temporalUi:string|null;notice?:string}) {
@@ -59,7 +60,7 @@ export function DemoStage({ demo, persona, temporalUi, notice }: {demo:(typeof c
       <div role="tablist" aria-label="Demo information" className="stage-tabs" onKeyDown={navigate}>{tabs.map((t,index)=><button key={t.id} ref={element=>{buttons.current[index]=element}} id={`${id}-${t.id}`} role="tab" aria-selected={tab===t.id} aria-controls={`${id}-panel-${t.id}`} tabIndex={tab===t.id?0:-1} onClick={()=>setTab(t.id)}>{t.label}</button>)}</div>
       {tabs.map(t=><div key={t.id} id={`${id}-panel-${t.id}`} role="tabpanel" aria-labelledby={`${id}-${t.id}`} tabIndex={0} hidden={tab!==t.id} className="stage-tab-content">
         {t.id==='business' && <div className="business-story"><h2>{story?.[0]}</h2><p>{story?.[1]}</p><p className="business-detail">{notice || story?.[2]}</p></div>}
-        {t.id==='architecture' && <div className="architecture-story"> <p className="eyebrow">DEPLOYMENT OVERVIEW · NOT LIVE TELEMETRY</p><svg className="stage-architecture" viewBox="0 0 760 270" role="img" aria-label="The demo browser calls its API. The API starts a Workflow in Temporal. Workers poll Temporal and execute the demo's work."><defs><marker id={`${id}-arrow`} markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="var(--brand-highlight)" /></marker></defs><g fill="none" stroke="var(--brand-highlight)" strokeWidth="2" markerEnd={`url(#${id}-arrow)`}><path d="M180 75H270"/><path d="M450 75H540"/><path d="M630 115V180H450"/></g>{[[0,35,'Demo browser'],[270,35,'Demo API'],[540,35,'Temporal'],[270,155,'Worker / activities']].map(([x,y,label])=><g key={String(label)} transform={`translate(${x},${y})`}><rect width="180" height="80" rx="4"/><text x="90" y="46" textAnchor="middle">{label}</text></g>)}</svg></div>}
+        {t.id==='architecture' && tab==='architecture' && <ArchitecturePanel demoId={demo.id} />}
         {t.id==='code' && <CodeSamples demoId={demo.id} />}
         {t.id==='temporal' && (temporalUi ? <iframe ref={temporalFrame} title={`${demo.title}: Temporal workflow history`} src={temporalUi} onLoad={event=>styleTemporalFrame(event.currentTarget)} className="stage-temporal" /> : <p>The hosted Temporal UI route has not been enabled for this project. Local preview connects this tab to Temporal OSS.</p>)}
       </div>)}

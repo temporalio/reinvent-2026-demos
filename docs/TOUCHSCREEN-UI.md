@@ -31,3 +31,18 @@ python3 scripts/local/check-touch-layout.py --url http://localhost:15101 --with-
 ```
 
 The checker uses loopback HTTP only. It measures equal tracks, station/document overflow, clipped controls, nested native scrolling, fitting business/architecture content, and all eight example switches. It does not execute paid providers or claim to validate compiled translations. Use `--width 2160 --height 3840` for portrait 4K. Real television/stylus testing remains separate.
+
+## Crew, mission, and screensaver fit
+
+Crew and Mission have bounded layouts with no page scrolling. Portrait displays
+use five crew rows plus Holodeck, or a two-column mission grid. Short landscape
+windows use more columns to preserve visible choices and launch buttons. Audience
+labels, names, descriptions, and meters have explicit layout tracks. Local runtime
+notices are omitted from the attendee launcher; availability policies and provider
+guards still apply.
+
+The screensaver's pink ellipse and drifting asteroids use a separate viewport-sized
+decorative layer. They are clipped only at the real screen edges, independently of
+the centered interactive artboard. After a preview closes, a five-second pause
+precedes the next planet's preview. A manual planet tap cancels a pending selection;
+hidden tabs pause the loop. Automatic selection never launches a demo.

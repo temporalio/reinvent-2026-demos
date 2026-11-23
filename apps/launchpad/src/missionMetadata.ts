@@ -5,17 +5,17 @@ export const missionMetadata:Record<string,MissionMetadata> = {
   tacos: {
     title:'Ziggy Space Taqueria',icon:'order-fulfillment',
     description:'Order tacos in orbit. Cut the kitchen uplink, restore it, and watch the order recover.',
-    tags:['Temporal primitives','Retries','Signals','Saga compensation'],
+    tags:['Temporal basics','Retries','Signals','Saga compensation'],
   },
   'money-transfer': {
     title:'Money Transfer',icon:'durable-ledger',
     description:'Move credits between accounts. Interrupt a transfer and follow its recovery or compensation.',
-    tags:['Temporal primitives','Human approval','Saga compensation'],
+    tags:['Temporal basics','Human approval','Saga compensation'],
   },
   'data-pipeline': {
     title:'Data Pipeline',icon:'dag',
     description:'Move mission data through validation, extraction, transformation, and loading without losing progress.',
-    tags:['Temporal primitives','Signals','Updates','Heartbeats'],
+    tags:['Temporal basics','Signals','Updates','Heartbeats'],
   },
   loan: {
     title:'Loan Underwriting',icon:'humans-in-the-loop',
