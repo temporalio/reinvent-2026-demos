@@ -1,9 +1,8 @@
 """Scene catalog and prompt templates for the Holo-Booth.
 
-18 scenes, each in its own setting category. A strip takes 4 scenes with 4
-different categories and at most one transformation-type frame (and at most
-one "at the controls" frame), chosen with ``workflow.random()`` so replays are
-deterministic.
+New strips draw 4 distinct scenes from 8 cinematic adventures, in random order.
+The full 18-scene catalog and original picker stay available for old Workflow
+histories. Both pickers use ``workflow.random()`` so replay preserves the choice.
 
 Two prompt styles (HOLODECK_PHOTOBOOTH_STYLE):
 - ``inspired`` (default): the photo is a likeness reference for a brand-new
@@ -52,7 +51,7 @@ SCENES: list[Scene] = [
           "floating weightless inside a cozy space station module, a wobbling coffee blob and snacks drifting by, a blue planet glowing in the big window",
           "station_exterior", "porthole", ("#020412", "#0b1840"), {"planet": "#3a8dff"}),
     Scene("spacewalk", "spacewalk", "Spacewalk Repair Crew",
-          "on a daring spacewalk, tethered to the hull of a huge starship, tightening a glowing panel with Earth-like planet below",
+          "a daring repair specialist swinging on a safety tether along the enormous curved hull of a starship, reaching toward a sparking holographic repair panel, with fleets of tiny ships, a luminous blue planet, shimmering orbital rings and a sunrise across the horizon; show the whole action and sweeping space scenery",
           "hull", "visor", ("#000008", "#0a1030"), {"planet": "#2f7de0"}),
     Scene("asteroid_miner", "asteroid_miner", "Asteroid Miner",
           "an asteroid adventurer bracing against a tumbling crystal-covered rock while wielding a spectacular glowing plasma drill, surrounded by flying crystal shards, molten mineral seams, immense orbital mining rigs, distant planets and a turbulent star-filled nebula",
@@ -64,7 +63,7 @@ SCENES: list[Scene] = [
           "an adventurous ranger swinging toward the viewer on a vine through a sprawling alien jungle, with giant glowing mushroom canopies, curious floating jellyfish creatures, cascading waterfalls, colorful spores and ancient ruins extending deep into the distance",
           "jungle", "poster", ("#021a12", "#0c5a3a"), {"accent": "#b6ff5c", "shape": "oval"}),
     Scene("desert_nomad", "desert_world", "Twin-Sun Desert Nomad",
-          "a hooded desert nomad on a hover-bike racing across golden dunes under two setting suns",
+          "a desert trailblazer in colorful flowing expedition gear leaning a hover-bike into a sharp turn through immense golden dunes, kicking up a glowing dust trail, with towering sandstone arches, an ancient cliffside city, other tiny riders and two setting suns beneath a huge crescent moon",
           "desert", "poster", ("#3a1a0a", "#ffb547"), {"accent": "#ffd28a", "shape": "oval"}),
     Scene("cantina", "cantina", "Cantina Legend",
           "the coolest regular at a neon-lit space cantina, raising a glowing drink with a band of friendly aliens playing behind them",
@@ -96,6 +95,18 @@ FALLBACK = Scene("star_portrait", "fallback", "Starfarer Portrait",
 
 BY_ID = {s.id: s for s in SCENES + [FALLBACK]}
 assert len({s.category for s in SCENES}) == len(SCENES), "categories must be unique"
+
+# Curated for scenery and motion rather than static portraits. Retain the complete
+# catalog above: older Workflow histories can still refer to any of those IDs.
+FEATURED_SCENE_IDS = (
+    "starfighter_ace", "kepler_explorer", "asteroid_miner", "ice_planet",
+    "jungle_ranger", "desert_nomad", "grand_prix", "spacewalk",
+)
+
+
+def pick_featured_four(rand) -> list[str]:
+    """Pick four different adventures and their order using Workflow randomness."""
+    return rand.sample(FEATURED_SCENE_IDS, 4)
 
 
 def pick_four(rand) -> list[str]:
