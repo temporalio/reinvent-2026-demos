@@ -1,10 +1,10 @@
-import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
 import catalog from './catalog.json'
 import './stage.css'
 import { CodeSamples } from './CodeSamples'
 import { ArchitecturePanel } from './ArchitecturePanel'
 import { workflowTarget } from './workflowNavigation'
-import { showInTemporalFrame, styleTemporalFrame } from './temporalFrame'
+import { preferDarkTemporalUi, showInTemporalFrame, styleTemporalFrame } from './temporalFrame'
 
 type Tab = 'business' | 'architecture' | 'code' | 'temporal'
 const tabs: { id: Tab; label: string }[] = [
@@ -29,6 +29,8 @@ export function DemoStage({ demo, persona, temporalUi, notice, onPlaybackChange 
   const appFrame = useRef<HTMLIFrameElement>(null)
   const temporalFrame = useRef<HTMLIFrameElement>(null)
   const lastWorkflow = useRef<string|null>(null)
+  // Layout effects run in the commit that inserts the iframe, before its document can boot.
+  useLayoutEffect(()=>{ if(temporalUi)preferDarkTemporalUi() },[temporalUi])
   useEffect(()=>{
     function focusWorkflow(event:MessageEvent) {
       if(event.origin!==window.location.origin || event.source!==appFrame.current?.contentWindow || event.data?.type!=='booth:workflow' || typeof event.data.url!=='string' || !temporalUi)return

@@ -21,6 +21,23 @@ function loadedDocument(frame: HTMLIFrameElement): Document | null {
   }
 }
 
+// Temporal UI reads its theme when it boots from this same-origin localStorage key
+// (a JSON boolean, or "system"). Its persistStore also listens on a BroadcastChannel
+// named after the key, so an app that has already loaded switches too.
+const DARK_MODE_KEY = 'dark mode'
+
+/** Show the panel's Temporal UI in dark mode. Call before the iframe loads. */
+export function preferDarkTemporalUi() {
+  try {
+    window.localStorage.setItem(DARK_MODE_KEY, 'true')
+    const channel = new BroadcastChannel(`persist-store-${DARK_MODE_KEY}`)
+    channel.postMessage(true)
+    channel.close()
+  } catch {
+    // Without storage the UI follows the system theme.
+  }
+}
+
 /** Hide Temporal UI's navigation chrome. Call on every iframe load. */
 export function styleTemporalFrame(frame: HTMLIFrameElement) {
   const doc = loadedDocument(frame)
