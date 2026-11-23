@@ -3,7 +3,7 @@ type MissionMetadata = {title:string;icon:string;description:string;tags:string[
 /** Capability labels follow each demo's README; hosted services need their deployed runtime. */
 export const missionMetadata:Record<string,MissionMetadata> = {
   tacos: {
-    title:'Ziggy Space Taqueria',icon:'order-fulfillment',
+    title:'Ziggy Space Taqueria',icon:'taco',
     description:'Order tacos in orbit. Cut the kitchen uplink, restore it, and watch the order recover.',
     tags:['Temporal basics','Retries','Signals','Saga compensation'],
   },
