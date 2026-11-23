@@ -14,22 +14,27 @@ export function useSSE(orderId: string | null) {
     sourceRef.current = source
 
     source.addEventListener('order_update', (e) => {
+      if (sourceRef.current !== source) return
       const event: OrderEvent = JSON.parse(e.data)
+      if (event.order_id !== orderId) return
       setEvents((prev) => [...prev, event])
     })
 
     source.addEventListener('order_complete', (e) => {
+      if (sourceRef.current !== source) return
       const data = JSON.parse(e.data)
       setFinalStatus(data.final_status)
       source.close()
     })
 
     source.addEventListener('timeout', () => {
+      if (sourceRef.current !== source) return
       setInterrupted(true)
       source.close()
     })
 
     source.onerror = () => {
+      if (sourceRef.current !== source) return
       setInterrupted(true)
       source.close()
     }
@@ -42,6 +47,7 @@ export function useSSE(orderId: string | null) {
 
   const reset = useCallback(() => {
     sourceRef.current?.close()
+    sourceRef.current = null
     setEvents([])
     setFinalStatus(null)
     setInterrupted(false)

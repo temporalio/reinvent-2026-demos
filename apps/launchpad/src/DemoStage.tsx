@@ -2,6 +2,8 @@ import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent
 import catalog from './catalog.json'
 import './stage.css'
 import { CodeSamples } from './CodeSamples'
+import { ExecutionProgress } from './ExecutionProgress'
+import { readTacoExecution, displayedTacoPhase, type TacoExecution, type PhaseSelection } from './tacoExecution'
 import { ArchitecturePanel } from './ArchitecturePanel'
 import { workflowTarget } from './workflowNavigation'
 import { preferDarkTemporalUi, showInTemporalFrame, styleTemporalFrame } from './temporalFrame'
@@ -44,6 +46,19 @@ export function DemoStage({ demo, persona, temporalUi, notice, onPlaybackChange 
     }
     window.addEventListener('message',focusWorkflow); return ()=>window.removeEventListener('message',focusWorkflow)
   },[temporalUi])
+  const [tacoRun,setTacoRun]=useState<TacoExecution|null>(null)
+  const [phaseSelection,setPhaseSelection]=useState<PhaseSelection>(null)
+  useEffect(()=>{
+    if(demo.id!=='tacos')return
+    function progress(event:MessageEvent) {
+      const next=readTacoExecution(event,window.location.origin,appFrame.current?.contentWindow || null)
+      if(next)setTacoRun(next)
+    }
+    window.addEventListener('message',progress)
+    return ()=>window.removeEventListener('message',progress)
+  },[demo.id])
+  const phase=displayedTacoPhase(tacoRun,phaseSelection)
+  const following=!phaseSelection || phaseSelection.orderId!==tacoRun?.orderId
   const id = useId()
   const buttons = useRef<(HTMLButtonElement|null)[]>([])
   const story = stories[demo.id]
@@ -69,10 +84,11 @@ export function DemoStage({ demo, persona, temporalUi, notice, onPlaybackChange 
     {!holodeck && <section className="stage-information" aria-label="Under the hood">
       <div className="stage-heading"><span>UNDER THE HOOD</span><span>{persona.toUpperCase()}</span></div>
       <div role="tablist" aria-label="Demo information" className="stage-tabs" onKeyDown={navigate}>{tabs.map((t,index)=><button key={t.id} ref={element=>{buttons.current[index]=element}} id={`${id}-${t.id}`} role="tab" aria-selected={tab===t.id} aria-controls={`${id}-panel-${t.id}`} tabIndex={tab===t.id?0:-1} onClick={()=>setTab(t.id)}>{t.label}</button>)}</div>
+      {demo.id==='tacos' && (tab==='architecture' || tab==='code') && <ExecutionProgress run={tacoRun} phase={phase} following={following} onSelect={phase=>setPhaseSelection({orderId:tacoRun?.orderId || null,phase})} onFollow={()=>setPhaseSelection(null)} />}
       {tabs.map(t=><div key={t.id} id={`${id}-panel-${t.id}`} role="tabpanel" aria-labelledby={`${id}-${t.id}`} tabIndex={0} hidden={tab!==t.id} className="stage-tab-content">
         {t.id==='business' && <div className="business-story"><h2>{story?.[0]}</h2><p>{story?.[1]}</p><p className="business-detail">{notice || story?.[2]}</p></div>}
-        {t.id==='architecture' && tab==='architecture' && <ArchitecturePanel demoId={demo.id} />}
-        {t.id==='code' && <CodeSamples demoId={demo.id} />}
+        {t.id==='architecture' && tab==='architecture' && <ArchitecturePanel demoId={demo.id} execution={tacoRun} phase={phase} />}
+        {t.id==='code' && <CodeSamples demoId={demo.id} execution={tacoRun} phase={phase} />}
         {t.id==='temporal' && (temporalUi ? <iframe ref={temporalFrame} title={`${demo.title}: Temporal workflow history`} src={temporalUi} onLoad={event=>styleTemporalFrame(event.currentTarget)} className="stage-temporal" /> : <p>The hosted Temporal UI route has not been enabled for this project. Local preview connects this tab to Temporal OSS.</p>)}
       </div>)}
     </section>}

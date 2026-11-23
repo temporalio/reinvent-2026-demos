@@ -43,6 +43,17 @@ function App() {
 
   const { events, finalStatus, interrupted, reset: resetSSE } = useSSE(orderId)
 
+  // Report this order only; the shared panels do not infer execution from DOM text.
+  useEffect(() => {
+    if (window.parent === window) return
+    const latest = events.findLast(event => event.order_id === orderId)
+    window.parent.postMessage({
+      type: 'booth:tacos-execution', orderId, mode: settings.mode, language: settings.worker_language,
+      step: latest?.step ?? null, status: latest?.status ?? null, attempt: latest?.attempt ?? 0,
+      finalStatus, interrupted,
+    }, window.location.origin)
+  }, [orderId, events, finalStatus, interrupted, settings.mode, settings.worker_language])
+
   // Load settings from backend on mount
   useEffect(() => {
     const read = async (path: string) => {
