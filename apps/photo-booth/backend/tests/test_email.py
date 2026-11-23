@@ -1,4 +1,4 @@
-"""Every outgoing email carries the Temporal logo header."""
+"""Photo Booth emails use Replay branding and attach the visitor’s strip."""
 
 import base64
 import dataclasses
@@ -19,7 +19,7 @@ def _msg(key: str) -> EmailMessage:
 async def test_outbox_email_has_embedded_logo():
     path = await ActivityEnvironment().run(send_email, _msg("logo-outbox"))
     html = open(path).read()
-    assert 'alt="Temporal"' in html and "data:image/png;base64," in html and "<p>body</p>" in html
+    assert 'alt="REPLAY"' in html and "data:image/png;base64," in html and "<p>body</p>" in html
 
 
 async def test_sendgrid_email_attaches_inline_logo(monkeypatch):
@@ -34,9 +34,9 @@ async def test_sendgrid_email_attaches_inline_logo(monkeypatch):
     monkeypatch.setattr(email_mod, "settings", type("S", (), {**{k: getattr(email_mod.settings, k) for k in ("email_from", "data_dir")},
                                                                "email_provider": "sendgrid", "sendgrid_api_key": "test", "email_from": "booth@temporal.test"})())
     assert await ActivityEnvironment().run(send_email, _msg("logo-sg")) == "sendgrid"
-    assert 'src="cid:temporal-logo"' in sent["content"][0]["value"]
+    assert 'src="cid:replay-logo"' in sent["content"][0]["value"]
     att = sent["attachments"][0]
-    assert att["content_id"] == "temporal-logo" and att["disposition"] == "inline" and att["type"] == "image/png"
+    assert att["content_id"] == "replay-logo" and att["disposition"] == "inline" and att["type"] == "image/png"
 
 async def test_sendgrid_attaches_the_actual_strip(monkeypatch, tmp_path):
     configured = dataclasses.replace(email_mod.settings, data_dir=tmp_path, email_provider="sendgrid", sendgrid_api_key="test", email_from="booth@temporal.test")
@@ -73,14 +73,24 @@ def test_photobooth_delivery_matches_replay_layout_and_copy():
     from holodeck.photobooth.workflows import _email_html
 
     body = _email_html()
-    rendered = email_mod.branded_html(body, "cid:temporal-logo")
+    rendered = email_mod.branded_html(body, "cid:replay-logo")
     assert "Thanks for joining us in Las Vegas for AWS re:Invent. Next, join us in San Francisco for Temporal's Replay conference May 17-19, 2027" in body
     assert "Your photo strip is attached." in body
     assert "max-width:560px" in rendered
-    assert "background-color:#1a1a1a" in rendered
-    assert "Arial, Helvetica, sans-serif" in rendered
-    assert "color:#dbff4b" in rendered
-    assert "replay@temporal.io" in rendered
+    assert "background-color:#242231" in rendered
+    assert "Helvetica, Arial, sans-serif" in rendered
+    assert "color:#f47c54" in rendered
+    assert "background-color:#2d2b3b" in rendered
+    assert "border-radius:20px" in rendered
+    for color in ("#f47c54", "#e54e8e", "#f1b84a", "#57a7ba", "#f39a4a"):
+        assert f"background-color:{color}" in rendered
+    assert 'width="240" height="49"' in rendered
+    assert 'alt="REPLAY"' in rendered
+    assert "Book your hotel" not in rendered
+    assert "Marriott" not in rendered and "Hyatt" not in rendered
+    assert "If you have questions about Replay, contact us at" in rendered
+    assert 'href="mailto:replay@temporal.io"' in rendered
+    assert "{{" not in rendered
     # The attendee image is an attachment, not an external image fetch on open.
     assert "<img" not in body
     import re

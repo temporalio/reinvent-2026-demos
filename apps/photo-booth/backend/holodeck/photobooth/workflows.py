@@ -217,7 +217,7 @@ class PhotoBoothWorkflow:
 def _email_html() -> str:
     """Photo strip delivery using the Replay email typography and colors."""
     return """
-<p style="margin:0 0 16px;color:#ffffff;font-family:Arial, Helvetica, sans-serif;font-size:16px;line-height:1.5;">Thanks for joining us in Las Vegas for AWS re:Invent. Next, join us in San Francisco for Temporal's Replay conference May 17-19, 2027</p>
-<p style="margin:0 0 16px;color:#ffffff;font-family:Arial, Helvetica, sans-serif;font-size:16px;line-height:1.5;"><a href="https://replay.temporal.io/?utm_source=reinvent&amp;utm_medium=email&amp;utm_campaign=photobooth_2026" style="color:#dbff4b;text-decoration:underline;">Join us at Replay</a></p>
-<p style="margin:0 0 16px;color:#ffffff;font-family:Arial, Helvetica, sans-serif;font-size:16px;line-height:1.5;">Your photo strip is attached.</p>
+<p style="margin:0 0 16px;color:#ffffff;font-family:Helvetica, Arial, sans-serif;font-size:16px;line-height:1.6;">Thanks for joining us in Las Vegas for AWS re:Invent. Next, join us in San Francisco for Temporal's Replay conference May 17-19, 2027</p>
+<p style="margin:0 0 16px;color:#ffffff;font-family:Helvetica, Arial, sans-serif;font-size:16px;line-height:1.6;"><a href="https://replay.temporal.io/?utm_source=reinvent&amp;utm_medium=email&amp;utm_campaign=photobooth_2026" style="color:#f47c54;text-decoration:underline;">Join us at Replay</a></p>
+<p style="margin:0 0 16px;color:#ffffff;font-family:Helvetica, Arial, sans-serif;font-size:16px;line-height:1.6;">Your photo strip is attached.</p>
 """
