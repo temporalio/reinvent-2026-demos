@@ -55,7 +55,12 @@ def _logo_b64() -> str:
 
 @activity.defn
 async def send_email(msg: EmailMessage) -> str:
-    if settings.email_provider == "sendgrid" and settings.sendgrid_api_key:
+    if settings.email_provider == "sendgrid":
+        if not settings.sendgrid_api_key or settings.sendgrid_api_key.strip().lower() in {"todo", "changeme", "set-me"}:
+            raise RuntimeError("SendGrid is selected but SENDGRID_API_KEY is not configured on this worker")
+        sender = settings.email_from.strip()
+        if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", sender) or sender.lower().endswith("@example.com"):
+            raise RuntimeError("Set HOLODECK_EMAIL_FROM to a verified SendGrid sender")
         payload: dict = {
             "personalizations": [{"to": [{"email": msg.to}]}],
             "from": {"email": settings.email_from, "name": "Temporal Holodeck"},
@@ -68,6 +73,18 @@ async def send_email(msg: EmailMessage) -> str:
                 "content": _logo_b64(), "type": "image/png", "filename": "temporal-logo.png",
                 "disposition": "inline", "content_id": LOGO_CID,
             }]
+        for relative in msg.attachments:
+            root = settings.media_dir.resolve()
+            path = (root / relative).resolve()
+            if not path.is_relative_to(root):
+                raise ValueError("Email attachment must be under the photo media directory")
+            mime = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".gif": "image/gif"}.get(path.suffix.lower())
+            if not mime:
+                raise ValueError("Unsupported photo attachment type")
+            payload.setdefault("attachments", []).append({
+                "content": base64.b64encode(path.read_bytes()).decode(), "type": mime,
+                "filename": path.name, "disposition": "attachment",
+            })
         async with httpx.AsyncClient(timeout=20) as http:
             r = await http.post(
                 "https://api.sendgrid.com/v3/mail/send",
@@ -77,6 +94,8 @@ async def send_email(msg: EmailMessage) -> str:
             r.raise_for_status()
         return "sendgrid"
 
+    if settings.email_provider != "outbox":
+        raise RuntimeError("Unsupported email provider; choose sendgrid or outbox")
     OUTBOX.mkdir(parents=True, exist_ok=True)
     safe = re.sub(r"[^\w.-]", "_", msg.idempotency_key)
     path = OUTBOX / f"{safe}.html"

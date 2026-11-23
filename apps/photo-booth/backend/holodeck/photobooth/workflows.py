@@ -202,7 +202,7 @@ class PhotoBoothWorkflow:
             send_email,
             EmailMessage(to=inp.email, subject="Your Temporal Holodeck photo strip \U0001f680",
                          html=_email_html(inp.public_base_url, strip.url, anim.url),
-                         idempotency_key=f"photobooth-{inp.session_id}"),
+                         idempotency_key=f"photobooth-{inp.session_id}", attachments=[strip.path]),
             activity_id="email", start_to_close_timeout=timedelta(seconds=30),
             schedule_to_close_timeout=timedelta(days=3), retry_policy=PLUMBING_RETRY)
         st.state, st.detail = "done", f"Sent to {inp.email}"

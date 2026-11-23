@@ -4,7 +4,7 @@ COPY web/package.json web/package-lock.json ./
 RUN npm ci
 COPY web/ ./
 RUN npm test && npm run build
-FROM python:3.13-slim
+FROM python:3.13-slim AS runtime
 COPY --from=ghcr.io/astral-sh/uv:0.12.19 /uv /usr/local/bin/uv
 WORKDIR /app
 COPY backend/pyproject.toml backend/uv.lock ./
@@ -16,3 +16,18 @@ ENV PATH="/app/.venv/bin:$PATH" HOLODECK_DATA_DIR=/data
 RUN mkdir -p /data
 EXPOSE 8080
 CMD ["python", "run.py"]
+
+# Explicit CI target: provider calls are mocked and no email is sent.
+FROM runtime AS python-tests
+COPY backend/tests/ tests/
+RUN uv sync --frozen --no-install-project --extra aws --extra openai
+RUN HOLODECK_DATA_DIR=/tmp/photobooth-tests uv run --no-sync pytest -q \
+    tests/test_email.py tests/test_openai_params.py \
+    tests/test_photobooth.py::test_pick_four_rules_over_many_seeds \
+    tests/test_photobooth.py::test_inspired_prompts \
+    tests/test_photobooth.py::test_photo_style_prompts \
+    tests/test_photobooth.py::test_heuristic_framing \
+    tests/test_photobooth.py::test_mock_never_cuts_out_the_visitor \
+    tests/test_photobooth.py::test_cinematic_prompts_prioritize_action_and_scenery
+
+FROM runtime AS final
