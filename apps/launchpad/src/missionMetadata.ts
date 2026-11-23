@@ -19,21 +19,25 @@ export const missionMetadata:Record<string,MissionMetadata> = {
   },
   loan: {
     title:'Loan Underwriting',icon:'humans-in-the-loop',
+    previewImage:'/assets/missions/loan.png',previewAlt:'Loan Underwriting demo interface',
     description:'Let specialist agents assess an application, then make the final lending decision yourself.',
     tags:['Strands','Bedrock','Lambda · hosted','Human approval'],
   },
   'no-roads': {
     title:'No Roads',icon:'long-running',
+    previewImage:'/assets/missions/no-roads.png',previewAlt:'No Roads demo interface',
     description:'Send a burst of jobs and see durable queues absorb demand while workers process the backlog.',
     tags:['Serverless · hosted','Lambda · hosted','Task queues'],
   },
   'agent-harness': {
     title:'Travel Agent',icon:'agents-mcp-ai',
+    previewImage:'/assets/missions/agent-harness.png',previewAlt:'Travel Agent demo interface',
     description:'Plan a trip with an agent. Review its options and approve durable tool calls along the way.',
     tags:['Agent Harness','AI tools','Human approval'],
   },
   'agentic-sdlc': {
     title:'Agentic SDLC',icon:'ci-cd',
+    previewImage:'/assets/missions/agentic-sdlc.png',previewAlt:'Agentic SDLC demo interface',
     description:'Follow development agents from a GitHub request through coding, review, and delivery.',
     tags:['Agent Harness','GitHub','Child Workflows'],
   },

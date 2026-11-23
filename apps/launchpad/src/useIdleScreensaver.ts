@@ -21,6 +21,11 @@ export function idleNavigationTarget(screen:string,demoId:string|undefined,runni
   return screen==='demo'?'missions':'screensaver'
 }
 
+/** The final five seconds of each screen’s idle window display a warning. */
+export function idleDelayForScreen(screen:string):number {
+  return screen==='missions'?55_000:screen==='crew'?30_000:25_000
+}
+
 /** Watch user input in the host and every reachable same-origin iframe document. */
 export function createIdleMonitor({rootDocument,onCountdown,onTimeout,now=Date.now,schedule,idleMs=30_000,countdownMs=5_000}:MonitorOptions):()=>void {
   let deadline=now()+idleMs

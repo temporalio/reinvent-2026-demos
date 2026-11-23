@@ -1,6 +1,6 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
-import {createIdleMonitor,idleScreensaverEnabled,idleNavigationTarget} from '../src/useIdleScreensaver.ts'
+import {createIdleMonitor,idleScreensaverEnabled,idleNavigationTarget,idleDelayForScreen} from '../src/useIdleScreensaver.ts'
 class FakeDocument extends EventTarget {
   frames=[]
   querySelectorAll(){return this.frames}
@@ -73,3 +73,13 @@ test('a nested tap restarts the complete thirty-second demo interval',()=>{
   x.at(29_000);input(app,'pointerdown',{pointerType:'touch'});assert.equal(x.countdown.at(-1),null)
   x.at(58_999);assert.equal(x.expired(),0);x.at(59_000);assert.equal(x.expired(),1)
 })
+
+test('mission picker waits 60 seconds total and a tap resets its complete window',()=>{
+  const x=setup({idleMs:idleDelayForScreen('missions'),countdownMs:5000});
+  x.at(54_999);assert.equal(x.countdown.at(-1),undefined);
+  x.at(55_000);assert.equal(x.countdown.at(-1),5);
+  input(x.doc,'pointerdown');x.at(109_999);assert.equal(x.expired(),0);
+  x.at(110_000);assert.equal(x.countdown.at(-1),5);
+  x.at(114_999);assert.equal(x.expired(),0);x.at(115_000);assert.equal(x.expired(),1);
+  assert.equal(idleDelayForScreen('demo')+5000,30_000);
+});
