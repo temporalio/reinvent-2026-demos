@@ -5,12 +5,15 @@ import { ZiggyChatAgent, type TravelerContext } from "./generated/ZiggyChatAgent
 export const transport = new HttpTransport();
 
 /** What `GET api/view` returns: everything the page needs on load, in one request. */
+/** A session as this demo's API returns it: the harness summary plus its Workflow run ID. */
+export type TripSession = SessionSummary & { run_id?: string | null };
+
 export interface PageView {
   /** Every session this person may name starts with this. */
   session_prefix: string;
   /** This namespace in the Temporal UI. */
   temporal_ui_url: string;
-  sessions: SessionSummary[];
+  sessions: TripSession[];
 }
 
 export async function loadView(): Promise<PageView> {
@@ -35,6 +38,7 @@ export function travelerContext(now = new Date()): TravelerContext {
   };
 }
 
-export function createTrip(sessionId: string): Promise<SessionSummary> {
-  return startSession(transport, ZiggyChatAgent, { sessionId, data: travelerContext() });
+export function createTrip(sessionId: string): Promise<TripSession> {
+  // The demo's POST /sessions adds run_id; the client passes the response through as-is.
+  return startSession(transport, ZiggyChatAgent, { sessionId, data: travelerContext() }) as Promise<TripSession>;
 }

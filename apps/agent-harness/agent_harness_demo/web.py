@@ -243,20 +243,29 @@ def create_app() -> FastAPI:
             f"TaskQueue='{config.TASK_QUEUE}' AND WorkflowId STARTS_WITH '{prefix}' "
             f"AND ExecutionStatus='Running' AND ({types})"
         )
-        sessions = [
-            Session(
-                workflow_id=execution.id,
-                created_at=execution.start_time.timestamp(),
-                label=registry.by_workflow_type(execution.workflow_type).label,
-                agent_workflow_type=execution.workflow_type,
-            )
+        executions = [
+            execution
             async for execution in temporal().list_workflows(query, limit=SESSION_LIST_LIMIT)
         ]
-        return list(
-            await asyncio.gather(
-                *(_session_with_execution_state(temporal(), session) for session in sessions)
+        sessions = await asyncio.gather(
+            *(
+                _session_with_execution_state(
+                    temporal(),
+                    Session(
+                        workflow_id=execution.id,
+                        created_at=execution.start_time.timestamp(),
+                        label=registry.by_workflow_type(execution.workflow_type).label,
+                        agent_workflow_type=execution.workflow_type,
+                    ),
+                )
+                for execution in executions
             )
         )
+        # The run ID lets the page link straight to the run in the Temporal UI.
+        return [
+            {**session, "run_id": execution.run_id}
+            for session, execution in zip(sessions, executions)
+        ]
 
     @api.get("/view")
     async def view(prefix: Owner):
@@ -307,7 +316,13 @@ def create_app() -> FastAPI:
             label=descriptor.label,
             agent_workflow_type=req.agent_workflow_type,
         )
-        return await _session_with_execution_state(temporal(), session)
+        # The run ID lets the page link straight to the run: a run-less Temporal UI link
+        # finds the run with a list query, which on Temporal Cloud trails a new start by
+        # a moment, so the booth's Temporal UI panel would open a 404 for a new trip.
+        return {
+            **await _session_with_execution_state(temporal(), session),
+            "run_id": handle.first_execution_run_id,
+        }
 
     @api.get("/workflow-status/{workflow_id}")
     async def workflow_status(workflow_id: str, prefix: Owner):

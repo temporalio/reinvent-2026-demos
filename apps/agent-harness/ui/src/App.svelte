@@ -12,15 +12,18 @@
   let loadError = $state<string | null>(null);
   // The session the page shows, and the one it is creating (null once created).
   let sessionId = $state<string | null>(null);
+  // Its Workflow run, when known, so the Temporal UI link opens the run directly.
+  let runId = $state<string | null>(null);
   let creating = $state<string | null>(null);
   let preview = $state<boolean | null>(null);
   let previewNotice = $state<string | null>(null);
 
-  function show(id: string) {
+  function show(id: string, run: string | null = null) {
     const url = new URL(location.href);
     url.searchParams.set("s", id);
     history.replaceState(null, "", url);
     sessionId = id;
+    runId = run;
   }
 
   function newTrip() {
@@ -31,10 +34,10 @@
     creating = id;
     sessionId = null;
     createTrip(id).then(
-      () => {
+      (session) => {
         if (creating === id) {
           creating = null;
-          show(id);
+          show(id, session.run_id ?? null);
         }
       },
       (error: Error) => {
@@ -59,15 +62,22 @@
       const latest = loaded.sessions
         .filter((s) => !s.closed)
         .sort((a, b) => b.created_at - a.created_at)[0];
-      if (requested?.startsWith(loaded.session_prefix)) show(requested);
-      else if (latest) show(latest.workflow_id);
+      if (requested?.startsWith(loaded.session_prefix)) {
+        show(requested, loaded.sessions.find((s) => s.workflow_id === requested)?.run_id ?? null);
+      } else if (latest) show(latest.workflow_id, latest.run_id ?? null);
       else if (!preview) newTrip();
     },
     (error: Error) => (loadError = error.message),
   );
 
+  // With the run ID the link opens the run itself. Without one the Temporal UI looks the
+  // run up with a list query, which on Temporal Cloud misses a Workflow started a moment
+  // ago, and the booth's Temporal UI panel follows this link as soon as it appears.
   const workflowLink = $derived(
-    view && sessionId ? `${view.temporal_ui_url}/workflows/${encodeURIComponent(sessionId)}` : null,
+    view && sessionId
+      ? `${view.temporal_ui_url}/workflows/${encodeURIComponent(sessionId)}` +
+          (runId ? `/${encodeURIComponent(runId)}/timeline` : "")
+      : null,
   );
   const consoleLink = $derived(sessionId ? `console/?s=${encodeURIComponent(sessionId)}` : "console/");
 </script>
