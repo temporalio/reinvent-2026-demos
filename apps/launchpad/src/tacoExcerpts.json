@@ -1,0 +1,52 @@
+{
+  "order": {
+    "startLine": 57,
+    "endLine": 64,
+    "code": "# Step 1: Validate Order\nself._status = \"validating_order\"\nawait workflow.execute_activity(\n    validate_order_activity,\n    order_input,\n    start_to_close_timeout=timedelta(seconds=10),\n    retry_policy=DEFAULT_RETRY,\n)"
+  },
+  "kitchen": {
+    "startLine": 109,
+    "endLine": 119,
+    "code": "await workflow.execute_activity(\n    submit_to_store_activity,\n    order_input,\n    start_to_close_timeout=timedelta(seconds=10),\n    retry_policy=RetryPolicy(\n        initial_interval=timedelta(seconds=2),\n        backoff_coefficient=1.5,\n        maximum_interval=timedelta(seconds=8),\n        maximum_attempts=10,\n    ),\n)"
+  },
+  "ready": {
+    "startLine": 121,
+    "endLine": 130,
+    "code": "# Step 6: Wait for order ready signal (human in the loop)\nself._status = \"preparing\"\ntry:\n    await workflow.wait_condition(\n        lambda: self._order_ready, timeout=KITCHEN_WAIT_TIMEOUT\n    )\nexcept asyncio.TimeoutError:\n    # No word from the kitchen: complete the order anyway so the\n    # Workflow doesn't stay open.\n    workflow.logger.info(f\"Order {order_id} auto-completed\")"
+  },
+  "finish": {
+    "startLine": 132,
+    "endLine": 147,
+    "code": "# Step 7: Capture Payment (only after store confirms)\nself._status = \"capturing_payment\"\nawait workflow.execute_activity(\n    capture_payment_activity,\n    {**order_input, \"authorization_id\": authorization_id},\n    start_to_close_timeout=timedelta(seconds=15),\n    retry_policy=DEFAULT_RETRY,\n)\n\n# Notify customer of success\nself._status = \"completed\"\nawait workflow.execute_activity(\n    notify_customer_activity,\n    {**order_input, \"success\": True},\n    start_to_close_timeout=timedelta(seconds=10),\n)"
+  },
+  "recovery": {
+    "startLine": 156,
+    "endLine": 170,
+    "code": "# asyncio.shield ensures compensations run even if workflow is cancelled\nasync def run_compensations():\n    for comp_name, comp_input in reversed(compensations):\n        if comp_name == \"release_payment\":\n            try:\n                await workflow.execute_activity(\n                    release_payment_hold_activity,\n                    comp_input,\n                    start_to_close_timeout=timedelta(seconds=10),\n                    retry_policy=RetryPolicy(maximum_attempts=5),\n                )\n            except Exception as comp_err:\n                workflow.logger.error(\n                    f\"Compensation failed for {comp_name}: {comp_err}\"\n                )"
+  },
+  "validate_store": {
+    "startLine": 66,
+    "endLine": 73,
+    "code": "# Step 2: Validate Store\nself._status = \"validating_store\"\nawait workflow.execute_activity(\n    validate_store_activity,\n    order_input,\n    start_to_close_timeout=timedelta(seconds=10),\n    retry_policy=DEFAULT_RETRY,\n)"
+  },
+  "authorize_payment": {
+    "startLine": 80,
+    "endLine": 95,
+    "code": "self._status = \"authorizing_payment\"\ncompensations.append((\"release_payment\", {**order_input}))\npayment_result = await workflow.execute_activity(\n    authorize_payment_activity,\n    order_input,\n    start_to_close_timeout=timedelta(seconds=15),\n    retry_policy=DEFAULT_RETRY,\n)\nauthorization_id = payment_result[\"authorization_id\"]\n# Update compensation input with the actual authorization_id\ncompensations[-1] = (\n    \"release_payment\",\n    {**order_input, \"authorization_id\": authorization_id},\n)\n\n# Step 4: Clear Cart"
+  },
+  "clear_cart": {
+    "startLine": 97,
+    "endLine": 104,
+    "code": "await workflow.execute_activity(\n    clear_cart_activity,\n    order_input,\n    start_to_close_timeout=timedelta(seconds=5),\n    retry_policy=DEFAULT_RETRY,\n)\n\n# Step 5: Submit to Store"
+  },
+  "capture_payment": {
+    "startLine": 132,
+    "endLine": 139,
+    "code": "# Step 7: Capture Payment (only after store confirms)\nself._status = \"capturing_payment\"\nawait workflow.execute_activity(\n    capture_payment_activity,\n    {**order_input, \"authorization_id\": authorization_id},\n    start_to_close_timeout=timedelta(seconds=15),\n    retry_policy=DEFAULT_RETRY,\n)"
+  },
+  "notify_customer_success": {
+    "startLine": 141,
+    "endLine": 147,
+    "code": "# Notify customer of success\nself._status = \"completed\"\nawait workflow.execute_activity(\n    notify_customer_activity,\n    {**order_input, \"success\": True},\n    start_to_close_timeout=timedelta(seconds=10),\n)"
+  }
+}
