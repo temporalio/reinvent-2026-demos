@@ -73,7 +73,7 @@ async def create_session(body: SessionBody, x_station: str | None = Header(defau
     session_id = uuid.uuid4().hex[:10]
     client = await get_client()
     workflow_id = _handle(session_id, station)
-    await client.start_workflow(
+    handle = await client.start_workflow(
         FlightSessionWorkflow.run,
         SessionInput(session_id=session_id, station=station, email=body.email, consent_text_version=body.consent_text_version),
         id=workflow_id,
@@ -83,7 +83,7 @@ async def create_session(body: SessionBody, x_station: str | None = Header(defau
     return {
         "session_id": session_id,
         "workflow_id": workflow_id,
-        "temporal_ui_url": workflow_ui_url(workflow_id),
+        "temporal_ui_url": workflow_ui_url(workflow_id, handle.first_execution_run_id),
         "name": display_name(body.email, session_id),
     }
 

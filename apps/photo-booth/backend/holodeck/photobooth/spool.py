@@ -24,7 +24,7 @@ from .workflows import PhotoBoothInput
 
 log = logging.getLogger(__name__)
 
-StartFn = Callable[[str, PhotoBoothInput], Awaitable[None]]
+StartFn = Callable[[str, PhotoBoothInput], Awaitable[object]]
 
 
 @dataclasses.dataclass

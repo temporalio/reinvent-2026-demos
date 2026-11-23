@@ -63,23 +63,28 @@ func SubmitHandler(tc client.Client) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(SubmitResponse{
 			WorkflowID:    we.GetID(),
-			TemporalUIURL: workflowUIURL(we.GetID()),
+			TemporalUIURL: workflowUIURL(we.GetID(), we.GetRunID()),
 			Message:       "workflow started",
 		})
 	}
 }
 
-// workflowUIURL links to the workflow in the Temporal UI, from the UI base and
+// workflowUIURL links to the run in the Temporal UI, from the UI base and
 // qualified namespace Fieldkit injects (the local preview sets both too), or
 // returns "" when either is missing. TEMPORAL_NAMESPACE is not used: it can
 // differ from the UI's namespace.
-func workflowUIURL(workflowID string) string {
+//
+// The run ID matters: without one the UI finds the run through a list query,
+// and Temporal Cloud's list results trail a new start by a moment, so a link
+// followed right away shows a 404.
+func workflowUIURL(workflowID, runID string) string {
 	base := strings.TrimRight(os.Getenv("TEMPORAL_UI_URL"), "/")
 	namespace := os.Getenv("TEMPORAL_UI_NAMESPACE")
 	if base == "" || namespace == "" {
 		return ""
 	}
-	return base + "/namespaces/" + url.PathEscape(namespace) + "/workflows/" + url.PathEscape(workflowID)
+	return base + "/namespaces/" + url.PathEscape(namespace) + "/workflows/" +
+		url.PathEscape(workflowID) + "/" + url.PathEscape(runID) + "/timeline"
 }
 
 // sanitizeName strips characters that aren't safe in a Temporal workflow ID.

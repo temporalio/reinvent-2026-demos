@@ -32,14 +32,18 @@ data = {
 }
 
 
-def temporal_workflow_url(workflow_id: str) -> str | None:
-    """Link to the Workflow in the Temporal UI, from the UI base and qualified namespace Fieldkit injects
-    (the local preview sets both too). TEMPORAL_NAMESPACE is not used: it can differ from the UI's namespace."""
+def temporal_workflow_url(workflow_id: str, run_id: str) -> str | None:
+    """Link to the run in the Temporal UI, from the UI base and qualified namespace Fieldkit injects
+    (the local preview sets both too). TEMPORAL_NAMESPACE is not used: it can differ from the UI's namespace.
+
+    The run ID matters: without one the UI finds the run through a list query, and Temporal Cloud's
+    list results trail a new start by a moment, so a link followed right away shows a 404."""
     base = os.getenv("TEMPORAL_UI_URL")
     namespace = os.getenv("TEMPORAL_UI_NAMESPACE")
     if not base or not namespace:
         return None
-    return f"{base.rstrip('/')}/namespaces/{quote(namespace, safe='')}/workflows/{quote(workflow_id, safe='')}"
+    workflow_path = f"{quote(workflow_id, safe='')}/{quote(run_id, safe='')}"
+    return f"{base.rstrip('/')}/namespaces/{quote(namespace, safe='')}/workflows/{workflow_path}/timeline"
 
 
 @app.route("/", methods=["GET", "POST"])
@@ -72,14 +76,14 @@ async def run_job() -> str | tuple[str, int]:
 
     workflow_id = f"job-{job_id}"
     if selected_scenario == "HappyPath":
-        await client.start_workflow(
+        handle = await client.start_workflow(
             "DataPipelineWorkflowHappyPath",
             input,
             id=workflow_id,
             task_queue=os.getenv("TEMPORAL_TASK_QUEUE", "worker_specific_task_queue-distribution-queue"),
         )
     else:
-        await client.start_workflow(
+        handle = await client.start_workflow(
             "DataPipeline" + selected_scenario,
             input,
             id=workflow_id,
@@ -90,7 +94,7 @@ async def run_job() -> str | tuple[str, int]:
         "job_progress.html",
         selected_scenario=selected_scenario,
         job_id=job_id,
-        workflow_url=temporal_workflow_url(workflow_id),
+        workflow_url=temporal_workflow_url(workflow_id, handle.first_execution_run_id),
     )
 
 

@@ -101,12 +101,20 @@ async def get_client() -> Client:
     return _client
 
 
-def workflow_ui_url(workflow_id: str) -> str | None:
-    """Link to the workflow in the Temporal UI, if one is configured."""
+def workflow_ui_url(workflow_id: str, run_id: str | None = None) -> str | None:
+    """Link to the workflow in the Temporal UI, if one is configured.
+
+    Pass the run ID for a workflow that just started: without one the UI finds the
+    run through a list query, and Temporal Cloud's list results trail a new start
+    by a moment, so a link followed right away shows a 404.
+    """
     if not settings.temporal_ui_url or not settings.temporal_ui_namespace:
         return None
     namespace = quote(settings.temporal_ui_namespace, safe="")
-    return f"{settings.temporal_ui_url.rstrip('/')}/namespaces/{namespace}/workflows/{quote(workflow_id, safe='')}"
+    workflow = quote(workflow_id, safe="")
+    if run_id:
+        workflow += f"/{quote(run_id, safe='')}/timeline"
+    return f"{settings.temporal_ui_url.rstrip('/')}/namespaces/{namespace}/workflows/{workflow}"
 
 
 def wf_id(demo: str, suffix: str, station: str | None = None) -> str:

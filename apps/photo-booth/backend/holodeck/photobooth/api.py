@@ -33,10 +33,12 @@ spool = Spool(settings.data_dir / "photobooth_spool.sqlite")
 START_TIMEOUT = timedelta(seconds=4)
 
 
-async def start_workflow(workflow_id: str, inp: PhotoBoothInput) -> None:
+async def start_workflow(workflow_id: str, inp: PhotoBoothInput) -> str:
+    """Start the session's workflow and return its run ID."""
     client = await asyncio.wait_for(get_client(), START_TIMEOUT.total_seconds())
-    await client.start_workflow(PhotoBoothWorkflow.run, inp, id=workflow_id, task_queue=settings.task_queue,
-                                rpc_timeout=START_TIMEOUT)
+    handle = await client.start_workflow(PhotoBoothWorkflow.run, inp, id=workflow_id, task_queue=settings.task_queue,
+                                         rpc_timeout=START_TIMEOUT)
+    return handle.first_execution_run_id
 
 
 @asynccontextmanager
@@ -116,11 +118,17 @@ async def start_session(req: StartRequest, x_station: str | None = Header(defaul
 
     # 2. Then try the network. Failure is fine: the spool drainer keeps trying.
     row = spool.get(session_id)
-    started = bool(row) and await spool.try_start(row, start_workflow)
+    run_id: str | None = None
+
+    async def start_now(workflow_id: str, inp: PhotoBoothInput) -> None:
+        nonlocal run_id  # the processing screen links to this run (see workflow_ui_url)
+        run_id = await start_workflow(workflow_id, inp)
+
+    started = bool(row) and await spool.try_start(row, start_now)
     if not started:
         log.warning("photo booth session %s spooled; Temporal unreachable", session_id)
     return {"session_id": session_id, "workflow_id": workflow_id, "spooled": not started, "provider": inp.provider,
-            "temporal_ui_url": workflow_ui_url(workflow_id) if started else None}
+            "temporal_ui_url": workflow_ui_url(workflow_id, run_id) if run_id else None}
 
 
 @router.get("/sessions/{session_id}")

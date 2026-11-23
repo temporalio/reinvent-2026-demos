@@ -158,26 +158,33 @@ def _build_dummy_applicant(index: int) -> LoanApplicant:
     )
 
 
-def _temporal_workflow_url(workflow_id: str) -> str | None:
-    """Link to the Workflow in the Temporal UI, from the UI base and qualified namespace Fieldkit injects
-    (the local preview sets both too). TEMPORAL_NAMESPACE is not used: it can differ from the UI's namespace."""
+def _temporal_workflow_url(workflow_id: str, run_id: str) -> str | None:
+    """Link to the run in the Temporal UI, from the UI base and qualified namespace Fieldkit injects
+    (the local preview sets both too). TEMPORAL_NAMESPACE is not used: it can differ from the UI's namespace.
+
+    The run ID matters: without one the UI finds the run through a list query, and Temporal Cloud's
+    list results trail a new start by a moment, so a link followed right away shows a 404."""
     base = os.getenv("TEMPORAL_UI_URL")
     namespace = os.getenv("TEMPORAL_UI_NAMESPACE")
     if not base or not namespace:
         return None
-    return f"{base.rstrip('/')}/namespaces/{quote(namespace, safe='')}/workflows/{quote(workflow_id, safe='')}"
+    workflow_path = f"{quote(workflow_id, safe='')}/{quote(run_id, safe='')}"
+    return f"{base.rstrip('/')}/namespaces/{quote(namespace, safe='')}/workflows/{workflow_path}/timeline"
 
 
-async def _start_application_workflow(client: Client, applicant: LoanApplicant) -> str:
-    """Start the supervisor underwriting workflow (LENNY over sub-agents)."""
+async def _start_application_workflow(client: Client, applicant: LoanApplicant) -> dict:
+    """Start the supervisor underwriting workflow (LENNY over sub-agents); returns the apply response."""
     workflow_id = f"loan-{applicant.id}-{generate(size=6)}"
-    await client.start_workflow(
+    handle = await client.start_workflow(
         LoanUnderwritingSupervisorWorkflow.run,
         applicant,
         id=workflow_id,
         task_queue=TASK_QUEUE,
     )
-    return workflow_id
+    return {
+        "workflow_id": workflow_id,
+        "temporal_ui_url": _temporal_workflow_url(workflow_id, handle.first_execution_run_id),
+    }
 
 
 async def _signal_decision(client: Client, workflow_id: str, decision: str) -> None:
@@ -208,9 +215,7 @@ async def apply_custom(body: CustomApplicantRequest):
     )
 
     client = await get_client()
-    workflow_id = await _start_application_workflow(client, applicant)
-
-    return {"workflow_id": workflow_id, "temporal_ui_url": _temporal_workflow_url(workflow_id)}
+    return await _start_application_workflow(client, applicant)
 
 
 @app.post("/apply/bulk")
@@ -244,9 +249,7 @@ async def apply(profile_id: str):
         raise HTTPException(status_code=404, detail=f"Profile '{profile_id}' not found")
 
     client = await get_client()
-    workflow_id = await _start_application_workflow(client, applicant)
-
-    return {"workflow_id": workflow_id, "temporal_ui_url": _temporal_workflow_url(workflow_id)}
+    return await _start_application_workflow(client, applicant)
 
 
 @app.get("/assessment/{workflow_id}")
