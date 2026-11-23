@@ -304,3 +304,14 @@ async def test_provider_errors_are_retried_with_a_short_message():
         assert e.type == "RuntimeError" and len(e.message) < 400 and e.__cause__ is None and not e.non_retryable
     else:
         raise AssertionError("expected ApplicationError")
+
+def test_cinematic_prompts_prioritize_action_and_scenery():
+    from holodeck.photobooth.scenes import SCENES
+    for scene in SCENES:
+        prompt=scene_prompt(scene)
+        assert "foreground, midground and distant scenery" in prompt
+        assert "environment should fill most of the image" in prompt
+        assert "pasted photo" in prompt and "Do not render titles" in prompt
+    assert "hover-racer" in BY_ID["grand_prix"].action
+    assert BY_ID["grand_prix"].backdrop != "podium"
+    assert "white spacesuit" not in BY_ID["kepler_explorer"].action
