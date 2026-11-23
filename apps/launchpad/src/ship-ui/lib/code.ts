@@ -28,20 +28,20 @@ export interface SdkInfo {
 }
 
 const kw = (s: string) => new Set(s.split(/\s+/).filter(Boolean))
-const C_LIKE = 'if else for while return new public private static final class interface var let const function async await import package using namespace try catch throw'
+const C_LIKE = 'if else for while do break continue switch case default return new public private static final class interface var let const function async await import package using namespace try catch finally throw'
 
 export const SDK_INFO: Record<SdkId, SdkInfo> = {
   java: { label: 'Java', sdk: 'io.temporal:temporal-sdk', syntax: { comment: '//', keywords: kw(`${C_LIKE} implements extends void int boolean this null true false`) } },
-  dotnet: { label: '.NET', sdk: 'Temporalio (C#)', syntax: { comment: '//', keywords: kw(`${C_LIKE} readonly foreach in is int null true false`) } },
-  typescript: { label: 'TypeScript', sdk: '@temporalio/workflow', syntax: { comment: '//', keywords: kw(`${C_LIKE} export type from of as`) } },
-  go: { label: 'Go', sdk: 'go.temporal.io/sdk', syntax: { comment: '//', keywords: kw('package import func var return if else for range err nil type struct make append len defer go') } },
+  dotnet: { label: '.NET', sdk: 'Temporalio (C#)', syntax: { comment: '//', keywords: kw(`${C_LIKE} readonly foreach in is int string bool void null true false`) } },
+  typescript: { label: 'TypeScript', sdk: '@temporalio/workflow', syntax: { comment: '//', keywords: kw(`${C_LIKE} export type from of as void null undefined true false`) } },
+  go: { label: 'Go', sdk: 'go.temporal.io/sdk', syntax: { comment: '//', keywords: kw('package import func var const return if else for range break continue switch case default select chan map interface err nil true false type struct make append len defer go') } },
   python: {
     label: 'Python', sdk: 'temporalio',
-    syntax: { comment: '#', tripleQuotes: true, keywords: kw('from import with as class def async await return for in if else try except lambda self None True False') },
+    syntax: { comment: '#', tripleQuotes: true, keywords: kw('from import with as class def async await return for while in if elif else try except finally raise pass break continue yield lambda and or not is self None True False') },
   },
   rust: { label: 'Rust', sdk: 'temporalio-sdk', preview: true, syntax: { comment: '//', keywords: kw('use pub fn struct impl let mut for in if else match async await return move Self self crate Ok Err Some None') } },
   ruby: { label: 'Ruby', sdk: 'temporalio (gem)', syntax: { comment: '#', keywords: kw('require require_relative module class def end do if else unless each map begin rescue ensure raise return true false nil self') } },
-  php: { label: 'PHP', sdk: 'temporal/sdk', syntax: { comment: '//', keywords: kw('namespace use function fn return class public private new foreach as for if else try catch yield declare implements array null true false') } },
+  php: { label: 'PHP', sdk: 'temporal/sdk', syntax: { comment: '//', keywords: kw('namespace use function fn return class public private static self new foreach as for if else try catch finally throw yield declare implements array int string bool void null true false') } },
 }
 
 export interface CodeLine {
