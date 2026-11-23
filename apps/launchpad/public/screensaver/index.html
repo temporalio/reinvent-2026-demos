@@ -351,7 +351,7 @@
             "lead": "Order tacos from orbit, then",
             "mark": "cut the kitchen uplink",
             "rest": " and recover the order.",
-            "url": "/?screen=crew",
+            "url": "/?demo=tacos",
             "id": "tacos"
       },
       {
@@ -366,7 +366,7 @@
             "lead": "Move credits between accounts.",
             "mark": "Interrupt the transfer",
             "rest": " and inspect compensation.",
-            "url": "/?screen=crew",
+            "url": "/?demo=money-transfer",
             "id": "money-transfer"
       },
       {
@@ -381,7 +381,7 @@
             "lead": "Validate and transform mission data.",
             "mark": "Recover a failed step",
             "rest": " without starting over.",
-            "url": "/?screen=crew",
+            "url": "/?demo=data-pipeline",
             "id": "data-pipeline"
       },
       {
@@ -396,7 +396,7 @@
             "lead": "Assess an application with Strands agents.",
             "mark": "Pause for human review",
             "rest": " before the decision.",
-            "url": "/?screen=crew",
+            "url": "/?demo=loan",
             "id": "loan"
       },
       {
@@ -411,7 +411,7 @@
             "lead": "Send jobs to serverless workers.",
             "mark": "Watch backlog and concurrency",
             "rest": " on AWS Lambda.",
-            "url": "/?screen=crew",
+            "url": "/?demo=no-roads",
             "id": "no-roads"
       },
       {
@@ -426,7 +426,7 @@
             "lead": "Build a trip with an AI agent.",
             "mark": "Approve the next booking",
             "rest": " and follow each durable tool call.",
-            "url": "/?screen=crew",
+            "url": "/?demo=agent-harness",
             "id": "agent-harness"
       },
       {
@@ -441,7 +441,7 @@
             "lead": "GitHub-driven development agents.",
             "mark": "Staff setup required",
             "rest": " before this mission can launch.",
-            "url": "/?screen=crew",
+            "url": "/?demo=agentic-sdlc",
             "id": "agentic-sdlc"
       },
       {
@@ -456,7 +456,7 @@
             "lead": "Take the controls for a flight mission.",
             "mark": "Explore the galaxy",
             "rest": " with Temporal behind the scenes.",
-            "url": "/?screen=crew",
+            "url": "/?demo=flight-simulator",
             "id": "flight-simulator"
       },
       {
@@ -471,7 +471,7 @@
             "lead": "Step into the Photo Booth.",
             "mark": "Become a space explorer",
             "rest": " and create an AI photo strip.",
-            "url": "/?screen=crew",
+            "url": "/?demo=photo-booth",
             "id": "photo-booth"
       },
       {
@@ -487,7 +487,7 @@
             "lead": "Watch Cornelia Davis demonstrate AgentCore.",
             "mark": "Silent video",
             "rest": " with touch playback controls.",
-            "url": "/?screen=crew"
+            "url": "/?demo=agentcore-video"
       },
       {
             "id": "agentcore-research",
@@ -502,7 +502,7 @@
             "lead": "Shubham’s AgentCore research demo.",
             "mark": "Coming soon",
             "rest": " — a new AI research mission is on its way.",
-            "url": "/?screen=crew"
+            "url": "/?demo=agentcore-research"
       }
 ];
 
@@ -583,8 +583,8 @@
       } else {
         p.append(keep, deck.rest);
       }
-      launch.setAttribute("aria-label", `Choose your crew to explore ${deck.title}`);
-      launch.href = "/?screen=crew";
+      launch.setAttribute("aria-label", `Launch ${deck.title}`);
+      launch.href = deck.url;
       launch.removeAttribute("target");
       launch.removeAttribute("aria-disabled");
       card.classList.remove("is-swapping");
@@ -618,10 +618,10 @@
 
     launch.addEventListener("click", event => {
       event.preventDefault();
-      window.boothExitScreensaver();
+      if(selected)window.boothLaunchDemo(selected.deck.id);
     });
 
-    // Planet/card taps stay interactive. Every exit starts with crew selection.
+    // Background taps start Crew; planet cards launch their selected demo.
     addEventListener("pointerdown", e => {
       if (e.target.closest(".planet, .card-overview")) return;
       window.boothExitScreensaver();

@@ -44,3 +44,7 @@
 .missions .mission-tags li,.missions .mission-icon { background:#08090dcc; }
 .missions .mission-card button { background:#08090de8; color:var(--brand-highlight); backdrop-filter:blur(3px); }
 .missions .mission-card button:disabled { opacity:.65; }
+
+/* Main mission art is randomized once per screen visit, with an opaque title backing. */
+.missions-main .mission-card-heading { padding:.3em .4em; background:linear-gradient(90deg,#08090df5,#08090ddc); }
+.missions-main .mission-card-heading h2 { background:transparent; box-shadow:none; }
