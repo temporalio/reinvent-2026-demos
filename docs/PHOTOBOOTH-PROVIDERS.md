@@ -49,7 +49,11 @@ Booth worker has picked up the new secret version before testing delivery.
 Missing/placeholder SendGrid credentials now fail the email Activity rather than
 silently producing an outbox file. Temporal can retry delivery after configuration
 is repaired. The outgoing email includes the static JPEG strip as an attachment,
-plus the existing animated preview and download links. SendGrid accepting a message
+with Replay’s charcoal, white, and lime email layout. The subject is
+“Thanks for visiting Temporal's Photo Booth”. The Replay link uses
+`utm_source=reinvent`, `utm_medium=email`, and `utm_campaign=photobooth_2026`.
+Attendee images are attached rather than loaded remotely when the email opens.
+SendGrid accepting a message
 is not proof it reached the recipient; confirm receipt with a consenting test user
 and inspect SendGrid delivery/bounce events if it does not arrive.
 

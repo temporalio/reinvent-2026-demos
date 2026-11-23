@@ -38,15 +38,26 @@ class EmailMessage:
 
 def branded_html(body: str, logo_src: str) -> str:
     """Wrap a demo's email body with the Temporal logo header."""
-    return f"""<div style="background:#05060d;margin:0;padding:0">
-  <div style="padding:28px 32px 4px;text-align:center">
-    <img src="{logo_src}" width="44" height="44" alt="Temporal"
-      style="display:inline-block;vertical-align:middle;border:0;width:44px;height:44px">
-    <span style="display:inline-block;vertical-align:middle;margin-left:12px;color:#ffffff;
-      font-family:Helvetica,Arial,sans-serif;font-size:26px;font-weight:700;letter-spacing:0.5px">Temporal</span>
-  </div>
-  {body}
-</div>"""
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark"></head>
+<body style="margin:0;padding:0;background-color:#1a1a1a;font-family:Arial, Helvetica, sans-serif;">
+<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background-color:#1a1a1a;">
+<tr><td align="center" style="padding:32px 16px;">
+<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:560px;">
+<tr><td style="padding:0 0 24px;text-align:left;">
+<img src="{logo_src}" width="44" height="44" alt="Temporal" style="vertical-align:middle;border:0;">
+<span style="vertical-align:middle;margin-left:12px;color:#ffffff;font-family:Arial, Helvetica, sans-serif;font-size:26px;font-weight:700;">Temporal</span>
+</td></tr>
+<tr><td style="padding:0;color:#ffffff;font-family:Arial, Helvetica, sans-serif;font-size:16px;line-height:1.5;text-align:left;">
+{body}
+</td></tr>
+<tr><td style="padding-top:24px;border-top:1px solid #333333;color:#9ca3af;font-family:Arial, Helvetica, sans-serif;font-size:12px;line-height:1.6;text-align:left;">
+<p style="margin:0 0 8px;">Need help? Email us at <a href="mailto:replay@temporal.io" style="color:#dbff4b;text-decoration:underline;">replay@temporal.io</a>.</p>
+</td></tr>
+</table></td></tr></table>
+</body></html>"""
 
 
 def _logo_b64() -> str:
