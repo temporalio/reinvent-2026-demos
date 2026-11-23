@@ -109,6 +109,10 @@ if (boothParams.get('booth') === '1' || parentBoothFrame) {
         if(['auto','scroll'].includes(style.overflowY) || ['auto','scroll'].includes(style.overflowX) ||
           (style.overflowY==='hidden' && element.scrollHeight>element.clientHeight+2 && element.querySelector('button,input,select,textarea')))element.dataset.boothScrollfit='true'
       })
+      // Fixed layers (backdrops such as Travel Agent's grid floor) are pinned to the viewport,
+      // not page content. One sized from the canvas width grows with every pass below and
+      // would shrink the page toward nothing, so they and their contents are not measured.
+      const fixedLayers=[...document.querySelectorAll('body *')].filter(element=>getComputedStyle(element).position==='fixed')
       let scale=1
       // Keep the fitted canvas full width. Reflowing at its virtual width also
       // avoids needlessly shrinking long labels and forms into a narrow column.
@@ -116,7 +120,7 @@ if (boothParams.get('booth') === '1' || parentBoothFrame) {
         body.style.width=(innerWidth/scale)+'px'
         let bottom=Math.max(innerHeight,body.getBoundingClientRect().bottom), right=innerWidth/scale
         document.querySelectorAll('body *').forEach(element=>{
-          if(element.closest('dialog:not([open]),[hidden]'))return
+          if(element.closest('dialog:not([open]),[hidden]') || fixedLayers.some(layer=>layer.contains(element)))return
           const rect=element.getBoundingClientRect()
           if(rect.width && rect.height && getComputedStyle(element).visibility!=='hidden') {
             bottom=Math.max(bottom,rect.bottom)
