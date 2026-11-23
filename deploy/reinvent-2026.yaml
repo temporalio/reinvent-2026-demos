@@ -363,10 +363,9 @@ spec:
       - name: GITHUB_WEBHOOK_SECRET
         valueFrom:
           inputRef: secrets.runtime.GITHUB_WEBHOOK_SECRET
-      # Not chosen yet: a booth-owned sandbox repo, never the SA storefront.
-      # Agentic SDLC stays disabled in the launchpad until this is set.
+      # Booth-owned sandbox. Hosted token/webhook setup and rehearsal remain required.
       - name: GITHUB_SANDBOX_REPO
-        value: set-me/reinvent-sdlc-sandbox
+        value: temporal-aws-reinvent-2026/reinvent-sdlc-sandbox
     sdlc-worker-v1:
       build: sdlc
       command:
@@ -389,10 +388,9 @@ spec:
         value: v1
       - name: WEB_INTERNAL_URL
         value: http://sdlc-web:8000
-      # Not chosen yet: a booth-owned sandbox repo, never the SA storefront.
-      # Agentic SDLC stays disabled in the launchpad until this is set.
+      # Booth-owned sandbox. Hosted token/webhook setup and rehearsal remain required.
       - name: GITHUB_SANDBOX_REPO
-        value: set-me/reinvent-sdlc-sandbox
+        value: temporal-aws-reinvent-2026/reinvent-sdlc-sandbox
       - name: RUN_BUDGET_USD
         value: '3.00'
     sdlc-worker-v2:
@@ -417,10 +415,9 @@ spec:
         value: v2
       - name: WEB_INTERNAL_URL
         value: http://sdlc-web:8000
-      # Not chosen yet: a booth-owned sandbox repo, never the SA storefront.
-      # Agentic SDLC stays disabled in the launchpad until this is set.
+      # Booth-owned sandbox. Hosted token/webhook setup and rehearsal remain required.
       - name: GITHUB_SANDBOX_REPO
-        value: set-me/reinvent-sdlc-sandbox
+        value: temporal-aws-reinvent-2026/reinvent-sdlc-sandbox
       - name: RUN_BUDGET_USD
         value: '3.00'
   redis:
