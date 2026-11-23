@@ -28,6 +28,7 @@ RUN HOLODECK_DATA_DIR=/tmp/photobooth-tests uv run --no-sync pytest -q \
     tests/test_photobooth.py::test_photo_style_prompts \
     tests/test_photobooth.py::test_heuristic_framing \
     tests/test_photobooth.py::test_mock_never_cuts_out_the_visitor \
-    tests/test_photobooth.py::test_cinematic_prompts_prioritize_action_and_scenery
+    tests/test_photobooth.py::test_cinematic_prompts_prioritize_action_and_scenery \
+    tests/test_photobooth.py::test_featured_strips_choose_four_distinct_adventures_with_varied_order
 
 FROM runtime AS final

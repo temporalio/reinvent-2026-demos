@@ -6,12 +6,19 @@ the captured photo inside them; it ignores generative prompts. It cannot produce
 the cinematic images shown in the reference. Use a configured real provider to
 review generated image quality; a successful mock strip does not validate it.
 
-The existing scene catalog and default `inspired` style preserve facial likeness
+New strips randomly select four different adventures from eight prompts: starfighter chase,
+alien canyon, asteroid mining, snow-dragon ride, jungle swing, desert hover-bike,
+hover-racing, and spacewalk repair. Their order is randomized too (70 possible
+four-scene combinations). Repeats across separate strips are possible; the picker
+does not keep a global queue. The original catalog/picker remain behind a Workflow
+patch for replay of existing sessions.
+
+The scene catalog and default `inspired` style preserve facial likeness
 while inventing a new pose, costume, camera angle, and a detailed landscape.
 Prompts now emphasize foreground/midground/background scenery, dynamic adventure
 key art, and a recognizable character within the world. The former podium scene
-is now a hover-race. Scene IDs and the deterministic four-scene selection order
-remain unchanged. Policy-refusal handling remains in place.
+is now a hover-race. Scene IDs remain available, and older Workflow histories keep
+their original scene choices. Policy-refusal handling remains in place.
 
 ## Hosted configuration
 

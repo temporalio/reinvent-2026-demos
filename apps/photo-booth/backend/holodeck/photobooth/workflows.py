@@ -34,7 +34,7 @@ with workflow.unsafe.imports_passed_through():
         render_scene,
     )
     from .analysis import PhotoAnalysis
-    from .scenes import BY_ID, FALLBACK, pick_four
+    from .scenes import BY_ID, FALLBACK, pick_featured_four, pick_four
 
 # AI calls: retry forever (capped backoff) within a day. A booth outage or a
 # flaky model delays the email; it never loses the photo.
@@ -112,7 +112,11 @@ class PhotoBoothWorkflow:
     @workflow.run
     async def run(self, inp: PhotoBoothInput) -> PhotoBoothStatus:
         session_dir = inp.photo_path.rsplit("/", 1)[0]
-        scene_ids = pick_four(workflow.random())
+        # Preserve the original choices when replaying pre-change histories.
+        if workflow.patched("photobooth-eight-adventures-v1"):
+            scene_ids = pick_featured_four(workflow.random())
+        else:
+            scene_ids = pick_four(workflow.random())
         s = self._s = PhotoBoothStatus(
             session_id=inp.session_id,
             stage="processing",
