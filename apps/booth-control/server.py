@@ -28,7 +28,7 @@ from zoneinfo import ZoneInfo
 
 DEMO_IDS = frozenset({
     'tacos', 'money-transfer', 'data-pipeline', 'loan', 'no-roads',
-    'agent-harness', 'agentic-sdlc', 'flight-simulator', 'photo-booth',
+    'agent-harness', 'agentic-sdlc', 'flight-simulator', 'photo-booth', 'agentcore-video', 'agentcore-research',
 })
 STATION_IDS = ('1', '2', '3', '4')
 DEFAULT_DISPLAY = {'width': 90, 'height': 78, 'x': 0, 'y': 0, 'zoom': 100}

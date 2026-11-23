@@ -17,7 +17,7 @@ class CodeExamplesTests(unittest.TestCase):
     def test_every_demo_has_eight_distinct_focused_examples(self):
         demos = self.payload['demos']
         catalog = json.loads((ROOT / 'apps/launchpad/src/catalog.json').read_text())
-        self.assertEqual(set(demos), {demo['id'] for demo in catalog})
+        self.assertEqual(set(demos), {demo['id'] for demo in catalog if not demo.get('kind')})
         self.assertEqual({language['id'] for language in self.payload['languages']}, LANGUAGES)
         self.assertEqual(len(self.payload['languages']), 8)
         for demo_id, demo in demos.items():

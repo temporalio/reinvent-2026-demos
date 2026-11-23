@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { DisplaySettings } from './stationControl'
 
 /** Keep the saved demo rectangle inside the frame without remounting its app. */
-export function DisplayArea({ display, children, mode = 'browse' }: {display:DisplaySettings;children:ReactNode;mode?:'demo'|'browse'|'crew'|'missions'}) {
+export function DisplayArea({ display, children, mode = 'browse' }: {display:DisplaySettings;children:ReactNode;mode?:'demo'|'browse'|'crew'|'missions'|'video'}) {
   const bounds = useRef<HTMLDivElement>(null)
   const [size,setSize] = useState({width:0,height:0})
   useEffect(() => {

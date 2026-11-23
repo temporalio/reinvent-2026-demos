@@ -8,7 +8,7 @@ class FakeDocument extends EventTarget {
 function setup(options={}) {
   let time=0,tick=()=>{},expired=0,cancelled=0
   const countdown=[],doc=new FakeDocument()
-  const stop=createIdleMonitor({rootDocument:doc,now:()=>time,schedule:callback=>{tick=callback;return ()=>cancelled++},onCountdown:value=>countdown.push(value),onTimeout:()=>expired++,...options})
+  const stop=createIdleMonitor({rootDocument:doc,idleMs:30_000,now:()=>time,schedule:callback=>{tick=callback;return ()=>cancelled++},onCountdown:value=>countdown.push(value),onTimeout:()=>expired++,...options})
   return {doc,countdown,stop,at:value=>{time=value;tick()},expired:()=>expired,cancelled:()=>cancelled}
 }
 function input(doc,type,fields={}) {const event=new Event(type);Object.assign(event,fields);doc.dispatchEvent(event)}
@@ -51,10 +51,12 @@ test('only actually running Flight/Photo and staff configuration are exempt',()=
   assert.equal(idleScreensaverEnabled('crew',undefined,false,false),true)
 })
 
-test('demo and mission timers expire at thirty seconds including the five-second warning',()=>{
-  const x=setup({idleMs:25_000,countdownMs:5_000});x.at(24_999);assert.deepEqual(x.countdown,[])
-  x.at(25_000);assert.equal(x.countdown.at(-1),5);x.at(29_999);assert.equal(x.expired(),0)
-  x.at(30_000);assert.equal(x.expired(),1)
+test('all timed screens expire at sixty seconds including the five-second warning',()=>{
+  for(const screen of ['crew','missions','demo']) {
+    const x=setup({idleMs:idleDelayForScreen(screen),countdownMs:5_000});x.at(54_999);assert.deepEqual(x.countdown,[])
+    x.at(55_000);assert.equal(x.countdown.at(-1),5);x.at(59_999);assert.equal(x.expired(),0)
+    x.at(60_000);assert.equal(x.expired(),1)
+  }
 })
 test('idle navigation advances demo to missions, then missions to the screensaver',()=>{
   assert.equal(idleNavigationTarget('demo','tacos',true,false),'missions')
@@ -68,10 +70,10 @@ test('Holodeck picker and running fun demos never time out; staff controls remai
   for(const id of ['flight-simulator','photo-booth'])assert.equal(idleNavigationTarget('demo',id,true,false,'holodeck'),null)
   for(const screen of ['crew','missions','demo'])assert.equal(idleNavigationTarget(screen,'tacos',true,true),null)
 })
-test('a nested tap restarts the complete thirty-second demo interval',()=>{
-  const x=setup({idleMs:25_000}),app=new FakeDocument();x.doc.frames=[{contentDocument:app}]
-  x.at(29_000);input(app,'pointerdown',{pointerType:'touch'});assert.equal(x.countdown.at(-1),null)
-  x.at(58_999);assert.equal(x.expired(),0);x.at(59_000);assert.equal(x.expired(),1)
+test('a nested tap restarts the complete sixty-second demo interval',()=>{
+  const x=setup({idleMs:idleDelayForScreen('demo')}),app=new FakeDocument();x.doc.frames=[{contentDocument:app}]
+  x.at(59_000);input(app,'pointerdown',{pointerType:'touch'});assert.equal(x.countdown.at(-1),null)
+  x.at(118_999);assert.equal(x.expired(),0);x.at(119_000);assert.equal(x.expired(),1)
 })
 
 test('mission picker waits 60 seconds total and a tap resets its complete window',()=>{
@@ -81,5 +83,5 @@ test('mission picker waits 60 seconds total and a tap resets its complete window
   input(x.doc,'pointerdown');x.at(109_999);assert.equal(x.expired(),0);
   x.at(110_000);assert.equal(x.countdown.at(-1),5);
   x.at(114_999);assert.equal(x.expired(),0);x.at(115_000);assert.equal(x.expired(),1);
-  assert.equal(idleDelayForScreen('demo')+5000,30_000);
+  for(const screen of ['demo','missions','crew'])assert.equal(idleDelayForScreen(screen)+5000,60_000);
 });

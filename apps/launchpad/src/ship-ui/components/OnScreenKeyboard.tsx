@@ -22,7 +22,7 @@ export function KeyboardField({ value, placeholder = '', className = '' }: Keybo
     <div
       role="textbox"
       aria-live="polite"
-      className={`min-h-[64px] rounded-xl border-2 border-lc-line bg-lc-void px-5 flex items-center text-2xl text-lc-text break-all ${className}`}
+      className={`touch-keyboard-field min-h-[64px] rounded-xl border-2 border-lc-line bg-lc-void px-5 flex items-center text-2xl text-lc-text break-all ${className}`}
     >
       {value ? (
         <>
@@ -54,7 +54,7 @@ interface OnScreenKeyboardProps {
 /**
  * Touch keyboard so visitors never need the OS keyboard.
  * Email mode: no Shift or Space; `.` sits right of `m`; the bottom row is
- * ⌫ @ _ - .com .io .ai .org (same as the Holodeck keyboard).
+ * ⌫ @ + _ - .com .io .ai .org (same as the Holodeck keyboard).
  */
 export function OnScreenKeyboard({
   value,
@@ -94,10 +94,10 @@ export function OnScreenKeyboard({
       ⌫
     </button>
   )
-  const row = 'flex gap-2 justify-center'
+  const row = 'touch-keyboard-row flex gap-2 justify-center'
 
   return (
-    <div className="space-y-2 select-none" onPointerDown={(e) => e.preventDefault()}>
+    <div className="touch-keyboard space-y-2 select-none" onPointerDown={(e) => e.preventDefault()}>
       <div className={row}>
         {NUMBERS.split('').map((c) => (
           <button key={c} className={`${key} w-[64px]`} onClick={() => add(c)}>
@@ -139,7 +139,7 @@ export function OnScreenKeyboard({
         {email ? (
           <>
             {backKey}
-            {['@', '_', '-'].map((c) => (
+            {['@', '+', '_', '-'].map((c) => (
               <button key={c} className={`${key} w-[64px]`} onClick={() => add(c)}>
                 {c}
               </button>
@@ -152,6 +152,7 @@ export function OnScreenKeyboard({
           </>
         ) : (
           <>
+            {['@', '+', '_', '-'].map(c=><button key={c} className={`${key} w-[64px]`} onClick={()=>add(c)}>{c}</button>)}
             <button className={`${key} w-[64px]`} onClick={() => add(',')}>
               ,
             </button>
