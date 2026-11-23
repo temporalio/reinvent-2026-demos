@@ -212,8 +212,8 @@ function App() {
       <main className="mission-workspace">
         <div className="mission-top">
           <section className="mission-panel customer-panel" aria-labelledby="customer-title">
-            <header className="panel-label"><span>01 / ORDER STATION</span><h2 id="customer-title">Your mission: tacos</h2></header>
-            <PanelViewport label="Order station"><div className="customer-app">{renderPhoneContent()}</div></PanelViewport>
+            <header className="panel-label"><span>01 / ORDER STATION</span><h2 id="customer-title">Your mobile app might look like:</h2></header>
+            <PanelViewport label="Order station"><div className="mobile-device"><div className="mobile-device-status" aria-hidden="true"><span>ORBITAL NETWORK</span><i /><span>▮▮▮</span></div><div className="customer-app">{renderPhoneContent()}</div><div className="mobile-device-home" aria-hidden="true"><i /></div></div></PanelViewport>
           </section>
           <section className="mission-panel kitchen-panel" aria-labelledby="kitchen-title">
             <header className="panel-label"><span>02 / MISSION CONTROL</span><h2 id="kitchen-title">Kitchen uplink</h2>        <button className="mission-options" onClick={() => setSettingsOpen(true)} aria-haspopup="dialog" disabled={saving}>

@@ -215,26 +215,26 @@ html[data-shared-stage=true][data-demo=dejavutacos] .customer-app > .h-full { he
 html[data-shared-stage=true][data-demo=dejavutacos] .customer-app .overflow-y-auto { min-height:0; overflow:visible; }
 html[data-shared-stage=true][data-demo=dejavutacos] .customer-app > div > :first-child { flex:none; padding:.4rem .6rem; }
 html[data-shared-stage=true][data-demo=dejavutacos] .customer-app > div > :first-child h1 { font-size:1rem; }
-html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-menu-items { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.4rem; padding:.4rem; align-content:start; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-menu-items { display:grid; grid-template-columns:minmax(0,1fr); gap:.4rem; padding:.4rem; align-content:start; }
 html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-menu-category,html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-menu-category > div { display:contents; }
 html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-menu-category > h2,html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-menu-description { display:none; }
 html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-menu-item { min-width:0; min-height:68px; margin:0; padding:.35rem; gap:.25rem; }
 html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-menu-item > span { display:none; }
 html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-menu-item h3 { font-size:.75rem; }
 html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-menu-item button { flex:none; min-width:44px; min-height:44px; }
-html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-cart-items { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); align-content:start; gap:.4rem; padding:.4rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-cart-items { display:grid; grid-template-columns:minmax(0,1fr); align-content:start; gap:.4rem; padding:.4rem; }
 html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-cart-item { flex-wrap:wrap; min-width:0; margin:0; gap:.25rem; padding:.35rem; }
 html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-cart-item > div { min-width:0; }
 html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-cart-item h3 { font-size:.72rem; }
 html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-cart-item button { min-width:44px; min-height:44px; }
-html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-cart-totals { padding:.4rem .6rem; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.3rem; }
-html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-cart-totals > div { display:block; margin:0; font-size:.7rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-cart-totals { flex:none; padding:.75rem; display:grid; grid-template-columns:minmax(0,1fr); gap:.5rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-cart-totals > div { display:flex; justify-content:space-between; gap:1rem; margin:0; font-size:.85rem; }
 html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-cart-totals button { grid-column:1 / -1; }
-html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-checkout-content { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); align-content:start; gap:.4rem; padding:.4rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-checkout-content { display:grid; grid-template-columns:minmax(0,1fr); align-content:start; gap:.4rem; padding:.4rem; }
 html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-checkout-card { margin:0; padding:.4rem; }
 html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-checkout-card h2 { margin-bottom:.25rem; font-size:.75rem; }
 html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-checkout-card p { font-size:.68rem; }
-html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-checkout-summary { grid-column:1 / -1; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.15rem .5rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-checkout-summary { grid-column:1 / -1; display:grid; grid-template-columns:minmax(0,1fr); gap:.15rem .5rem; }
 html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-checkout-summary > h2,html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-checkout-totals { grid-column:1 / -1; }
 html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-checkout-summary > div { font-size:.7rem; }
 html[data-shared-stage=true][data-demo=dejavutacos] .kitchen-content { height:100%; padding:.5rem .6rem; overflow:hidden; }
@@ -312,3 +312,8 @@ html[data-booth=true][data-demo=photobooth] .pb-camera-controls select { width:1
 html[data-booth=true][data-demo=photobooth] .pb-camera-controls p { flex-basis:100%; margin:0; font-size:.65rem; }
 html[data-booth=true][data-demo=photobooth] .pb-camera-controls p:empty { display:none; }
 html[data-booth=true][data-demo=photobooth] .screen { overflow:hidden; }
+
+html[data-shared-stage=true][data-demo=dejavutacos] .mobile-device { flex:1; min-height:0; margin:.4rem auto; width:calc(100% - .8rem); }
+html[data-shared-stage=true][data-demo=dejavutacos] .mobile-device .customer-app { overflow:hidden; }
+html[data-shared-stage=true][data-demo=dejavutacos] .mobile-device .taqueria-menu-items { overflow-y:auto; }
+html[data-shared-stage=true][data-demo=dejavutacos] .mobile-device .taqueria-cart-items { min-height:0; overflow-y:auto; }

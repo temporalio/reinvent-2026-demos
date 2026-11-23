@@ -209,3 +209,11 @@ button:disabled { opacity: .55; cursor: wait; }
 .customer-app .tracker-active :is(h2,p) { color: var(--status-active); }
 .customer-app .tracker-completed :is(h2,p) { color: var(--status-completed); }
 .customer-app .tracker-failed :is(h2,p) { color: var(--status-failed); }
+
+/* A touch device surrounds the customer app throughout the order journey. */
+.mobile-device { display:flex; flex-direction:column; flex:1; min-height:0; width:calc(100% - 1.5rem); max-width:30rem; margin:.75rem auto; padding:.45rem; border:2px solid #68798c; border-radius:1.8rem; background:linear-gradient(135deg,#172430,#070b12 45%,#15232e); box-shadow:inset 0 0 0 3px #080c13,0 0 20px #00b8be15; overflow:hidden; }
+.mobile-device-status { display:flex; align-items:center; justify-content:space-between; flex:none; padding:.4rem .7rem .65rem; color:var(--brand-accent); font: .55rem var(--font-mono); letter-spacing:.08em; }
+.mobile-device-status i { width:3rem; height:.35rem; border-radius:1rem; background:#020407; border:1px solid #465461; }
+.mobile-device .customer-app { border:1px solid #485569; border-radius:1.05rem; overflow:hidden; }
+.mobile-device-home { display:grid; place-items:center; padding:.55rem; flex:none; }
+.mobile-device-home i { width:3.5rem; height:3px; border-radius:1rem; background:#7f98a9; }
