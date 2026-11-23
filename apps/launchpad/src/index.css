@@ -89,3 +89,31 @@ main.station-surface { position:absolute; top:50%; left:50%; max-width:none; mar
 .screensaver-control { display:flex; align-items:center; justify-content:flex-end; gap:.6rem; }
 .idle-countdown { color:var(--status-waiting); font:.65rem var(--font-mono); white-space:nowrap; }
 @media(max-width:650px) { .screensaver-control { position:relative; } .idle-countdown { position:absolute; bottom:100%; right:0; padding-bottom:.3rem; } }
+
+/* Every mission, including its Launch button, shares the station's height budget. */
+.station-surface-missions { container:mission-surface / size; overflow:hidden !important; }
+.station-surface-missions .station-content { position:absolute; inset:0 auto auto 0; display:flex; flex-direction:column; min-height:0; padding:clamp(8px,1.6cqw,30px); overflow:hidden; }
+.station-surface-missions .eyebrow { flex-shrink:0; margin:0; font-size:clamp(9px,1.1cqw,22px); }
+.station-surface-missions h1 { flex-shrink:0; margin:.5cqh 0 1.3cqh; font-size:clamp(28px,6cqh,100px); line-height:1; }
+.station-surface-missions .missions { flex:1; min-height:0; min-width:0; grid-template-columns:repeat(2,minmax(0,1fr)); grid-template-rows:repeat(var(--mission-rows),minmax(0,1fr)); gap:clamp(6px,1cqh,24px); }
+.station-surface-missions .mission-card { min-height:0; min-width:0; padding:clamp(8px,1.1cqh,26px) clamp(8px,1.5cqw,28px); }
+.station-surface-missions .mission-card-heading { min-height:0; gap:.8cqw; flex-shrink:0; }
+.station-surface-missions .mission-card-heading h2 { min-height:0; font-size:clamp(11px,1.7cqw,34px); line-height:1.2; }
+.station-surface-missions .mission-icon { flex:0 0 clamp(28px,4cqw,76px); width:clamp(28px,4cqw,76px); height:clamp(28px,4cqw,76px); }
+.station-surface-missions .mission-icon img { width:70%; height:70%; }
+.station-surface-missions .mission-description { min-height:0; font-size:clamp(10px,1.4cqw,28px); line-height:1.35; margin:.7cqh 0; }
+.station-surface-missions .mission-tags { margin:auto 0 .5cqh; gap:.35cqw; }
+.station-surface-missions .mission-tags li { font-size:clamp(8px,.9cqw,18px); padding:.2em .35em; }
+.station-surface-missions .mission-connectivity { margin:.2cqh 0 .7cqh; font-size:clamp(8px,.95cqw,20px); }
+.station-surface-missions .mission-card .pending { margin:0 0 .5cqh; font-size:clamp(9px,1cqw,20px); }
+.station-surface-missions .mission-card button { flex-shrink:0; min-height:48px; margin-top:0; padding:.4em .7em; font-size:clamp(11px,1.3cqw,26px); }
+
+@container mission-surface (min-aspect-ratio:1/1) {
+  .station-surface-missions .missions { grid-template-columns:repeat(var(--mission-wide-columns),minmax(0,1fr)); grid-template-rows:repeat(var(--mission-wide-rows),minmax(0,1fr)); }
+  .station-surface-missions .mission-card { padding:1cqh .7cqw; }
+  .station-surface-missions .mission-card-heading h2 { font-size:clamp(10px,2.1cqh,22px); }
+  .station-surface-missions .mission-icon { flex-basis:28px; width:28px; height:28px; }
+  .station-surface-missions .mission-description { font-size:clamp(9px,1.9cqh,18px); margin:.5cqh 0; }
+  .station-surface-missions .mission-tags li { font-size:clamp(7px,1.4cqh,14px); }
+  .station-surface-missions .mission-connectivity,.station-surface-missions .mission-card .pending { font-size:clamp(8px,1.5cqh,15px); }
+}

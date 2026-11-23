@@ -15,12 +15,12 @@ const stories: Record<string, [string,string,string]> = {
   tacos: ['Deliver every order, even through a failure.', 'Temporal keeps the order progressing across payment, preparation, and delivery.', 'Try a failure, restore the service, and follow recovery in the Workflow history.'],
   'money-transfer': ['Move credits with confidence.', 'A transfer coordinates account changes through a durable Workflow.', 'Compare the configured failure scenarios and follow recovery in the Workflow history.'],
   'data-pipeline': ['Keep the cargo pipeline moving.', 'A Workflow tracks a multi-step data job and its progress.', 'Try the signal, update, or failure scenarios to explore recovery without starting the story over.'],
-  loan: ['Coordinate a decision from application to review.', 'Loan underwriting combines agent work, specialist tools, and human decisions.', 'Model inference still needs a working provider; local storage emulation does not replace it.'],
-  'no-roads': ['Absorb work when demand changes.', 'Temporal queues durable work while workers process the backlog.', 'Lambda scaling is a hosted capability. A local worker is not a Lambda scaling test.'],
-  'agent-harness': ['Keep an agent’s journey durable.', 'Temporal coordinates agent execution and tool calls.', 'This demo needs model access; a browser preview alone does not verify inference.'],
-  'agentic-sdlc': ['Carry a change through the delivery process.', 'Durable orchestration coordinates the coding and review pipeline.', 'Use the booth sandbox repository and scoped credentials before enabling this demo.'],
+  loan: ['Coordinate a decision from application to review.', 'Loan underwriting combines agent work, specialist tools, and human decisions.', 'Follow the specialist assessments, then approve or reject the recommendation.'],
+  'no-roads': ['Absorb work when demand changes.', 'Temporal queues durable work while workers process the backlog.', 'Compare the backlog and concurrency as workers process durable tasks.'],
+  'agent-harness': ['Keep an agent’s journey durable.', 'Temporal coordinates agent execution and tool calls.', 'Review the trip plan, approve tool calls, and follow the agent’s progress.'],
+  'agentic-sdlc': ['Carry a change through the delivery process.', 'Durable orchestration coordinates the coding and review pipeline.', 'Follow planning, code review, and the human decisions that gate delivery.'],
   'flight-simulator': ['Take the controls. Follow the mission.', 'The simulator combines interactive flight with backend Workflow execution.', 'The live flight display and Workflow history show different parts of the experience.'],
-  'photo-booth': ['Turn a booth visit into a keepsake.', 'A Workflow coordinates photo processing and delivery.', 'Local preview uses mock image generation and an email outbox. It does not send attendee emails.'],
+  'photo-booth': ['Turn a booth visit into a keepsake.', 'A Workflow coordinates photo processing and delivery.', 'Follow the steps from portrait capture to the finished photo strip and delivery.'],
 }
 
 export function DemoStage({ demo, persona, temporalUi, notice }: {demo:(typeof catalog)[number];persona:string;temporalUi:string|null;notice?:string}) {

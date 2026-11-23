@@ -42,7 +42,7 @@ export const architectureProfiles: Record<string, ArchitectureProfile> = {
     entry:['Job dashboard','Submit a burst of work'], api:['Job API','Start jobs and inspect load'],
     worker:['Versioned worker','Lambda when hosted'], work:['Job activities','Process queued work'],
     systems:['Demo work','Backlog and concurrency'],
-    explanation:'Temporal retains queued tasks as work arrives. Hosted Lambda workers process them on demand; the local preview uses a polling worker and does not emulate Lambda scaling.',
+    explanation:'Temporal retains queued tasks as work arrives. Workers process them as capacity becomes available; the hosted deployment uses Lambda.',
     source:'apps/no-roads/README.md',
   },
   'agent-harness': {
@@ -70,7 +70,7 @@ export const architectureProfiles: Record<string, ArchitectureProfile> = {
     entry:['Camera + scenes','Capture a crew portrait'], api:['Photo Booth API','Start and inspect a session'],
     worker:['Photo Booth worker','Durable session pipeline'], work:['Photo activities','Analyze · render · compose'],
     systems:['Image + email tools','Provider calls and files'],
-    explanation:'The Workflow renders scene images in parallel, composes the strip, and sends the email through Activities. Local preview uses mock images and an email outbox.',
+    explanation:'The Workflow renders scene images in parallel, composes the strip, and sends the email through Activities. Scene rendering runs in parallel, followed by composition and delivery.',
     source:'apps/photo-booth/backend/holodeck/photobooth/workflows.py',
   },
 }
