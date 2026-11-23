@@ -24,13 +24,20 @@ interface Step {
 interface Status {
   session_id: string;
   workflow_id: string;
+  temporal_ui_url?: string | null;
   stage: 'spooled' | 'unreachable' | 'starting' | 'processing' | 'sending' | 'done';
   steps: Step[];
   strip_url?: string | null;
   animated_url?: string | null;
   email: string;
 }
-interface Started { session_id: string; workflow_id: string; spooled: boolean; provider: string }
+interface Started { session_id: string; workflow_id: string; spooled: boolean; provider: string; temporal_ui_url: string | null }
+
+/** The workflow ID, linked when the server knows a Temporal UI (the booth's lower panel follows the link). */
+function workflowRef(id: string, url: string | null | undefined): HTMLElement {
+  const label = h('b', {}, id);
+  return url ? h('a', { href: url, target: '_blank', rel: 'noopener' }, label) : label;
+}
 
 const STALL_MS = 45_000; // no visible progress for this long → "we'll email it"
 
@@ -298,7 +305,7 @@ function processing(s: Started): void {
       h('div', { class: 'pb-side' },
         h('button', { class: 'btn mint big', onclick: reset }, 'Done — we’ll email it'),
         h('div', { class: 'panel' }, h('span', { class: 'panel-tab' }, 'Workflow'), steps),
-        h('p', { class: 'pb-wfid' }, 'Powered by Temporal · workflow ', h('b', {}, s.workflow_id)))),
+        h('p', { class: 'pb-wfid' }, 'Powered by Temporal · workflow ', workflowRef(s.workflow_id, s.temporal_ui_url)))),
   );
   let fingerprint = '';
   let lastChange = Date.now();
@@ -335,7 +342,7 @@ function result(st: Status): void {
           h('span', { class: 'panel-tab' }, 'What just happened'),
           h('p', { style: 'margin:0' },
             'A Temporal workflow ran four AI image generations in parallel, retried the ones that failed, composed the strip, and emailed it. If the network had dropped, it would have picked up where it left off.')),
-        h('p', { class: 'pb-wfid' }, 'workflow ', h('b', {}, st.workflow_id)),
+        h('p', { class: 'pb-wfid' }, 'workflow ', workflowRef(st.workflow_id, st.temporal_ui_url)),
         h('div', { class: 'row', style: 'flex-wrap:nowrap' },
           toggle,
           h('button', { class: 'btn mint big', style: 'flex:1', onclick: reset }, 'Done')),

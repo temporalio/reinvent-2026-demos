@@ -3,6 +3,7 @@ import asyncio
 import random
 import re
 from typing import Optional
+from urllib.parse import quote
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
@@ -157,6 +158,16 @@ def _build_dummy_applicant(index: int) -> LoanApplicant:
     )
 
 
+def _temporal_workflow_url(workflow_id: str) -> str | None:
+    """Link to the Workflow in the Temporal UI, from the UI base and qualified namespace Fieldkit injects
+    (the local preview sets both too). TEMPORAL_NAMESPACE is not used: it can differ from the UI's namespace."""
+    base = os.getenv("TEMPORAL_UI_URL")
+    namespace = os.getenv("TEMPORAL_UI_NAMESPACE")
+    if not base or not namespace:
+        return None
+    return f"{base.rstrip('/')}/namespaces/{quote(namespace, safe='')}/workflows/{quote(workflow_id, safe='')}"
+
+
 async def _start_application_workflow(client: Client, applicant: LoanApplicant) -> str:
     """Start the supervisor underwriting workflow (LENNY over sub-agents)."""
     workflow_id = f"loan-{applicant.id}-{generate(size=6)}"
@@ -199,7 +210,7 @@ async def apply_custom(body: CustomApplicantRequest):
     client = await get_client()
     workflow_id = await _start_application_workflow(client, applicant)
 
-    return {"workflow_id": workflow_id}
+    return {"workflow_id": workflow_id, "temporal_ui_url": _temporal_workflow_url(workflow_id)}
 
 
 @app.post("/apply/bulk")
@@ -235,7 +246,7 @@ async def apply(profile_id: str):
     client = await get_client()
     workflow_id = await _start_application_workflow(client, applicant)
 
-    return {"workflow_id": workflow_id}
+    return {"workflow_id": workflow_id, "temporal_ui_url": _temporal_workflow_url(workflow_id)}
 
 
 @app.get("/assessment/{workflow_id}")

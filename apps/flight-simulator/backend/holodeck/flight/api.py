@@ -13,7 +13,7 @@ from temporalio.common import WorkflowIDReusePolicy
 from temporalio.service import RPCError, RPCStatusCode
 
 from ..config import settings
-from ..temporal_client import get_client, wf_id
+from ..temporal_client import get_client, wf_id, workflow_ui_url
 from .activities import LEADERBOARD_ID
 from .names import display_name
 from .models import GameEvent, Telemetry
@@ -80,7 +80,12 @@ async def create_session(body: SessionBody, x_station: str | None = Header(defau
         task_queue=settings.task_queue,
         id_reuse_policy=WorkflowIDReusePolicy.REJECT_DUPLICATE,
     )
-    return {"session_id": session_id, "workflow_id": workflow_id, "name": display_name(body.email, session_id)}
+    return {
+        "session_id": session_id,
+        "workflow_id": workflow_id,
+        "temporal_ui_url": workflow_ui_url(workflow_id),
+        "name": display_name(body.email, session_id),
+    }
 
 
 @router.post("/sessions/{session_id}/telemetry")
@@ -106,7 +111,7 @@ async def get_session(session_id: str, x_station: str | None = Header(default=No
         state = await h.query(FlightSessionWorkflow.state)
     except RPCError as e:
         raise HTTPException(404 if e.status == RPCStatusCode.NOT_FOUND else 502, e.message)
-    return {**dataclasses.asdict(state), "workflow_id": h.id}
+    return {**dataclasses.asdict(state), "workflow_id": h.id, "temporal_ui_url": workflow_ui_url(h.id)}
 
 
 @router.get("/sessions/{session_id}/summary")

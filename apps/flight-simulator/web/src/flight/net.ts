@@ -7,7 +7,7 @@ export interface DayPodium { day: string; label: string; top: LeaderboardEntry[]
 export interface LeaderboardView { entries: LeaderboardEntry[]; day_label: string; champions: DayPodium[]; total_games: number }
 export interface SessionState extends Snapshot {
   session_id: string; status: string; game_ms: number; seq: number; event_log: string[];
-  history_events: number; activities_total: number; activities_pending: number; workflow_id?: string; name?: string;
+  history_events: number; activities_total: number; activities_pending: number; workflow_id?: string; temporal_ui_url?: string | null; name?: string;
 }
 /** What the FlightSessionWorkflow ran for this game (from its `summary` query). */
 export interface ActivitySummary {
@@ -37,6 +37,7 @@ export class FlightNet {
   online = true;
   sessionId: string | null = null;
   workflowId: string | null = null;
+  workflowUrl: string | null = null;
   lastState: SessionState | null = null;
   private seq = 0;
   private inFlight = false;
@@ -57,9 +58,10 @@ export class FlightNet {
     this.pendingEvents = [];
     this.name = localName(email);
     try {
-      const r = await withTimeout(api<{ session_id: string; workflow_id: string; name: string }>('/flight/sessions', { email, consent_text_version: consentVersion }), 2500);
+      const r = await withTimeout(api<{ session_id: string; workflow_id: string; temporal_ui_url: string | null; name: string }>('/flight/sessions', { email, consent_text_version: consentVersion }), 2500);
       this.sessionId = r.session_id;
       this.workflowId = r.workflow_id;
+      this.workflowUrl = r.temporal_ui_url;
       this.name = r.name;
       this.remember();
       this.setOnline(true);
@@ -115,6 +117,7 @@ export class FlightNet {
     this.name = st.name ?? this.name;
     this.sessionId = st.session_id;
     this.workflowId = st.workflow_id ?? null;
+    this.workflowUrl = st.temporal_ui_url ?? null;
     this.seq = st.seq;
     this.lastState = st;
     this.remember();

@@ -197,6 +197,7 @@
     <p class="pipeline-progress-number" id="progress-percent">0%</p>
     <div class="status-bar" id="job-progress" role="progressbar" aria-label="Pipeline progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="progress-bar" class="status-progress" style="width:0"></div></div>
     <p id="error-message" role="alert"></p>
+    {% if workflow_url %}<a class="pipeline-button" href="{{ workflow_url }}" target="_blank" rel="noopener">View workflow ↗</a>{% endif %}
   </section>
   <section class="pipeline-panel" aria-labelledby="pipeline-actions-title">
     <p class="eyebrow">02 / MISSION CONTROL</p>

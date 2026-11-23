@@ -79,6 +79,7 @@
     .submit-msg { font-size: 13px; color: var(--text-secondary); margin-top: 10px; min-height: 18px; }
     .submit-msg.ok  { color: var(--green); }
     .submit-msg.err { color: var(--red);   }
+    .submit-msg a { color: inherit; }
 
     /* ── Stat cards — two rows ── */
     .stats-grid {
@@ -421,6 +422,15 @@
       if (!resp.ok) { setMsg('Error: ' + await resp.text(), 'err'); return; }
       const data = await resp.json();
       setMsg(`✓ Workflow ${data.workflowId} started for "${name}"`, 'ok');
+      if (data.temporalUiUrl) {
+        // The booth's lower Temporal UI panel follows this link.
+        const link = document.createElement('a');
+        link.href = data.temporalUiUrl;
+        link.target = '_blank';
+        link.rel = 'noopener';
+        link.textContent = 'View workflow ↗';
+        document.getElementById('submit-msg').append(' ', link);
+      }
       input.value = '';
       feedItems.unshift({ workflowId: data.workflowId, name, status: 'running', time: new Date() });
       if (feedItems.length > MAX_FEED) feedItems.pop();

@@ -22,6 +22,10 @@ load_dotenv(ROOT / ".env", override=False)
 class Settings:
     temporal_address: str = os.getenv("TEMPORAL_ADDRESS", "localhost:7233")
     temporal_namespace: str = os.getenv("TEMPORAL_NAMESPACE", "default")
+    # Workflow links: the UI base and qualified namespace Fieldkit injects (the local
+    # preview sets both too). TEMPORAL_NAMESPACE can differ from the UI's namespace.
+    temporal_ui_url: str | None = os.getenv("TEMPORAL_UI_URL") or None
+    temporal_ui_namespace: str | None = os.getenv("TEMPORAL_UI_NAMESPACE") or None
     temporal_api_key: str | None = os.getenv("TEMPORAL_API_KEY") or None
     station: str = os.getenv("HOLODECK_STATION", "laptop")
     # S3 bucket that holds every workflow payload (temporal_client.payload_storage);

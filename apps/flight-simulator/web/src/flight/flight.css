@@ -76,6 +76,7 @@ body:not(.fd-playing) .fd-hud { display: none; }
   pointer-events: none; max-width: 92%; overflow: hidden; text-overflow: ellipsis;
 }
 body:not(.fd-playing) .fd-wf { display: none; }
+.fd-wf a { color: inherit; text-decoration: none; }
 .fd-mute {
   position: absolute; top: calc(var(--u) * 13); right: calc(var(--u) * 1.5);
   width: calc(var(--tap) * 0.8); height: calc(var(--tap) * 0.8); border-radius: 50%;

@@ -6,6 +6,7 @@ import asyncio
 import dataclasses
 from collections.abc import Mapping
 from typing import Any
+from urllib.parse import quote
 
 from temporalio.client import Client
 from temporalio.contrib.aws.s3driver import S3StorageDriver, S3StorageDriverClient
@@ -98,6 +99,14 @@ async def get_client() -> Client:
                 settings.temporal_address, namespace=settings.temporal_namespace, data_converter=converter
             )
     return _client
+
+
+def workflow_ui_url(workflow_id: str) -> str | None:
+    """Link to the workflow in the Temporal UI, if one is configured."""
+    if not settings.temporal_ui_url or not settings.temporal_ui_namespace:
+        return None
+    namespace = quote(settings.temporal_ui_namespace, safe="")
+    return f"{settings.temporal_ui_url.rstrip('/')}/namespaces/{namespace}/workflows/{quote(workflow_id, safe='')}"
 
 
 def wf_id(demo: str, suffix: str, station: str | None = None) -> str:

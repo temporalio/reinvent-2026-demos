@@ -22,7 +22,7 @@ from PIL import Image, ImageOps
 from pydantic import BaseModel
 
 from ..config import settings
-from ..temporal_client import get_client, wf_id
+from ..temporal_client import get_client, wf_id, workflow_ui_url
 from .analysis import analyze, resolve_analysis_provider
 from .providers import resolve_provider_name
 from .spool import Spool
@@ -119,7 +119,8 @@ async def start_session(req: StartRequest, x_station: str | None = Header(defaul
     started = bool(row) and await spool.try_start(row, start_workflow)
     if not started:
         log.warning("photo booth session %s spooled; Temporal unreachable", session_id)
-    return {"session_id": session_id, "workflow_id": workflow_id, "spooled": not started, "provider": inp.provider}
+    return {"session_id": session_id, "workflow_id": workflow_id, "spooled": not started, "provider": inp.provider,
+            "temporal_ui_url": workflow_ui_url(workflow_id) if started else None}
 
 
 @router.get("/sessions/{session_id}")
@@ -129,7 +130,8 @@ async def get_session(session_id: str) -> dict:
     row = spool.get(session_id)
     if not row:
         raise HTTPException(404, "unknown session")
-    base = {"session_id": session_id, "workflow_id": row.workflow_id, "email": row.input.email}
+    base = {"session_id": session_id, "workflow_id": row.workflow_id, "email": row.input.email,
+            "temporal_ui_url": workflow_ui_url(row.workflow_id) if row.started_at else None}
     if not row.started_at:
         return {**base, "stage": "spooled", "steps": []}
     try:

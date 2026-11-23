@@ -1,5 +1,6 @@
 import os
 import uuid
+from urllib.parse import quote
 
 from flask import Flask, jsonify, render_template, request
 from flask.wrappers import Response
@@ -31,6 +32,16 @@ data = {
 }
 
 
+def temporal_workflow_url(workflow_id: str) -> str | None:
+    """Link to the Workflow in the Temporal UI, from the UI base and qualified namespace Fieldkit injects
+    (the local preview sets both too). TEMPORAL_NAMESPACE is not used: it can differ from the UI's namespace."""
+    base = os.getenv("TEMPORAL_UI_URL")
+    namespace = os.getenv("TEMPORAL_UI_NAMESPACE")
+    if not base or not namespace:
+        return None
+    return f"{base.rstrip('/')}/namespaces/{quote(namespace, safe='')}/workflows/{quote(workflow_id, safe='')}"
+
+
 @app.route("/", methods=["GET", "POST"])
 async def main_order_page() -> str:
     job_id = str(uuid.uuid4().int)[:6]
@@ -59,22 +70,28 @@ async def run_job() -> str | tuple[str, int]:
         key=job_id,
     )
 
+    workflow_id = f"job-{job_id}"
     if selected_scenario == "HappyPath":
         await client.start_workflow(
             "DataPipelineWorkflowHappyPath",
             input,
-            id=f"job-{job_id}",
+            id=workflow_id,
             task_queue=os.getenv("TEMPORAL_TASK_QUEUE", "worker_specific_task_queue-distribution-queue"),
         )
     else:
         await client.start_workflow(
             "DataPipeline" + selected_scenario,
             input,
-            id=f"job-{job_id}",
+            id=workflow_id,
             task_queue=os.getenv("TEMPORAL_TASK_QUEUE", "worker_specific_task_queue-distribution-queue"),
         )
 
-    return render_template("job_progress.html", selected_scenario=selected_scenario, job_id=job_id)
+    return render_template(
+        "job_progress.html",
+        selected_scenario=selected_scenario,
+        job_id=job_id,
+        workflow_url=temporal_workflow_url(workflow_id),
+    )
 
 
 @app.route("/confirmation")

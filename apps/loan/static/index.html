@@ -352,6 +352,7 @@
     .decision-prompt p { color: var(--text-muted); font-size: 0.9rem; }
     .decision-buttons { display: flex; gap: 1rem; }
     .workflow-id { margin-top: 1.5rem; font-size: 0.72rem; color: var(--text-muted); text-align: center; font-family: monospace; }
+    .workflow-id a { color: inherit; }
 
     /* ── Screen 5: Result ── */
     #screen-5 { padding: 2rem; }
@@ -539,6 +540,7 @@
       <div class="loading-sub" id="loading-name"></div>
     </div>
     <div class="activity-feed" id="activity-feed"></div>
+    <div class="workflow-id" id="loading-workflow-id"></div>
   </div>
 </div>
 
@@ -584,6 +586,7 @@
 <script>
   let currentProfile = null;
   let currentWorkflowId = null;
+  let currentWorkflowUrl = null;
   let pollInterval = null;
   let bulkWorkflowIds = [];
   let decisionInProgress = false;
@@ -645,6 +648,7 @@
     });
     const data = await res.json();
     currentWorkflowId = data.workflow_id;
+    currentWorkflowUrl = data.temporal_ui_url;
     currentProfile = { name };
 
     btn.disabled = false;
@@ -754,6 +758,7 @@
     const res = await fetch(`/loans/apply/${currentProfile.id}`, { method: 'POST' });
     const data = await res.json();
     currentWorkflowId = data.workflow_id;
+    currentWorkflowUrl = data.temporal_ui_url;
 
     btn.disabled = false;
     btn.textContent = 'Submit to LENNY →';
@@ -762,7 +767,21 @@
   }
 
   // ── Shared loading + polling ──
+  // Links to the Workflow when the server knows a Temporal UI (the booth's lower panel follows it).
+  function showWorkflowId(elementId) {
+    const el = document.getElementById(elementId);
+    const label = `Workflow ID: ${currentWorkflowId}`;
+    if (!currentWorkflowUrl) { el.textContent = label; return; }
+    const link = document.createElement('a');
+    link.href = currentWorkflowUrl;
+    link.target = '_blank';
+    link.rel = 'noopener';
+    link.textContent = `${label} ↗`;
+    el.replaceChildren(link);
+  }
+
   function startLoading(name) {
+    showWorkflowId('loading-workflow-id');
     document.getElementById('loading-name').textContent = `Reviewing application for ${name}`;
     const feed = document.getElementById('activity-feed');
     feed.innerHTML = '';
@@ -811,7 +830,7 @@
   function showVerdict(assessment) {
     decisionInProgress = false;
     document.getElementById('verdict-name').textContent = currentProfile.name;
-    document.getElementById('workflow-id-display').textContent = `Workflow ID: ${currentWorkflowId}`;
+    showWorkflowId('workflow-id-display');
 
     let recommendation = 'REJECT';
     for (const line of assessment.split('\n')) {
@@ -881,6 +900,7 @@
   function reset() {
     currentProfile = null;
     currentWorkflowId = null;
+    currentWorkflowUrl = null;
     decisionInProgress = false;
     if (pollInterval) clearInterval(pollInterval);
     goTo(1);

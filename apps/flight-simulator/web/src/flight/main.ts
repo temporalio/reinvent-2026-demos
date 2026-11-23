@@ -370,9 +370,14 @@ async function startGame(resumeFrom?: SessionState): Promise<void> {
 
 function updateWfStrip(): void {
   const st = net.lastState;
-  wfStrip.textContent = net.workflowId
-    ? `◉ Temporal workflow ${net.workflowId}${st ? ` · ${st.activities_total + st.activities_pending} activities · ${st.history_events} history events` : ''}`
-    : 'Offline: flying without Temporal (no crash recovery)';
+  if (!net.workflowId) {
+    wfStrip.textContent = 'Offline: flying without Temporal (no crash recovery)';
+    return;
+  }
+  // A link (not clickable in flight) lets the booth's lower Temporal UI panel follow this workflow.
+  const id = net.workflowUrl ? h('a', { href: net.workflowUrl, target: '_blank', rel: 'noopener' }, net.workflowId) : net.workflowId;
+  wfStrip.replaceChildren('◉ Temporal workflow ', id,
+    st ? ` · ${st.activities_total + st.activities_pending} activities · ${st.history_events} history events` : '');
 }
 
 async function countdown(): Promise<void> {
