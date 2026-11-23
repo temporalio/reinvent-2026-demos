@@ -65,3 +65,27 @@ async def test_attachment_cannot_escape_media_directory(monkeypatch,tmp_path):
     msg=_msg("invalid-path");msg.attachments=["../../private.jpg"]
     with pytest.raises(ValueError,match="media directory"):
         await ActivityEnvironment().run(send_email,msg)
+
+
+def test_photobooth_delivery_matches_replay_layout_and_copy():
+    from html import unescape
+    from urllib.parse import parse_qs, urlsplit
+    from holodeck.photobooth.workflows import _email_html
+
+    body = _email_html()
+    rendered = email_mod.branded_html(body, "cid:temporal-logo")
+    assert "Thanks for joining us in Las Vegas for AWS re:Invent. Next, join us in San Francisco for Temporal's Replay conference May 17-19, 2027" in body
+    assert "Your photo strip is attached." in body
+    assert "max-width:560px" in rendered
+    assert "background-color:#1a1a1a" in rendered
+    assert "Arial, Helvetica, sans-serif" in rendered
+    assert "color:#dbff4b" in rendered
+    assert "replay@temporal.io" in rendered
+    # The attendee image is an attachment, not an external image fetch on open.
+    assert "<img" not in body
+    import re
+    target = unescape(re.search(r'href="(https://replay.temporal.io/[^"]+)"', body).group(1))
+    assert parse_qs(urlsplit(target).query) == {
+        "utm_source": ["reinvent"], "utm_medium": ["email"],
+        "utm_campaign": ["photobooth_2026"],
+    }
