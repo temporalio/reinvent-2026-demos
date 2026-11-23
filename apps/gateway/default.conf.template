@@ -28,6 +28,14 @@ server {
     proxy_pass $control_hub$request_uri;
   }
   location = /healthz { default_type application/json; return 200 '{"ok":true}'; }
+  location /agentcore-video/ {
+    set $target launchpad${SVC_SUFFIX}:8080;
+    proxy_pass http://$target;
+  }
+  location /agentcore-research/ {
+    default_type text/plain;
+    return 503 'AgentCore research demo coming soon';
+  }
   location = /flightsim { return 308 /flightsim/$is_args$args; }
   location /flightsim/ {
     set $target flightsim-web${SVC_SUFFIX}:8080;

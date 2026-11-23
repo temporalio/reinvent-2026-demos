@@ -1,4 +1,5 @@
 import { useEffect, useState, type CSSProperties } from 'react'
+import { missionVisible } from './missionCatalog'
 import { DemoStage } from './DemoStage'
 import catalog from './catalog.json'
 import './index.css'
@@ -14,10 +15,11 @@ import { CrewPicker, type Persona } from './CrewPicker'
 import { BoothBackground } from './BoothBackground'
 import { idleDelayForScreen, idleNavigationTarget, useIdleScreensaver } from './useIdleScreensaver'
 
-const initialDemo = catalog.find(d=>d.id===new URLSearchParams(window.location.search).get('demo')) || null
+const initialDemo = catalog.find(d=>d.id===new URLSearchParams(window.location.search).get('demo') || (d.kind==='video' && window.location.pathname===d.path)) || null
 
 export default function App() {
   const control = useStationControl()
+  const [mediaPlaying,setMediaPlaying] = useState(false)
   const [configurationOpen,setConfigurationOpen] = useState(false)
   const [admitted,setAdmitted] = useState<string | null>(null)
   const [screen, setScreen] = useState<'screensaver' | 'crew' | 'missions' | 'demo'>(initialLaunchScreen(window.location.search,!!initialDemo))
@@ -54,24 +56,27 @@ export default function App() {
     else if (selected && !blocked) setAdmitted(selected.id)
   }, [screen, selected, blocked])
   const mayRun = selected && (admitted === selected.id || !blocked)
-  const missions = catalog.filter(d => filter === 'holodeck' ? ['flight-simulator','photo-booth'].includes(d.id) : filter === 'aws-ai' ? ['loan','no-roads','agent-harness','agentic-sdlc'].includes(d.id) : !['flight-simulator','photo-booth'].includes(d.id))
+  const missions = catalog.filter(d => missionVisible(d,filter))
   function showCrew() {
-    setSelected(null);setAdmitted(null);setFilter('all');setPersona('Captain');setScreen('crew')
+    setMediaPlaying(false);setSelected(null);setAdmitted(null);setFilter('all');setPersona('Captain');setScreen('crew')
+    const url=new URL(window.location.href);url.pathname='/';url.searchParams.delete('demo');url.searchParams.set('screen','crew');window.history.replaceState(null,'',url)
   }
   function showScreensaver() {
-    setSelected(null);setAdmitted(null);setScreen('screensaver')
+    setMediaPlaying(false);setSelected(null);setAdmitted(null);setScreen('screensaver')
     const url=new URL(window.location.href)
+    url.pathname='/'
     url.searchParams.delete('demo');url.searchParams.delete('screen')
     window.history.replaceState(null,'',url)
   }
   function showMissions() {
-    setSelected(null);setAdmitted(null);setScreen('missions')
+    setMediaPlaying(false);setSelected(null);setAdmitted(null);setScreen('missions')
     const url=new URL(window.location.href)
+    url.pathname='/'
     url.searchParams.delete('demo')
     window.history.replaceState(null,'',url)
   }
   const idleTarget=idleNavigationTarget(screen,selected?.id,!!mayRun,configurationOpen,filter)
-  const idleCountdown=useIdleScreensaver({enabled:idleTarget!==null,onTimeout:idleTarget==='missions'?showMissions:showScreensaver,idleMs:idleDelayForScreen(screen),countdownMs:5_000,scope:`${screen}:${filter}:${selected?.id || ''}`})
+  const idleCountdown=useIdleScreensaver({enabled:idleTarget!==null && !(screen==='demo' && selected?.kind==='video' && mediaPlaying),onTimeout:idleTarget==='missions'?showMissions:showScreensaver,idleMs:idleDelayForScreen(screen),countdownMs:5_000,scope:`${screen}:${filter}:${selected?.id || ''}`})
   if (screen === 'screensaver') return <iframe className="attract" title="Temporal Crash Course interactive screensaver" src="/screensaver/index.html" onLoad={event => {
     const doc = event.currentTarget.contentDocument
     doc?.addEventListener('screensaver:next', showCrew, { once: true })
@@ -82,7 +87,7 @@ export default function App() {
     <BoothBackground />
     <LogoMarquee side="top" /><LogoMarquee side="bottom" />
     <header><img src="/assets/brand/temporal-logo.svg" alt="Temporal" />{screen === 'demo' && selected && <h1 className="demo-title">{selected.title}</h1>}</header>
-    <DisplayArea display={control.effective.display} mode={screen === 'demo' ? 'demo' : screen === 'crew' ? 'crew' : 'missions'}>
+    <DisplayArea display={control.effective.display} mode={screen === 'demo' ? (selected?.kind==='video'?'video':'demo') : screen === 'crew' ? 'crew' : 'missions'}>
       {screen === 'crew' && <><p className="eyebrow">SECTOR 01 / CHOOSE YOUR CREW</p><h1>CREW</h1><CrewPicker onPersona={name => {setPersona(name);setFilter('all');setScreen('missions')}} onWizard={() => {setFilter('aws-ai');setScreen('missions')}} onHolodeck={() => {setFilter('holodeck');setScreen('missions')}} /></>}
       {screen === 'missions' && <><p className="eyebrow">SECTOR 02 / {filter === 'all' ? persona : filter === 'holodeck' ? 'HOLODECK' : 'SPACE WIZARD'}</p><h1>MISSION</h1><div className={`missions${filter==='holodeck'?' missions-holodeck':filter==='aws-ai'?' missions-aws-ai':' missions-main'}`} style={{'--mission-rows':Math.ceil(missions.length/2),'--mission-wide-columns':Math.min(4,missions.length),'--mission-wide-rows':Math.ceil(missions.length/4)} as CSSProperties}>{missions.map(d => {
         const metadata=missionMetadata[d.id]
@@ -94,12 +99,12 @@ export default function App() {
           <ul className="mission-tags" aria-label={`${metadata.title} capabilities`}>{metadata.tags.map(tag=><li key={tag}>{tag}</li>)}</ul>
           {d.tentative && runtime.mode!=='local' && <p className="pending">Requires booth GitHub setup</p>}
           {restriction && <p className="pending">{restriction}</p>}
-          <button disabled={!!restriction} aria-label={`Launch ${metadata.title}`} onClick={() => {setAdmitted(d.id);setSelected(d);setScreen('demo')}}><span>Launch</span><span aria-hidden="true">↗</span></button>
+          <button disabled={!!restriction} aria-label={`Launch ${metadata.title}`} onClick={() => {setMediaPlaying(false);setAdmitted(d.id);setSelected(d);setScreen('demo')}}><span>{d.kind==='coming-soon'?'Coming soon':d.kind==='video'?'Watch video':'Launch'}</span><span aria-hidden="true">↗</span></button>
         </article>
       })}</div></>}
-      {screen === 'demo' && selected && <>{!mayRun ? <p role="status">{blocked || 'Choose another mission.'}</p> : <><DemoStage key={`${selected.id}-${persona}`} demo={selected} persona={persona} temporalUi={runtime.temporalUi} /></>}</>}
+      {screen === 'demo' && selected && <>{!mayRun ? <p role="status">{blocked || 'Choose another mission.'}</p> : <><DemoStage key={`${selected.id}-${persona}`} demo={selected} persona={persona} temporalUi={runtime.temporalUi} onPlaybackChange={setMediaPlaying} /></>}</>}
     </DisplayArea>
-    <footer><button onClick={showCrew}>Crew</button><button onClick={showMissions}>Missions</button><div className="screensaver-control"><span className="idle-countdown" role="status" aria-live="polite">{idleCountdown !== null ? `${idleTarget==='missions'?'Missions':'Screensaver'} in ${idleCountdown}s` : ''}</span><button onClick={showScreensaver}>Screensaver</button></div><button className="ziggy-settings" onClick={()=>setConfigurationOpen(true)} aria-label="Open station configuration"><img src="/assets/frame/ziggy-astronaut.png" alt="Ziggy station settings" /></button></footer>
+    <footer><button onClick={showCrew}>Crew</button><button onClick={()=>{setFilter('all');showMissions()}}>All missions</button><button onClick={()=>{setFilter('aws-ai');showMissions()}}>AI / AWS missions</button><div className="screensaver-control"><span className="idle-countdown" role="status" aria-live="polite">{idleCountdown !== null ? `${idleTarget==='missions'?'Missions':'Screensaver'} in ${idleCountdown}s` : ''}</span><button onClick={showScreensaver}>Screensaver</button></div><button className="ziggy-settings" onClick={()=>setConfigurationOpen(true)} aria-label="Open station configuration"><img src="/assets/frame/ziggy-astronaut.png" alt="Ziggy station settings" /></button></footer>
     {configurationOpen && <div className="station-settings-overlay" role="dialog" aria-modal="true" aria-label="Station configuration"><StationControl onExit={()=>setConfigurationOpen(false)} /></div>}
   </div>
 }

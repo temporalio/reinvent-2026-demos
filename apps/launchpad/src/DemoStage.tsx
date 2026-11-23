@@ -23,7 +23,7 @@ const stories: Record<string, [string,string,string]> = {
   'photo-booth': ['Turn a booth visit into a keepsake.', 'A Workflow coordinates photo processing and delivery.', 'Follow the steps from portrait capture to the finished photo strip and delivery.'],
 }
 
-export function DemoStage({ demo, persona, temporalUi, notice }: {demo:(typeof catalog)[number];persona:string;temporalUi:string|null;notice?:string}) {
+export function DemoStage({ demo, persona, temporalUi, notice, onPlaybackChange }: {demo:(typeof catalog)[number];persona:string;temporalUi:string|null;notice?:string;onPlaybackChange?:(playing:boolean)=>void}) {
   const initialTab: Tab = persona.toLowerCase() === 'mech' ? 'code' : persona.toLowerCase() === 'envoy' ? 'architecture' : 'business'
   const [tab,setTab] = useState<Tab>(initialTab)
   const appFrame = useRef<HTMLIFrameElement>(null)
@@ -51,6 +51,14 @@ export function DemoStage({ demo, persona, temporalUi, notice }: {demo:(typeof c
     if(index<0)return
     event.preventDefault(); setTab(tabs[index].id); buttons.current[index]?.focus()
   }
+  if(demo.kind==='video')return <section className="video-stage" aria-label="Cornelia Davis AgentCore video">
+    <video controls autoPlay muted playsInline preload="metadata" poster="/agentcore-video/poster.jpg" controlsList="nodownload noremoteplayback" disablePictureInPicture
+      onPlay={()=>onPlaybackChange?.(true)} onPause={()=>onPlaybackChange?.(false)} onEnded={()=>onPlaybackChange?.(false)} onError={()=>onPlaybackChange?.(false)}
+      onVolumeChange={event=>{if(!event.currentTarget.muted)event.currentTarget.muted=true;if(event.currentTarget.volume!==0)event.currentTarget.volume=0}}>
+      <source src="/agentcore-video/CD_AgentCoreDemo.mp4" type="video/mp4" />
+      Your browser cannot play this video.
+    </video>
+  </section>
   const holodeck = demo.id==='photo-booth' || demo.id==='flight-simulator'
   return <div className={`demo-stage${holodeck?' demo-stage-holodeck':''}`}>
     <section className="stage-application" aria-label="Live demo interaction and controls">

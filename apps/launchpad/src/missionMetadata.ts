@@ -41,6 +41,17 @@ export const missionMetadata:Record<string,MissionMetadata> = {
     description:'Follow development agents from a GitHub request through coding, review, and delivery.',
     tags:['Agent Harness','GitHub','Child Workflows'],
   },
+  'agentcore-video': {
+    title:'AgentCore Demo',icon:'agents-mcp-ai',
+    description:'Watch Cornelia Davis demonstrate AgentCore. Silent video, with touch playback controls.',
+    tags:['AgentCore','Cornelia Davis','Video'],
+    previewImage:'/agentcore-video/poster.jpg',previewAlt:'Cornelia Davis’s AgentCore demo video',
+  },
+  'agentcore-research': {
+    title:'AgentCore Research Agent',icon:'agents-mcp-ai',
+    description:'Shubham’s upcoming AgentCore demo. Research topics with an AI agent. Coming soon.',
+    tags:['AgentCore','Research agent','Coming soon'],
+  },
   'flight-simulator': {
     title:'Flight Simulator',icon:'long-running',
     previewImage:'/assets/holodeck/flight-simulator.png',previewAlt:'Spaceflight cockpit navigating an asteroid field',

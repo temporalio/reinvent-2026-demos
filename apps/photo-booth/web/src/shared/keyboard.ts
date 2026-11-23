@@ -18,7 +18,7 @@ export const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v);
 
 const ROWS = ['1234567890', 'qwertyuiop', 'asdfghjkl', 'zxcvbnm'];
 const KB_PREF = 'holodeck.keyboard';
-const EMAIL_SHORTCUTS = ['@', '_', '-', '.com', '.io', '.ai', '.org'];
+const EMAIL_SHORTCUTS = ['@', '.', '+', '_', '-', '.com', '.io', '.ai', '.org'];
 
 /**
  * On-screen keyboard + input display. Never relies on the OS keyboard, but
@@ -62,7 +62,7 @@ export function onScreenKeyboard(opts: KeyboardOptions): { el: HTMLElement; valu
 
   const keys: [HTMLButtonElement, string][] = [];
   const rows = ROWS.map((row, i) =>
-    h('div', { class: 'osk-row' }, ...[...row].map((ch) => {
+    h('div', { class: 'osk-row touch-keyboard-row' }, ...[...row].map((ch) => {
       const b = h('button', { class: 'osk-key', onclick: () => type(shift ? ch.toUpperCase() : ch) }, ch);
       keys.push([b, ch]);
       return b;
@@ -74,11 +74,11 @@ export function onScreenKeyboard(opts: KeyboardOptions): { el: HTMLElement; valu
   const backKey = () => h('button', { class: 'osk-key fn back', onclick: back, 'aria-label': 'Backspace' }, '⌫');
 
   // Email mode: backspace leads the shortcut row (top-left, next to @).
-  const shortcuts = mode === 'email'
-    ? h('div', { class: 'osk-row shortcuts' }, backKey(), ...EMAIL_SHORTCUTS.map((s) => h('button', { class: 'osk-key fn', onclick: () => type(s) }, s)))
+  const shortcuts = mode !== 'initials'
+    ? h('div', { class: 'osk-row shortcuts touch-keyboard-row' }, backKey(), ...EMAIL_SHORTCUTS.map((s) => h('button', { class: 'osk-key fn', onclick: () => type(s) }, s)))
     : null;
 
-  const bottom = mode === 'email' ? null : h('div', { class: 'osk-row' },
+  const bottom = mode === 'email' ? null : h('div', { class: 'osk-row touch-keyboard-row' },
     mode === 'text' ? h('button', { class: 'osk-key fn wide', onclick: () => { shift = !shift; render(); } }, '⇧ Shift') : null,
     mode === 'text' ? h('button', { class: 'osk-key xwide', onclick: () => type(' ') }, 'space') : null,
     backKey(),
@@ -93,7 +93,7 @@ export function onScreenKeyboard(opts: KeyboardOptions): { el: HTMLElement; valu
   window.addEventListener('keydown', onKey);
 
   // Show/hide toggle for laptops with a physical keyboard; remembered per device.
-  const pad = h('div', { class: 'osk' }, shortcuts, ...rows, bottom);
+  const pad = h('div', { class: 'osk touch-keyboard' }, ...rows, shortcuts, bottom);
   const toggle = h('button', { class: 'btn ghost osk-toggle', onclick: () => setVisible(pad.hidden !== false) });
   const hint = h('p', { class: 'consent osk-hint' }, 'Type on your keyboard, then press Enter.');
   const setVisible = (show: boolean) => {
@@ -104,7 +104,7 @@ export function onScreenKeyboard(opts: KeyboardOptions): { el: HTMLElement; valu
   };
   let pref: string | null = null;
   try { pref = localStorage.getItem(KB_PREF); } catch { /* storage unavailable */ }
-  setVisible(pref !== 'hide');
+  setVisible(new URLSearchParams(location.search).get('booth')==='1' || pref !== 'hide');
 
   const el = h('div', { class: 'osk-wrap' },
     h('div', { class: 'osk-field-row' }, display, submit),

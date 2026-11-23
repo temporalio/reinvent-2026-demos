@@ -19,8 +19,8 @@ class MonorepoTests(unittest.TestCase):
             self.assertTrue((ROOT/recipe['dockerfile']).is_file())
     def test_route_catalog_is_same_origin_and_includes_holodeck(self):
         catalog=json.loads((ROOT/'apps/launchpad/src/catalog.json').read_text())
-        self.assertEqual(len(catalog),9)
-        self.assertEqual(len({d['path'] for d in catalog}),9)
+        self.assertEqual(len(catalog),11)
+        self.assertEqual(len({d['path'] for d in catalog}),11)
         gateway=(ROOT/'apps/gateway/default.conf.template').read_text()
         for demo in catalog:
             self.assertTrue(demo['path'].startswith('/'))
@@ -37,7 +37,7 @@ class MonorepoTests(unittest.TestCase):
 
     def test_shared_code_excerpts_match_repository_sources(self):
         snippets=json.loads((ROOT/'apps/launchpad/public/booth/snippets.json').read_text())
-        self.assertEqual(set(snippets),{d['id'] for d in json.loads((ROOT/'apps/launchpad/src/catalog.json').read_text()) if d['id']!='tacos'})
+        self.assertEqual(set(snippets),{d['id'] for d in json.loads((ROOT/'apps/launchpad/src/catalog.json').read_text()) if d['id']!='tacos' and not d.get('kind')})
         for item in snippets.values():
             lines=(ROOT/item['path']).read_text().splitlines()
             self.assertEqual(item['code'],'\n'.join(lines[:180]))

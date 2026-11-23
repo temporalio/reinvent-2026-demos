@@ -22,12 +22,12 @@ export function idleNavigationTarget(screen:string,demoId:string|undefined,runni
 }
 
 /** The final five seconds of each screen’s idle window display a warning. */
-export function idleDelayForScreen(screen:string):number {
-  return screen==='missions'?55_000:screen==='crew'?30_000:25_000
+export function idleDelayForScreen(_screen:string):number {
+  return 55_000
 }
 
 /** Watch user input in the host and every reachable same-origin iframe document. */
-export function createIdleMonitor({rootDocument,onCountdown,onTimeout,now=Date.now,schedule,idleMs=30_000,countdownMs=5_000}:MonitorOptions):()=>void {
+export function createIdleMonitor({rootDocument,onCountdown,onTimeout,now=Date.now,schedule,idleMs=55_000,countdownMs=5_000}:MonitorOptions):()=>void {
   let deadline=now()+idleMs
   let lastScan=-Infinity
   let previous:number|null=null
@@ -85,7 +85,7 @@ export function createIdleMonitor({rootDocument,onCountdown,onTimeout,now=Date.n
   return stop
 }
 
-export function useIdleScreensaver({enabled,onTimeout,idleMs=30_000,countdownMs=5_000,scope}:{enabled:boolean;onTimeout:()=>void;idleMs?:number;countdownMs?:number;scope?:string}):number|null {
+export function useIdleScreensaver({enabled,onTimeout,idleMs=55_000,countdownMs=5_000,scope}:{enabled:boolean;onTimeout:()=>void;idleMs?:number;countdownMs?:number;scope?:string}):number|null {
   const [remaining,setRemaining]=useState<number|null>(null)
   const callback=useRef(onTimeout)
   callback.current=onTimeout

@@ -50,7 +50,7 @@ hidden tabs pause the loop. Automatic selection never launches a demo.
 
 ## Idle navigation and Holodeck
 
-Normal demos return to the current mission picker after 30 seconds without input.
+Normal demos return to the current mission picker after 60 seconds without input.
 The mission picker starts a fresh 60-second interval before returning to the planet
 screensaver. The last five seconds show the destination beside the Screensaver
 button. Touch, stylus input, and reachable same-origin iframe input reset the clock.
@@ -58,7 +58,7 @@ Leaving a demo screen does not cancel its backend Workflow.
 
 The Holodeck picker, running Flight Simulator and Photo Booth, and staff controls
 remain open until manually dismissed. Holodeck uses two equal vertically stacked
-cards filling the available height, with screenshots from the running apps. Crew selection retains its earlier 30-second idle plus five-second warning.
+cards filling the available height, with screenshots from the running apps. Crew selection also uses the same 60-second idle window.
 
 Asteroids reflect at the top and bottom logo strips. The travel bounds include the
 asteroid's full rotated extent and a 12-pixel design-space margin. A resize cancels
@@ -72,4 +72,12 @@ keyboard shortcuts remain optional and no longer appear in visitor instructions.
 Practice hazards arrive every two seconds; later hazard and enemy intervals shorten
 as the round progresses. Announcements stay between the side control columns.
 
-The AI/AWS mission picker includes static screenshots from the local demo interfaces. These screenshots appear only in that filtered picker. The main seven-mission picker uses larger titles, icons, and description text without screenshots. Both timed mission pickers expire after 60 seconds including the final five-second warning; ordinary demos still expire after 30 seconds.
+The AI/AWS mission picker includes static screenshots from the local demo interfaces. These screenshots appear only in that filtered picker. The main eight-mission picker uses larger titles, icons, and description text without screenshots. Both timed mission pickers expire after 60 seconds including the final five-second warning; ordinary demos and Crew also expire after 60 seconds.
+
+AgentCore adds two AI/AWS cards below the existing four. Cornelia Davis’s 66-second silent video is bundled with Launchpad and appears only in AI/AWS. Playing video suspends idle navigation; pausing or finishing starts a fresh 60-second window. The research-agent placeholder also appears as the eighth main mission and stays unlaunchable until its integration is ready, regardless of saved availability. Both entries have global and per-station Booth Control toggles.
+
+Footer navigation offers Crew, All missions, and AI / AWS missions. All missions always chooses the eight-card list; AI / AWS missions always chooses the six-card Space Wizard list.
+
+The eleven screensaver planets use shared Cosmic Pop colors: Emerald for Tacos/Money Transfer/Data Pipeline; Solar Yellow for Loan/No Roads; Cobalt for Travel Agent/SDLC; Violet for Photo Booth/Flight Simulator; Mars Orange for the two AgentCore entries. All planet exits still start at Crew selection.
+
+Video surround and station border are transparent; the MP4 is byte-for-byte identical to the supplied original. All booth keyboards use QWERTY, numbers above letters, square shared-theme keys, and email punctuation including plus and underscore. Staff station labels reuse the React keyboard; native demos use the same layout and shared `/booth/keyboard.css` appearance.

@@ -132,6 +132,20 @@ class ControlHttpTests(unittest.TestCase):
         self.assertIn('; Secure', headers['Set-Cookie'])
         self.assertEqual(self.request('POST', '/control-api/login', {'pin': '1130'}, origin='https://station.local', headers={'Host': 'station.local', 'X-Forwarded-Proto': 'http'})[0], 403)
 
+    def test_agentcore_availability_can_be_saved_for_each_station(self):
+        cookie = self.login()
+        status, state, _ = self.request('PATCH', '/control-api/global', {
+            'revision': 0, 'settings': {'demo_enabled': {'agentcore-video': False, 'agentcore-research': True}},
+        }, cookie=cookie)
+        self.assertEqual(status, 200)
+        self.assertFalse(state['global']['demo_enabled']['agentcore-video'])
+        status, state, _ = self.request('PATCH', '/control-api/stations/4', {
+            'revision': 1, 'overrides': {'demo_enabled': {'agentcore-video': True, 'agentcore-research': False}},
+        }, cookie=cookie)
+        self.assertEqual(status, 200)
+        self.assertEqual(state['stations']['4']['overrides']['demo_enabled'], {'agentcore-video': True, 'agentcore-research': False})
+        self.assertEqual(state['stations']['1']['overrides']['demo_enabled'], {})
+
     def test_authenticated_overrides_and_inheritance(self):
         request = {'revision': 0, 'settings': {'demo_enabled': {'photo-booth': False}, 'network_mode': 'offline'}}
         self.assertEqual(self.request('PATCH', '/control-api/global', request)[0], 401)

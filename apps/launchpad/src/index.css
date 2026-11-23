@@ -1,3 +1,4 @@
+@import url('/booth/keyboard.css');
 @import url('/assets/css/temporal-theme.css');
 @import url('/assets/css/cosmic-pop-theme.css');
 * { box-sizing: border-box; }
@@ -159,3 +160,14 @@ main.station-surface { position:absolute; top:50%; left:50%; max-width:none; mar
   .station-surface-missions .missions-main .mission-card > button { font-size:clamp(12px,2cqh,21px); }
   .station-surface-missions .missions-aws-ai .mission-card-heading h2 { font-size:clamp(13px,2.5cqh,26px); }
 }
+
+/* Keep the two new AgentCore cards beneath the original AI/AWS four. */
+.station-surface-missions .missions.missions-aws-ai { grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(var(--mission-rows),minmax(0,1fr)); }
+@media(max-width:850px) {
+  .launchpad > footer { gap:.4rem; }
+  .launchpad > footer button { padding:.5rem;font-size:.65rem; }
+}
+
+main.station-surface-video { border:0; background:transparent; overflow:hidden; box-shadow:none; }
+.station-surface-video .station-content { position:absolute; inset:0 auto auto 0; display:flex; flex-direction:column; padding:0; overflow:hidden; background:transparent; }
+.launchpad > footer button { min-height:48px; }
