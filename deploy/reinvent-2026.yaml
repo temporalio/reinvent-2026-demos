@@ -212,6 +212,10 @@ spec:
         containerPort: 8000
         servicePort: 8000
       env:
+      # Must match travel-worker's queue: the web app starts each session's
+      # workflow on it (and prefixes session IDs with it).
+      - name: TEMPORAL_TASK_QUEUE
+        value: ri26-travel
       - name: TRUST_AUTH_HEADERS
         value: 'false'
       args:
