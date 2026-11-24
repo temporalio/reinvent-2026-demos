@@ -161,7 +161,7 @@ html[data-shared-stage=true][data-demo=banking] .account-grid { display:grid; gr
 html[data-shared-stage=true][data-demo=banking] .account-grid > * { margin:0; }
 html[data-shared-stage=true][data-demo=banking] .account-tile { padding:.5rem; }
 html[data-shared-stage=true][data-demo=banking] .account-tile > div { display:grid; grid-template-columns:1fr; gap:.25rem; }
-html[data-shared-stage=true][data-demo=banking] .account-tile svg { display:none; }
+html[data-shared-stage=true][data-demo=banking] .account-tile .account-icon { display:none; }
 html[data-shared-stage=true][data-demo=banking] .account-tile .text-right { text-align:left; }
 html[data-shared-stage=true][data-demo=banking] .account-meta { font-size:.7rem; }
 html[data-shared-stage=true][data-demo=banking] .transfer-fields { grid-template-columns:repeat(2,minmax(0,1fr)); gap:.5rem; }
@@ -175,7 +175,7 @@ html[data-shared-stage=true][data-demo=banking] .review-amount { grid-column:1 /
 html[data-shared-stage=true][data-demo=banking] .review-amount > p:first-child { font-size:2rem; }
 html[data-shared-stage=true][data-demo=banking] .review-account { margin:0; padding:.5rem; gap:.3rem; }
 html[data-shared-stage=true][data-demo=banking] .review-account > div { display:block; }
-html[data-shared-stage=true][data-demo=banking] .review-account svg,html[data-shared-stage=true][data-demo=banking] .review-direction { display:none; }
+html[data-shared-stage=true][data-demo=banking] .review-account .account-icon,html[data-shared-stage=true][data-demo=banking] .review-direction { display:none; }
 html[data-shared-stage=true][data-demo=banking] .review-account .text-right { text-align:left; margin-top:.3rem; }
 html[data-shared-stage=true][data-demo=banking] .tracking-hero { margin:0 0 .5rem; padding:.6rem; }
 html[data-shared-stage=true][data-demo=banking] .tracking-hero > span { display:none; }

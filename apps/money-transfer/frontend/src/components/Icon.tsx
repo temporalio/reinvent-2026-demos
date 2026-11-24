@@ -78,7 +78,7 @@ export function Icon({ name, size = 18, strokeWidth = 1.8, className }: IconProp
 
 export function AccountIcon({ type }: { type?: string }) {
   return (
-    <div className="w-10 h-10 flex-shrink-0 border border-control-edge flex items-center justify-center text-t-indigo">
+    <div className="account-icon w-10 h-10 flex-shrink-0 border border-control-edge flex items-center justify-center text-t-indigo">
       <Icon name={type === 'checking' ? 'card' : 'bank'} />
     </div>
   )
