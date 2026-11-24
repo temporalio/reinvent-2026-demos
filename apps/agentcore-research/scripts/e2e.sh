@@ -20,12 +20,14 @@ wait_for() { # wait_for <python expr on v> <seconds> <what>
 }
 
 curl -sf -c "$JAR" "$API/healthz" >/dev/null
+# The start screen's alarms: take the first one the API offered this visit.
+SCENARIO=$(curl -sf -b "$JAR" -c "$JAR" "$API/api/scenarios" | python3 -c 'import json,sys; print(json.load(sys.stdin)["scenarios"][0]["key"])')
 code=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR" -c "$JAR" -H 'Content-Type: application/json' \
-  -d "{\"id\":\"$ID\",\"scenario\":\"bad-deploy\"}" "$API/api/incidents")
+  -d "{\"id\":\"$ID\",\"scenario\":\"$SCENARIO\"}" "$API/api/incidents")
 [ "$code" = 201 ] || { echo "FAIL: start returned $code"; exit 1; }
 echo "ok: started incident $ID"
 
-wait_for "v['incident']['phase'] == 'awaiting_approval'" 90 "agent proposed a fix and is waiting for approval"
+wait_for "v['incident']['phase'] == 'awaiting_approval'" 90 "agent proposed a repair and is waiting for the captain"
 before=$(view | field "v['incident']['proof']['modelCalls']")
 wait_for "not v['worker']['running']" 90 "the Worker drained; no compute while waiting"
 
@@ -50,7 +52,7 @@ before = int(sys.argv[1])
 assert p['repeats'] == 0, p
 assert len(p['workers']) == 2, p['workers']
 assert p['modelCalls'] == before + 1, (before, p['modelCalls'])
-assert sum(r['name'] == 'apply_remediation' for r in p['rows']) == 1
+assert sum(r['name'] == 'apply_repair' for r in p['rows']) == 1
 print(f\"ok: {p['modelCalls']} model calls and {p['toolCalls']} tool calls, each once, across {len(p['workers'])} Workers\")
 " "$before"
 echo PASS

@@ -36,7 +36,7 @@ class OncallLocalTests(unittest.TestCase):
     def test_replacement_preserves_station_key_and_removes_old_name(self):
         catalog = json.loads((ROOT / 'apps/launchpad/src/catalog.json').read_text())
         demo = next(d for d in catalog if d['id'] == 'agentcore-research')
-        self.assertEqual(demo['title'], 'AgentCore On-Call')
+        self.assertEqual(demo['title'], 'AgentCore Starship Engineer')
         self.assertEqual(demo['path'], '/agentcore-oncall/')
         self.assertEqual(demo['kind'], 'agentcore')
         for file in ['apps/launchpad/src/missionMetadata.ts', 'apps/launchpad/public/screensaver/index.html']:

@@ -16,7 +16,6 @@ import (
 // View is everything the UI shows, in one response.
 type View struct {
 	ServerTime     time.Time     `json:"serverTime"`
-	Scenarios      []Scenario    `json:"scenarios"`
 	WorkerLocation string        `json:"workerLocation"`
 	Worker         WorkerStatus  `json:"worker"`
 	Incident       *IncidentView `json:"incident,omitempty"`
@@ -24,10 +23,10 @@ type View struct {
 
 // IncidentView is one incident Workflow, read without a Worker.
 type IncidentView struct {
-	ID         string   `json:"id"`
-	WorkflowID string   `json:"workflowId"`
-	RunID      string   `json:"runId"`
-	Scenario   Scenario `json:"scenario"`
+	ID         string `json:"id"`
+	WorkflowID string `json:"workflowId"`
+	RunID      string `json:"runId"`
+	Scenario   Option `json:"scenario"`
 	// Status is the Workflow's Temporal status; Phase is the demo's own step,
 	// from the memo the Workflow keeps up to date.
 	Status    string     `json:"status"`
@@ -210,7 +209,7 @@ func (s *Server) incidentView(incidentID, wid string, d *describeResult, proof *
 		Proof:       proof,
 	}
 	if sc, ok := d.memo["incident"].(map[string]any); ok {
-		v.Scenario, _ = scenarioByKey(fmt.Sprint(sc["key"]))
+		v.Scenario = Option{Key: fmt.Sprint(sc["key"]), Title: fmt.Sprint(sc["title"]), Alert: fmt.Sprint(sc["alert"])}
 	}
 	if t := info.GetStartTime(); t != nil {
 		ts := t.AsTime()

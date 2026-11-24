@@ -22,6 +22,6 @@ def test_stub_is_labelled():
 
 
 def test_stub_investigates_before_proposing():
-    messages = [{"role": "user", "content": [{"text": "Incident x: alert. Service: checkout-api."}]}]
+    messages = [{"role": "user", "content": [{"text": "Ship alert x: alert. System: port-ion-drive. Find the cause."}]}]
     _, tool = next_step(messages)
-    assert tool == ("get_service_metrics", {"service": "checkout-api"})
+    assert tool == ("read_telemetry", {"system": "port-ion-drive"})

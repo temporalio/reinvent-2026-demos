@@ -117,7 +117,8 @@ func newTestServer(t *testing.T, tc *fakeClient) http.Handler {
 		tc.svc = &fakeService{}
 	}
 	cfg := Config{TaskQueue: "agentcore-oncall", UIURL: "http://ui", UINamespace: "ns", WorkerLocation: "local"}
-	return NewServer(cfg, "default", tc, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	return NewServer(cfg, "default", tc, NewIncidents(nil, logger), logger)
 }
 
 func do(t *testing.T, h http.Handler, method, path, body, cookie string) *httptest.ResponseRecorder {
@@ -135,7 +136,7 @@ func TestStartScopesTheWorkflowToTheSession(t *testing.T) {
 	tc := &fakeClient{}
 	h := newTestServer(t, tc)
 
-	rec := do(t, h, "POST", "/api/incidents", `{"id":"abcd1234","scenario":"bad-deploy"}`, session)
+	rec := do(t, h, "POST", "/api/incidents", `{"id":"abcd1234","scenario":"port-drive-firmware"}`, session)
 
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("status %d: %s", rec.Code, rec.Body)
@@ -164,7 +165,7 @@ func TestStartGivesANewBrowserItsOwnSession(t *testing.T) {
 	tc := &fakeClient{}
 	h := newTestServer(t, tc)
 
-	rec := do(t, h, "POST", "/api/incidents", `{"id":"abcd1234","scenario":"bad-deploy"}`, "")
+	rec := do(t, h, "POST", "/api/incidents", `{"id":"abcd1234","scenario":"port-drive-firmware"}`, "")
 
 	cookie := rec.Result().Cookies()
 	if len(cookie) != 1 || !cookie[0].HttpOnly || !sessionPattern.MatchString(cookie[0].Value) {
@@ -178,7 +179,7 @@ func TestStartGivesANewBrowserItsOwnSession(t *testing.T) {
 func TestStartRejectsBadInput(t *testing.T) {
 	h := newTestServer(t, &fakeClient{})
 
-	rec := do(t, h, "POST", "/api/incidents", `{"id":"ABC","scenario":"meteor"}`, session)
+	rec := do(t, h, "POST", "/api/incidents", `{"id":"ABC","scenario":""}`, session)
 
 	if rec.Code != http.StatusBadRequest || rec.Header().Get("Content-Type") != "application/problem+json" {
 		t.Fatalf("status %d, type %q", rec.Code, rec.Header().Get("Content-Type"))
@@ -194,7 +195,7 @@ func TestStartOfAnExistingIDIsAConflict(t *testing.T) {
 	tc := &fakeClient{startErr: serviceerror.NewWorkflowExecutionAlreadyStarted("exists", "", "")}
 	h := newTestServer(t, tc)
 
-	rec := do(t, h, "POST", "/api/incidents", `{"id":"abcd1234","scenario":"bad-deploy"}`, session)
+	rec := do(t, h, "POST", "/api/incidents", `{"id":"abcd1234","scenario":"port-drive-firmware"}`, session)
 
 	if rec.Code != http.StatusConflict {
 		t.Fatalf("status %d", rec.Code)
@@ -234,8 +235,8 @@ func TestViewReadsMemoHistoryAndWorkersWithoutAQuery(t *testing.T) {
 				StartTime: timestamppb.New(now.Add(-time.Minute)),
 				Memo: &commonpb.Memo{Fields: map[string]*commonpb.Payload{
 					"phase":    payload(t, "awaiting_approval"),
-					"incident": payload(t, map[string]any{"key": "bad-deploy"}),
-					"proposal": payload(t, map[string]any{"service": "checkout-api", "action": "rollback"}),
+					"incident": payload(t, map[string]any{"key": "g1a2b3c4d", "title": "Warp coil hiccups", "alert": "warp-coil faults above 9%"}),
+					"proposal": payload(t, map[string]any{"system": "warp-coil", "action": "rollback"}),
 					"steps":    payload(t, []any{map[string]any{"kind": "thought", "text": "Looking"}}),
 				}},
 			},
@@ -261,7 +262,7 @@ func TestViewReadsMemoHistoryAndWorkersWithoutAQuery(t *testing.T) {
 		t.Fatal(err)
 	}
 	inc := v.Incident
-	if inc.Phase != "awaiting_approval" || inc.Scenario.Service != "checkout-api" || len(inc.Steps) != 1 {
+	if inc.Phase != "awaiting_approval" || inc.Scenario.Title != "Warp coil hiccups" || len(inc.Steps) != 1 {
 		t.Errorf("incident %+v", inc)
 	}
 	if inc.Waiting == nil || inc.Waiting.Task != "Workflow Task" {

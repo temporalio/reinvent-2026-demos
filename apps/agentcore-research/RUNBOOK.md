@@ -1,9 +1,15 @@
-# Runbook: On-call agent on AgentCore
+# Runbook: Ziggy's starship engineer on AgentCore
 
 ## What it shows
 
-An AI on-call agent diagnoses an incident, proposes a fix and waits as long as it takes for a person
+An alarm sounds on Ziggy's starship. An AI engineering agent reads the ship's telemetry, logs and
+maintenance record, proposes one repair, and waits as long as it takes for the captain (the visitor)
 to approve it. Your Strands agent, made durable with Temporal, running on AgentCore.
+
+Every visit to the start screen offers six new alarms written by Claude Haiku on Bedrock: a firmware
+update gone wrong, a worn-out part, or a system overloaded by something outside the ship. When Haiku
+isn't configured or doesn't answer in time, the screen offers alarms from a built-in library and
+says so under the list.
 
 It makes three problems visible ([docs/story.md](docs/story.md)):
 
@@ -23,31 +29,33 @@ It makes three problems visible ([docs/story.md](docs/story.md)):
 
 ## Start it
 
-Open the demo. A healthy start shows three alerts, the Compute card ("No Worker running", no compute
+Open the demo. A healthy start shows six alarm cards with "Fresh alarms, written for this visit by
+Claude Haiku on Amazon Bedrock" under them (locally: "the ship's built-in training library"), the Compute card ("No Worker running", no compute
 in use), and an empty Event History card. The freshness dot in the top bar says Live.
 
 ## The walkthrough
 
-### 1. Page the agent
+### 1. Send the engineer
 
-Click **checkout-api · Checkout errors after a deploy**, then **Start incident**.
+Let the visitor pick any alarm, then click **Send the engineer**. Each alarm hides its cause, so
+nobody knows the answer until the agent finds it.
 
 The audience sees the "Starting a Worker" banner, then "Worker running", then the agent's steps
-arrive: metrics, logs, deploys, each with what it found.
+arrive: telemetry, ship logs, the maintenance log, each with what it found.
 
-Say: "Nothing was running a second ago. Starting the incident gave Temporal work, and Temporal Cloud
+Say: "Nothing was running a second ago. Sending the engineer gave Temporal work, and Temporal Cloud
 invoked the agent on AgentCore. Each of those steps is a model call or a tool call, and each one is
 recorded in Temporal."
 
 Proof: the Event History card, one row per model and tool call and the Worker that ran it.
 
-### 2. The agent asks before it changes production
+### 2. The agent asks the captain before it touches the ship
 
-The agent proposes "rollback v2.13.2" with its reasoning, and the badge says **Waiting for approval**.
-Don't approve yet.
+The agent proposes one repair with its reasoning: roll the firmware back, power-cycle a worn system,
+or reroute power to spare capacity. The badge says **Waiting for the captain**. Don't approve yet.
 
-Say: "This is a Strands agent. Its tool call to change production stops at a hook, and Temporal holds
-the agent right there. A person might answer in two minutes or two hours."
+Say: "This is a Strands agent. Its tool call to change the ship stops at a hook, and Temporal holds
+the agent right there. The captain might answer in two minutes or two hours."
 
 ### 3. No compute while it waits (problems 1 and 3)
 
@@ -62,10 +70,10 @@ step, read with Describe, not from the agent.
 
 ### 4. Approve: a new process picks up where the agent stopped (problem 2)
 
-Add a note if you like, then click **Approve fix**.
+Add a captain's note if you like, then click **Approve repair**.
 
-The banner says "Starting a Worker", a new Worker starts, applies the rollback, and the agent closes
-the incident with the recovered numbers. The badge says **Resolved**.
+The banner says "Starting a Worker", a new Worker starts, applies the repair, and the agent closes
+the incident with the recovered readings. The badge says **Repaired**.
 
 Say: "That approval was recorded the moment I clicked, with nothing running. Recording it is what
 started compute again. A brand-new process replayed the history and carried on from the proposal."
@@ -76,9 +84,9 @@ Open **Temporal UI** for the full history.
 
 ### 5. Optional: reject instead
 
-Start another incident and click **Reject** with a note such as "not during peak". The fix is not
-applied, and the agent closes the incident and escalates. The note reaches the model as the tool's
-result.
+Pick another alarm and click **Hold off** with a note such as "not while we're docking". The repair
+is not applied, and the agent closes the incident and hands it to the next officer on watch. The
+note reaches the model as the tool's result.
 
 ## Show it in code
 
@@ -86,7 +94,7 @@ result.
 
 **When:** "What did it take to make the agent durable?"
 
-**Where:** [`agent/oncall/workflows.py:77-92`](https://github.com/temporal-sa/temporal-demo-agentcore-oncall/blob/c9d73817c302c17dba1c22b9b4c51adadc88a384/agent/oncall/workflows.py#L77-L92) (`code -g agent/oncall/workflows.py:77`)
+**Where:** [`agent/oncall/workflows.py:85-97`](agent/oncall/workflows.py#L85-L97) and the tools at [`159-211`](agent/oncall/workflows.py#L159-L211) (`code -g agent/oncall/workflows.py:85`)
 
 ```python
 self._agent = TemporalAgent(
@@ -94,18 +102,17 @@ self._agent = TemporalAgent(
     start_to_close_timeout=timedelta(seconds=60),
     retry_policy=RetryPolicy(maximum_attempts=5),
     system_prompt=SYSTEM_PROMPT,
-    tools=[
-        activity_as_tool(tool, start_to_close_timeout=timedelta(seconds=20), retry_policy=RetryPolicy(maximum_attempts=5))
-        for tool in activities.TOOLS
-    ],
+    tools=ship_tools(incident.scenario),
     hooks=[ApprovalGate(), Progress(self)],
     callback_handler=None,
 )
 ```
 
 **What to understand:** `TemporalAgent` is a Strands `Agent` whose model calls run as the plugin's
-`invoke_model` Activity, and `activity_as_tool` makes each tool an Activity. The tools are ordinary
-async functions with docstrings; Strands builds their schemas. The model name maps to a factory
+`invoke_model` Activity. Each tool in `ship_tools` is a Strands `@tool` whose body runs an Activity
+with `workflow.execute_activity`, passing the incident the Workflow was started with, so the model
+chooses the system and the repair but never invents the ship it reads. Strands builds the tool
+schemas from the docstrings. The model name maps to a factory
 registered on the Worker (`StrandsPlugin(models={...})`), so the Bedrock client lives on the Worker,
 never in the Workflow. The customer doesn't write a model loop, a checkpoint, or any state store.
 Docs: [temporalio-strands-agents](https://pypi.org/project/temporalio-strands-agents/).
@@ -114,7 +121,7 @@ Docs: [temporalio-strands-agents](https://pypi.org/project/temporalio-strands-ag
 
 **When:** "How does the human approval work?" (beat 2)
 
-**Where:** [`agent/oncall/workflows.py:154-170`](https://github.com/temporal-sa/temporal-demo-agentcore-oncall/blob/c9d73817c302c17dba1c22b9b4c51adadc88a384/agent/oncall/workflows.py#L154-L170) (`code -g agent/oncall/workflows.py:154`)
+**Where:** [`agent/oncall/workflows.py:213-229`](agent/oncall/workflows.py#L213-L229) (`code -g agent/oncall/workflows.py:213`)
 
 ```python
 class ApprovalGate(HookProvider):
@@ -122,15 +129,15 @@ class ApprovalGate(HookProvider):
         registry.add_callback(BeforeToolCallEvent, self._gate)
 
     def _gate(self, event: BeforeToolCallEvent) -> None:
-        if event.tool_use["name"] != activities.apply_remediation.__name__:
+        if event.tool_use["name"] != activities.apply_repair.__name__:
             return
-        response = event.interrupt("remediation-approval", reason=event.tool_use["input"])
+        response = event.interrupt("repair-approval", reason=event.tool_use["input"])
         if response != "approve":
             event.cancel_tool = f"Not applied: the change was {response}."
 ```
 
 **What to understand:** a Strands hook interrupt. The first time the agent calls
-`apply_remediation`, `interrupt` stops the agent and `invoke_async` returns with stop reason
+`apply_repair`, `interrupt` stops the agent and `invoke_async` returns with stop reason
 `interrupt`, carrying the proposed tool input. When the Workflow resumes the agent with an answer,
 the same hook runs again and `interrupt` returns that answer. A rejection cancels the tool call, and
 the model sees why.
@@ -139,7 +146,7 @@ the model sees why.
 
 **When:** beat 3, "what is running while it waits?"
 
-**Where:** [`agent/oncall/workflows.py:101-119`](https://github.com/temporal-sa/temporal-demo-agentcore-oncall/blob/c9d73817c302c17dba1c22b9b4c51adadc88a384/agent/oncall/workflows.py#L101-L119) and the Signal at [`126-137`](https://github.com/temporal-sa/temporal-demo-agentcore-oncall/blob/c9d73817c302c17dba1c22b9b4c51adadc88a384/agent/oncall/workflows.py#L126-L137) (`code -g agent/oncall/workflows.py:101`)
+**Where:** [`agent/oncall/workflows.py:109-124`](agent/oncall/workflows.py#L109-L124) and the Signal at [`131-142`](agent/oncall/workflows.py#L131-L142) (`code -g agent/oncall/workflows.py:109`)
 
 ```python
 while result.stop_reason == "interrupt":

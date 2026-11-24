@@ -16,6 +16,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
 from collections.abc import AsyncGenerator, AsyncIterable, Callable
 from typing import Any
 
@@ -24,8 +25,6 @@ from strands.models import BedrockModel, Model
 from strands.models.bedrock import DEFAULT_READ_TIMEOUT
 from strands.types.content import Messages
 from strands.types.streaming import StreamEvent
-
-from . import services
 
 MODEL_NAME = "oncall"
 STUB_MODEL_ID = "stub (scripted, offline)"
@@ -62,8 +61,8 @@ class StubModel(Model):
     """A scripted stand-in for Bedrock: same tools, same order, no network.
 
     It reads the conversation so far and plays the next step of a fixed
-    investigation: metrics, logs, deploys, then a remediation proposal, then a
-    summary of what the remediation did. The pause before each answer stands
+    investigation: telemetry, logs, maintenance, then a repair proposal drawn
+    from that evidence, then a summary of what the repair did. The pause before each answer stands
     in for a real model's latency so each step is visible on screen.
     """
 
@@ -113,36 +112,41 @@ def _tool_results(messages: Messages) -> dict[str, dict[str, Any]]:
     return results
 
 
-def _service_from_prompt(messages: Messages) -> str:
+def _system_from_prompt(messages: Messages) -> str:
     first = "".join(c.get("text", "") for c in messages[0].get("content", []))
-    for service in services.SERVICES:
-        if service in first:
-            return service
-    return ""
+    match = re.search(r"System: ([a-z0-9-]+)", first)
+    return match.group(1) if match else ""
+
+
+def _repair(telemetry: dict[str, Any], maintenance: dict[str, Any], system: str) -> tuple[str, str, str]:
+    """What a careful engineer concludes from the evidence: action, target, rationale."""
+    updates = maintenance.get("updates", [])
+    newest = updates[0] if updates else None
+    if newest and newest["minutes_ago"] < 60 and len(updates) > 1:
+        previous = updates[1]["version"]
+        return "rollback", previous, f"Faults began after firmware {newest['version']} went in {newest['minutes_ago']} minutes ago; rolling back to {previous} should clear them."
+    if telemetry.get("load_pct", 0) > 150:
+        return "reroute_power", "auxiliary power bus", f"{system} is carrying {telemetry['load_pct']:.0f}% of its rated load; moving the excess to the auxiliary bus brings it back within limits."
+    return "power_cycle", system, f"The core is running hot on long-standing firmware, so a clean power cycle should reset it."
 
 
 def next_step(messages: Messages) -> tuple[str, tuple[str, dict[str, Any]] | None]:
     """The stub's answer to the conversation so far: text, and a tool call or None."""
-    service = _service_from_prompt(messages)
-    s = services.scenario_for_service(service)
-    if s is None:
-        return "I can't tell which service the alert is about, so I can't investigate it.", None
+    system = _system_from_prompt(messages)
+    if not system:
+        return "I can't tell which ship system the alert is about, so I can't investigate it.", None
     done = _tool_results(messages)
-    if "get_service_metrics" not in done:
-        return f"Starting with {service}'s current metrics.", ("get_service_metrics", {"service": service})
-    if "search_logs" not in done:
-        return "Metrics are degraded. Searching the logs for the cause.", ("search_logs", {"service": service, "query": s.log_query})
-    if "list_recent_deploys" not in done:
-        return "Checking whether a recent deploy lines up with the logs.", ("list_recent_deploys", {"service": service})
-    if "apply_remediation" not in done:
-        rationale = {
-            "bad-deploy": f"Errors started after v2.14.0 cut the DB pool from 200 to 50; rolling back to {s.fix_target} restores it.",
-            "memory-leak": "A feature flag disabled cache eviction, so the heap grows until the pod is killed; a restart clears it while the flag is fixed.",
-            "traffic-surge": "Traffic is 3x normal and the autoscaler is at its limit of 6; doubling replicas absorbs the surge.",
-        }[s.key]
-        args = {"service": service, "action": s.fix_action, "target": s.fix_target, "rationale": rationale}
-        return f"I recommend: {s.fix_action} {s.fix_target}. This changes production, so it needs approval.", ("apply_remediation", args)
-    applied = done["apply_remediation"]
+    if "read_telemetry" not in done:
+        return f"Pulling live telemetry from {system}.", ("read_telemetry", {"system": system})
+    if "search_ship_logs" not in done:
+        return "Readings are off nominal. Searching the system logs for the cause.", ("search_ship_logs", {"system": system, "query": "fault"})
+    if "list_recent_maintenance" not in done:
+        return "Checking whether recent maintenance lines up with the logs.", ("list_recent_maintenance", {"system": system})
+    if "apply_repair" not in done:
+        action, target, rationale = _repair(json.loads(done["read_telemetry"]["text"]), json.loads(done["list_recent_maintenance"]["text"]), system)
+        args = {"system": system, "action": action, "target": target, "rationale": rationale}
+        return f"Recommended repair: {action} {target}. It changes the ship, so it needs the captain's approval.", ("apply_repair", args)
+    applied = done["apply_repair"]
     if applied["status"] != "success":
-        return f"The remediation was not applied ({applied['text']}). {service} is still degraded; escalating to the service owner.", None
-    return f"Remediation applied and verified: {json.loads(applied['text'])['summary']}. Closing the incident.", None
+        return f"The repair was not applied ({applied['text']}). {system} is still degraded; logging it for the next watch.", None
+    return f"Repair applied and verified: {json.loads(applied['text'])['summary']}. Closing the alert.", None

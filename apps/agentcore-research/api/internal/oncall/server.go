@@ -30,11 +30,13 @@ type Server struct {
 	namespace string
 	tc        client.Client
 	log       *slog.Logger
+	incidents *Incidents
+	offered   offered
 }
 
 // NewServer returns the API and UI as one handler. Every route is in routes().
-func NewServer(cfg Config, namespace string, tc client.Client, logger *slog.Logger) http.Handler {
-	s := &Server{cfg: cfg, namespace: namespace, tc: tc, log: logger}
+func NewServer(cfg Config, namespace string, tc client.Client, incidents *Incidents, logger *slog.Logger) http.Handler {
+	s := &Server{cfg: cfg, namespace: namespace, tc: tc, log: logger, incidents: incidents}
 	return withSession(s.routes())
 }
 
@@ -42,6 +44,7 @@ func (s *Server) routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", s.handleHealth)
 	mux.HandleFunc("GET /api/view", s.handleView)
+	mux.HandleFunc("GET /api/scenarios", s.handleScenarios)
 	mux.HandleFunc("POST /api/incidents", s.handleStart)
 	mux.HandleFunc("POST /api/incidents/{id}/decision", s.handleDecision)
 	mux.Handle("GET /", web.Handler())
@@ -74,7 +77,7 @@ func (s *Server) handleView(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
-	view := View{ServerTime: time.Now().UTC(), Scenarios: scenarios, WorkerLocation: s.cfg.WorkerLocation}
+	view := View{ServerTime: time.Now().UTC(), WorkerLocation: s.cfg.WorkerLocation}
 	g, gctx := errgroup.WithContext(ctx)
 	g.Go(func() error {
 		view.Worker = s.workerStatus(gctx)
@@ -103,6 +106,18 @@ func (s *Server) handleView(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, view)
 }
 
+// handleScenarios offers this visit's emergencies: a new set each call,
+// written by Claude Haiku when it is configured. It touches no Temporal state.
+func (s *Server) handleScenarios(w http.ResponseWriter, r *http.Request) {
+	set, source := s.incidents.Next(r.Context())
+	s.offered.add(set)
+	options := make([]Option, len(set))
+	for i, sc := range set {
+		options[i] = sc.option()
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"scenarios": options, "source": source})
+}
+
 type startRequest struct {
 	ID       string `json:"id"`
 	Scenario string `json:"scenario"`
@@ -120,12 +135,16 @@ func (s *Server) handleStart(w http.ResponseWriter, r *http.Request) {
 	if !incidentPattern.MatchString(req.ID) {
 		problems = append(problems, "id must be 8 lowercase hex characters")
 	}
-	sc, ok := scenarioByKey(req.Scenario)
-	if !ok {
-		problems = append(problems, "scenario must be one of bad-deploy, memory-leak, traffic-surge")
+	if req.Scenario == "" {
+		problems = append(problems, "scenario is required")
 	}
 	if len(problems) > 0 {
 		s.problem(w, http.StatusBadRequest, "Invalid incident", problems...)
+		return
+	}
+	sc, ok := s.offered.get(req.Scenario)
+	if !ok {
+		s.problem(w, http.StatusGone, "That emergency has expired", "Load a fresh set of emergencies and pick again.")
 		return
 	}
 
@@ -141,9 +160,9 @@ func (s *Server) handleStart(w http.ResponseWriter, r *http.Request) {
 		WorkflowIDConflictPolicy: enumspb.WORKFLOW_ID_CONFLICT_POLICY_FAIL,
 		WorkflowIDReusePolicy:    enumspb.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
 		// Set at start, the memo and the Search Attribute cost no extra Action.
-		Memo:                  map[string]any{"incident": sc, "phase": "diagnosing"},
+		Memo:                  map[string]any{"incident": sc.option(), "phase": "diagnosing"},
 		TypedSearchAttributes: temporal.NewSearchAttributes(phaseKey.ValueSet("diagnosing")),
-	}, workflowType, map[string]string{"incident_id": req.ID, "scenario": sc.Key})
+	}, workflowType, map[string]any{"incident_id": req.ID, "scenario": sc})
 	if err != nil {
 		var started *serviceerror.WorkflowExecutionAlreadyStarted
 		if errors.As(err, &started) {
@@ -153,14 +172,13 @@ func (s *Server) handleStart(w http.ResponseWriter, r *http.Request) {
 		s.temporalError(w, err)
 		return
 	}
-	s.log.Info("incident started", "workflow_id", wid, "scenario", sc.Key)
+	s.log.Info("incident started", "workflow_id", wid, "scenario", sc.Key, "system", sc.System, "cause", sc.Cause)
 	now := time.Now().UTC()
 	writeJSON(w, http.StatusCreated, View{
 		ServerTime:     now,
-		Scenarios:      scenarios,
 		WorkerLocation: s.cfg.WorkerLocation,
 		Incident: &IncidentView{
-			ID: req.ID, WorkflowID: wid, RunID: run.GetRunID(), Scenario: sc,
+			ID: req.ID, WorkflowID: wid, RunID: run.GetRunID(), Scenario: sc.option(),
 			Status: "Running", Phase: "diagnosing", StartedAt: &now,
 			Waiting:     &Waiting{Since: now, Attempt: 1},
 			TemporalURL: s.temporalURL(wid),

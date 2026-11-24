@@ -22,9 +22,32 @@ from temporalio.worker import Worker
 
 from oncall import activities
 from oncall.models import MODEL_NAME, StubModel
+from oncall.services import Scenario, Update
 from oncall.workflows import Decision, IncidentInput, IncidentReport, IncidentWorkflow
 
 TASK_QUEUE = "oncall-test"
+
+# One incident per cause, shaped like the ones the API generates.
+SCENARIOS = {
+    "bad_update": Scenario(
+        key="t-update", title="Port ion drive stutters after a firmware push", system="port-ion-drive",
+        alert="port-ion-drive thrust faults above 6% for 5 minutes", cause="bad_update",
+        log_lines=["ERROR thrust vector checksum mismatch", "WARN injector timing table v4.2.0 rejected", "INFO firmware v4.2.0 applied by Pip"],
+        updates=[Update("v4.2.0", 12, "Pip"), Update("v4.1.3", 4100, "maintenance-bot")], fix_target="v4.1.3",
+    ),
+    "wear": Scenario(
+        key="t-wear", title="Hydroponics pump running hot", system="hydroponics-pump",
+        alert="hydroponics-pump core above 140°C", cause="wear",
+        log_lines=["WARN bearing temperature 158°C", "WARN flow 61% of setpoint", "INFO last service 214 days ago"],
+        updates=[Update("v2.0.9", 8800, "Juno")], fix_target="hydroponics-pump",
+    ),
+    "overload": Scenario(
+        key="t-load", title="Shield emitters overloaded in a meteor shower", system="forward-shield-array",
+        alert="forward-shield-array load at 290% of rated", cause="overload",
+        log_lines=["WARN emitter load 290% of rated", "WARN capacitor bank at limit", "INFO meteor density 3.4x normal"],
+        updates=[Update("v7.3.1", 6200, "Orion")], fix_target="auxiliary power bus",
+    ),
+}
 
 
 @pytest.fixture(scope="session")
@@ -51,16 +74,16 @@ def worker(client: Client, identity: str) -> Worker:
         # server from holding the next task for a Worker that has gone.
         max_cached_workflows=0,
         workflows=[IncidentWorkflow],
-        activities=activities.TOOLS,
+        activities=activities.ACTIVITIES,
         plugins=[StrandsPlugin(models={MODEL_NAME: lambda: StubModel(delay_seconds=0)})],
     )
 
 
-async def start(client: Client, scenario: str = "bad-deploy") -> WorkflowHandle:
+async def start(client: Client, cause: str = "bad_update") -> WorkflowHandle:
     incident_id = uuid.uuid4().hex[:8]
     return await client.start_workflow(
         IncidentWorkflow.run,
-        IncidentInput(incident_id=incident_id, scenario=scenario),
+        IncidentInput(incident_id=incident_id, scenario=SCENARIOS[cause]),
         id=f"oncall-test-{incident_id}",
         task_queue=TASK_QUEUE,
         result_type=IncidentReport,
@@ -105,18 +128,19 @@ async def test_waits_for_approval_then_remediates(env: WorkflowEnvironment):
         await wait_for_phase(env, handle, "awaiting_approval")
         memo = await (await handle.describe()).memo()
         assert memo["proposal"]["action"] == "rollback"
+        assert memo["proposal"]["target"] == "v4.1.3"
         assert memo["model"] == "stub (scripted, offline)"
 
         # A day less an hour later, it is still waiting, with no remediation run.
         await env.sleep(timedelta(hours=23))
         assert await memo_phase(handle) == "awaiting_approval"
-        assert "apply_remediation" not in await scheduled_activities(handle)
+        assert "apply_repair" not in await scheduled_activities(handle)
 
         await handle.signal(IncidentWorkflow.decide, Decision(approved=True, approver="test"))
         report = await handle.result()
 
     assert report.phase == "resolved"
-    assert "recovered" in report.summary
+    assert "back to nominal" in report.summary
     desc = await handle.describe()
     assert desc.typed_search_attributes.get(SearchAttributeKey.for_keyword("OncallPhase")) == "resolved"
 
@@ -137,11 +161,11 @@ async def test_new_worker_resumes_without_repeating_any_call(env: WorkflowEnviro
 
     assert report.phase == "resolved"
     after = await scheduled_activities(handle)
-    # Four model turns before approval (metrics, logs, deploys, proposal) and
+    # Four model turns before approval (telemetry, logs, maintenance, proposal) and
     # one after (the summary). Each tool runs exactly once.
     assert before["invoke_model"] == 4
     assert after["invoke_model"] == 5
-    for tool in ("get_service_metrics", "search_logs", "list_recent_deploys", "apply_remediation"):
+    for tool in ("read_telemetry", "search_ship_logs", "list_recent_maintenance", "apply_repair"):
         assert after[tool] == 1, f"{tool} scheduled {after[tool]} times"
     assert after["strands_get_model_config"] == 1
     assert await workflow_task_workers(handle) == ["worker-a", "worker-b"]
@@ -149,23 +173,23 @@ async def test_new_worker_resumes_without_repeating_any_call(env: WorkflowEnviro
 
 async def test_rejection_closes_without_changing_production(env: WorkflowEnvironment):
     async with worker(env.client, "worker-a"):
-        handle = await start(env.client, "memory-leak")
+        handle = await start(env.client, "wear")
         await wait_for_phase(env, handle, "awaiting_approval")
         await handle.signal(IncidentWorkflow.decide, Decision(approved=False, approver="test", note="not during peak"))
         report = await handle.result()
 
     assert report.phase == "closed"
-    assert "apply_remediation" not in await scheduled_activities(handle)
+    assert "apply_repair" not in await scheduled_activities(handle)
     memo = await (await handle.describe()).memo()
     assert memo["decision"]["approved"] is False
-    remediation = [s for s in memo["steps"] if s.get("tool") == "apply_remediation"]
-    assert [s["status"] for s in remediation] == ["error"]
-    assert "not during peak" in remediation[0]["text"]
+    repair = [s for s in memo["steps"] if s.get("tool") == "apply_repair"]
+    assert [s["status"] for s in repair] == ["error"]
+    assert "not during peak" in repair[0]["text"]
 
 
 async def test_no_decision_in_24_hours_closes_the_incident(env: WorkflowEnvironment):
     async with worker(env.client, "worker-a"):
-        handle = await start(env.client, "traffic-surge")
+        handle = await start(env.client, "overload")
         await wait_for_phase(env, handle, "awaiting_approval")
         await env.sleep(timedelta(hours=25))
         report = await handle.result()
@@ -173,3 +197,16 @@ async def test_no_decision_in_24_hours_closes_the_incident(env: WorkflowEnvironm
     assert report.phase == "closed"
     memo = await (await handle.describe()).memo()
     assert memo["decision"]["approver"] == "nobody"
+
+
+@pytest.mark.parametrize("cause,action", [("wear", "power_cycle"), ("overload", "reroute_power")])
+async def test_the_evidence_points_to_the_right_repair(env: WorkflowEnvironment, cause: str, action: str):
+    async with worker(env.client, "worker-a"):
+        handle = await start(env.client, cause)
+        await wait_for_phase(env, handle, "awaiting_approval")
+        memo = await (await handle.describe()).memo()
+        assert memo["proposal"]["action"] == action
+        await handle.signal(IncidentWorkflow.decide, Decision(approved=True, approver="test"))
+        report = await handle.result()
+    assert report.phase == "resolved"
+    assert "back to nominal" in report.summary

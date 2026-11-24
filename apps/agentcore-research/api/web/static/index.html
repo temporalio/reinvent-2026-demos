@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>AgentCore On-Call</title>
+  <title>Starship Engineering Agent</title>
   <meta name="theme-color" content="#141414">
   <link rel="icon" href="assets/brand/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="assets/css/temporal-theme.css">
@@ -18,7 +18,7 @@
       <div class="brand">
         <img src="assets/brand/temporal-logo.svg" alt="Temporal" width="172" height="44">
         <span class="brand-divider"></span>
-        <p class="eyebrow">MISSION CONTROL / AGENTCORE ON-CALL</p>
+        <p class="eyebrow">ZIGGY'S STARSHIP / ENGINEERING AGENT ON AGENTCORE</p>
       </div>
       <div class="topbar-actions">
         <span class="freshness" id="freshness" data-state="idle"><i class="dot"></i><span class="freshness-text">Connecting</span></span>
@@ -28,13 +28,14 @@
 
     <main class="columns">
       <section class="card incident" aria-labelledby="incident-title">
-        <p class="eyebrow">Incident</p>
-        <h1 class="heading" id="incident-title">Page the agent</h1>
+        <p class="eyebrow">Ship's alarm</p>
+        <h1 class="heading" id="incident-title">Alarms on Ziggy's starship</h1>
 
         <div id="start-panel">
-          <p class="lede">Pick an alert. The agent investigates with tools, proposes a fix, and waits for you before it changes anything.</p>
-          <div class="chips" role="group" aria-label="Alerts" id="scenarios"></div>
-          <button class="button primary ultraviolet" id="start" disabled>Start incident</button>
+          <p class="lede">You're the captain. Pick an alarm and send the engineering agent: it investigates with the ship's tools, proposes one repair, and waits for your approval before it touches anything.</p>
+          <div class="chips scenario-grid" role="group" aria-label="Alarms" id="scenarios" aria-busy="true"><p class="muted" id="scanning">Scanning the ship for faults…</p></div>
+          <p class="muted" id="scenario-source"></p>
+          <button class="button primary ultraviolet" id="start" disabled>Send the engineer</button>
           <p class="muted" id="start-error" role="alert"></p>
         </div>
 
@@ -42,13 +43,13 @@
           <p class="alert-line"><span class="status-badge" id="phase-badge" data-status="active">Diagnosing</span> <span id="alert-text"></span></p>
           <p class="muted" id="model-line"></p>
           <div class="proposal" id="proposal" hidden>
-            <p class="eyebrow">Proposed fix · needs your approval</p>
+            <p class="eyebrow">Proposed repair · needs the captain's approval</p>
             <dl class="facts" id="proposal-facts"></dl>
             <p class="rationale" id="proposal-rationale"></p>
-            <label class="field"><span>Note (optional)</span><input id="note" data-booth-keyboard="native" maxlength="200" autocomplete="off"></label>
+            <label class="field"><span>Captain's note (optional)</span><input id="note" data-booth-keyboard="native" maxlength="200" autocomplete="off"></label>
             <div class="decide">
-              <button class="button primary green" id="approve">Approve fix</button>
-              <button class="button secondary ultraviolet" id="reject">Reject</button>
+              <button class="button primary green" id="approve">Approve repair</button>
+              <button class="button secondary ultraviolet" id="reject">Hold off</button>
             </div>
             <p class="muted" id="decide-help">Approving sends a Signal. Temporal records it at once, even with no Worker running, and then starts one to continue.</p>
           </div>
@@ -56,7 +57,7 @@
           <ol class="steps" id="agent-steps" aria-live="polite"></ol>
 
           <div class="outcome" id="outcome" hidden></div>
-          <button class="button secondary ultraviolet small" id="new-incident" hidden>New incident</button>
+          <button class="button secondary ultraviolet small" id="new-incident" hidden>Next alarm</button>
         </div>
       </section>
 

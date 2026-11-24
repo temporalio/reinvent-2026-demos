@@ -52,7 +52,7 @@ func sampleHistory(t0 time.Time) []*ev {
 		scheduled(11, t0, 2, "invoke_model"),
 		started(12, 11, t0, 2, "worker-a", 1),
 		completed(13, 11, t0, 4),
-		scheduled(17, t0, 5, "get_service_metrics"),
+		scheduled(17, t0, 5, "read_telemetry"),
 		started(18, 17, t0, 5, "worker-a", 2),
 		completed(19, 17, t0, 6),
 		signaled(23, t0, 600),
