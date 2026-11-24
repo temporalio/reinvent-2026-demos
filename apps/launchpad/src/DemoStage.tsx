@@ -29,7 +29,7 @@ const stories: Record<string, [string,string,string]> = {
   'photo-booth': ['Turn a booth visit into a keepsake.', 'A Workflow coordinates photo processing and delivery.', 'Follow the steps from portrait capture to the finished photo strip and delivery.'],
 }
 
-export function DemoStage({ demo, persona, temporalUi, notice, onPlaybackChange }: {demo:(typeof catalog)[number];persona:string;temporalUi:string|null;notice?:string;onPlaybackChange?:(playing:boolean)=>void}) {
+export function DemoStage({ demo, persona, temporalUi, temporalZoom=100, notice, onPlaybackChange }: {demo:(typeof catalog)[number];persona:string;temporalUi:string|null;temporalZoom?:number;notice?:string;onPlaybackChange?:(playing:boolean)=>void}) {
   const holodeck = demo.id==='photo-booth' || demo.id==='flight-simulator' || demo.id==='agentcore-research'
   const [workflowOverlay,setWorkflowOverlay]=useState<string|null>(null)
   const initialTab: Tab = persona.toLowerCase() === 'mech' ? 'code' : persona.toLowerCase() === 'envoy' ? 'architecture' : 'business'
@@ -47,7 +47,6 @@ export function DemoStage({ demo, persona, temporalUi, notice, onPlaybackChange 
     const timer=setInterval(apply,500);apply();return()=>clearInterval(timer)
   },[demo.id])
   const [workflowUrl,setWorkflowUrl]=useState<string|null>(null)
-  const [temporalZoom,setTemporalZoom]=useState(100)
   const [nativeCursor,setNativeCursor]=useState<LiveCursor|null>(null)
   const [recordedCursor,setRecordedCursor]=useState<LiveCursor|null>(null)
   const selectedRunId=workflowUrl?.split('/workflows/')[1]?.split('/')[1]
@@ -155,7 +154,7 @@ export function DemoStage({ demo, persona, temporalUi, notice, onPlaybackChange 
         {t.id==='business' && <div className="business-story"><h2>{story?.[0]}</h2><p>{story?.[1]}</p><p className="business-detail">{notice || story?.[2]}</p></div>}
         {t.id==='architecture' && tab==='architecture' && <ArchitecturePanel demoId={demo.id} execution={tacoRun} phase={phase} cursor={liveCursor} />}
         {t.id==='code' && <CodeSamples demoId={demo.id} execution={tacoRun} phase={phase} money={moneyRun} cursor={liveCursor} />}
-        {t.id==='temporal' && (temporalUi ? <><div className="temporal-zoom-controls" role="group" aria-label="Temporal UI zoom"><span>Workflow view</span><button aria-label="Zoom out in Temporal UI" disabled={temporalZoom<=70} onClick={()=>setTemporalZoom(value=>Math.max(70,value-10))}>−</button><button aria-label="Reset Temporal UI zoom to 100%" onClick={()=>setTemporalZoom(100)}>{temporalZoom}%</button><button aria-label="Zoom in on Temporal UI" disabled={temporalZoom>=130} onClick={()=>setTemporalZoom(value=>Math.min(130,value+10))}>+</button></div><div className="temporal-viewport"><iframe ref={temporalFrame} title={`${demo.title}: Temporal workflow history`} src={demoWorkflowList(temporalUi,demo.id,location.origin)} onLoad={event=>styleTemporalFrame(event.currentTarget)} className="stage-temporal" style={{zoom:temporalZoom/100}} /></div></> : <p>The hosted Temporal UI route has not been enabled for this project. Local preview connects this tab to Temporal OSS.</p>)}
+        {t.id==='temporal' && (temporalUi ? <div className="temporal-viewport"><iframe ref={temporalFrame} title={`${demo.title}: Temporal workflow history`} src={demoWorkflowList(temporalUi,demo.id,location.origin)} onLoad={event=>styleTemporalFrame(event.currentTarget)} className="stage-temporal" style={{zoom:temporalZoom/100}} /></div> : <p>The hosted Temporal UI route has not been enabled for this project. Local preview connects this tab to Temporal OSS.</p>)}
       </div>)}
     </section>}
   </div>

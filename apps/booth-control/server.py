@@ -31,8 +31,8 @@ DEMO_IDS = frozenset({
     'agent-harness', 'agentic-sdlc', 'flight-simulator', 'photo-booth', 'agentcore-video', 'agentcore-research',
 })
 STATION_IDS = ('1', '2', '3', '4')
-DEFAULT_DISPLAY = {'width': 90, 'height': 78, 'x': 0, 'y': 0, 'zoom': 100}
-DISPLAY_BOUNDS = {'width': (40, 100), 'height': (30, 100), 'x': (-7680, 7680), 'y': (-7680, 7680), 'zoom': (50, 150)}
+DEFAULT_DISPLAY = {'width': 90, 'height': 78, 'x': 0, 'y': 0, 'zoom': 100, 'temporal_ui_zoom': 100}
+DISPLAY_BOUNDS = {'width': (40, 100), 'height': (30, 100), 'x': (-7680, 7680), 'y': (-7680, 7680), 'zoom': (50, 150), 'temporal_ui_zoom': (70, 130)}
 COOKIE_NAME = 'booth_control_session'
 SESSION_SECONDS = 8 * 60 * 60
 MAX_BODY_BYTES = 16 * 1024
@@ -58,6 +58,13 @@ def default_config():
             for station in STATION_IDS
         },
     }
+
+
+def config_with_display_defaults(config):
+    """Read saved pre-zoom station records without resetting their geometry."""
+    for row in config['stations'].values():
+        row['display'] = {**DEFAULT_DISPLAY, **row['display']}
+    return config
 
 
 def token_hash(token):
@@ -103,7 +110,7 @@ class Store:
 
     def _snapshot(self, db, token, now):
         revision, payload = db.execute('SELECT revision,payload FROM config WHERE id=1').fetchone()
-        result = json.loads(payload)
+        result = config_with_display_defaults(json.loads(payload))
         for station, seen in db.execute('SELECT station,last_seen FROM presence'):
             if station in result['stations']:
                 result['stations'][station]['last_seen'] = seen
@@ -203,7 +210,7 @@ class DynamoStore:
 
     def _snapshot(self, token, now):
         revision, payload = self._config()
-        result = json.loads(payload)
+        result = config_with_display_defaults(json.loads(payload))
         keys = [{'pk': {'S': 'presence#' + station}} for station in STATION_IDS]
         try:
             response = self.client.batch_get_item(RequestItems={self.table: {'Keys': keys, 'ConsistentRead': True}})

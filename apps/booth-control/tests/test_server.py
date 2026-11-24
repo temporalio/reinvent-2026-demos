@@ -81,6 +81,41 @@ class ControlHttpTests(unittest.TestCase):
         parsed.load(headers['Set-Cookie'])
         return f'{COOKIE_NAME}={parsed[COOKIE_NAME].value}'
 
+    def test_workflow_zoom_is_station_specific_and_survives_restart(self):
+        cookie = self.login()
+        status, state, _ = self.request('PATCH', '/control-api/stations/2', {
+            'revision': 0, 'display': {'temporal_ui_zoom': 80},
+        }, cookie=cookie)
+        self.assertEqual(status, 200)
+        self.assertEqual(state['stations']['2']['display']['temporal_ui_zoom'], 80)
+        self.assertEqual(state['stations']['2']['display']['zoom'], 100)
+        self.assertEqual(state['stations']['1']['display']['temporal_ui_zoom'], 100)
+        self.stop_server()
+        self.start_server()
+        status, restored, _ = self.request('GET', '/control-api/state?station=2')
+        self.assertEqual(status, 200)
+        self.assertEqual(restored['stations']['2']['display']['temporal_ui_zoom'], 80)
+        for value in (69, 131, True, '80'):
+            self.assertEqual(self.request('PATCH', '/control-api/stations/2', {
+                'revision': 1, 'display': {'temporal_ui_zoom': value},
+            }, cookie=cookie)[0], 422)
+
+    def test_old_display_records_get_default_zoom_without_losing_geometry(self):
+        store = self.server.store
+        store.login('zoom-test', None, self.clock())
+        def legacy(config):
+            for row in config['stations'].values():
+                row['display'].pop('temporal_ui_zoom')
+            config['stations']['3']['display']['width'] = 82
+        store.patch(0, legacy, 'zoom-test', self.clock())
+        self.stop_server()
+        self.start_server()
+        status, state, _ = self.request('GET', '/control-api/state?station=3')
+        self.assertEqual(status, 200)
+        self.assertEqual(state['revision'], 1)
+        self.assertEqual(state['stations']['3']['display']['width'], 82)
+        self.assertEqual(state['stations']['3']['display']['temporal_ui_zoom'], 100)
+
     def test_defaults_presence_and_no_cors(self):
         status, state, headers = self.request('GET', '/control-api/state?station=1')
         self.assertEqual(status, 200)

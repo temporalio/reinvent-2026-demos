@@ -3,7 +3,7 @@ import catalog from './catalog.json'
 
 export type StationId = '1' | '2' | '3' | '4'
 export type NetworkMode = 'online' | 'offline'
-export type DisplaySettings = {width:number;height:number;x:number;y:number;zoom:number}
+export type DisplaySettings = {width:number;height:number;x:number;y:number;zoom:number;temporal_ui_zoom:number}
 export type StationOverrides = {demo_enabled:Record<string,boolean>;network_mode?:NetworkMode}
 export type StationRecord = {label:string;overrides:StationOverrides;display:DisplaySettings;last_seen:string|null}
 export type ControlState = {
@@ -21,8 +21,8 @@ export type StationPatch = {
 }
 export type EffectiveStationSettings = {label:string;demo_enabled:Record<string,boolean>;network_mode:NetworkMode;display:DisplaySettings}
 export const STATION_IDS: StationId[] = ['1','2','3','4']
-export const DEFAULT_DISPLAY: DisplaySettings = Object.freeze({width:90,height:78,x:0,y:0,zoom:100})
-export const DISPLAY_LIMITS = {width:[40,100],height:[30,100],zoom:[50,150],x:[-7680,7680],y:[-7680,7680]} as const
+export const DEFAULT_DISPLAY: DisplaySettings = Object.freeze({width:90,height:78,x:0,y:0,zoom:100,temporal_ui_zoom:100})
+export const DISPLAY_LIMITS = {width:[40,100],height:[30,100],zoom:[50,150],temporal_ui_zoom:[70,130],x:[-7680,7680],y:[-7680,7680]} as const
 const CACHE_KEY = 'reinvent-control-cache-v1'
 const FALLBACK_KEY = 'reinvent-control-device-only-v1'
 const STATION_KEY = 'reinvent-station-id'
@@ -37,7 +37,7 @@ function isRecord(value:unknown):value is Record<string,unknown> {return typeof 
 function isStation(value:unknown):value is StationId {return typeof value==='string' && STATION_IDS.includes(value as StationId)}
 function mode(value:unknown):value is NetworkMode {return value==='online'||value==='offline'}
 function display(value:unknown):value is DisplaySettings {
-  return isRecord(value) && Object.entries(DISPLAY_LIMITS).every(([key,[min,max]])=>typeof value[key]==='number' && Number.isFinite(value[key]) && value[key]>=min && value[key]<=max)
+  return isRecord(value) && Object.entries(DISPLAY_LIMITS).every(([key,[min,max]])=>(key==='temporal_ui_zoom'&&value[key]===undefined)||(typeof value[key]==='number' && Number.isFinite(value[key]) && value[key]>=min && value[key]<=max))
 }
 function flags(value:unknown):Record<string,boolean> {
   if(!isRecord(value))throw new Error('Invalid demo settings')
@@ -50,7 +50,7 @@ function decodeState(value:unknown):ControlState {
     const row=value.stations[id]
     if(!isRecord(row)||typeof row.label!=='string'||!row.label.trim()||row.label.length>64||!isRecord(row.overrides)||!display(row.display))throw new Error('Invalid station settings')
     if(row.overrides.network_mode!==undefined&&!mode(row.overrides.network_mode))throw new Error('Invalid network mode')
-    stations[id]={label:row.label,display:{...row.display},overrides:{demo_enabled:flags(row.overrides.demo_enabled),...(mode(row.overrides.network_mode)?{network_mode:row.overrides.network_mode}:{})},last_seen:typeof row.last_seen==='string'&&Number.isFinite(Date.parse(row.last_seen))?row.last_seen:null}
+    stations[id]={label:row.label,display:{...DEFAULT_DISPLAY,...row.display},overrides:{demo_enabled:flags(row.overrides.demo_enabled),...(mode(row.overrides.network_mode)?{network_mode:row.overrides.network_mode}:{})},last_seen:typeof row.last_seen==='string'&&Number.isFinite(Date.parse(row.last_seen))?row.last_seen:null}
   }
   return {revision:Number(value.revision),global:{demo_enabled:flags(value.global.demo_enabled),network_mode:value.global.network_mode},stations,authenticated:value.authenticated===true,server_time:typeof value.server_time==='string'?value.server_time:new Date().toISOString()}
 }
@@ -77,11 +77,11 @@ const storedPatches=readStorage(FALLBACK_KEY)
 if(isRecord(storedPatches))for(const id of STATION_IDS){
   const patch=storedPatches[id]
   if(isRecord(patch)&&display(patch.display)&&isRecord(patch.overrides)){
-    try{devicePatches[id]={display:{...patch.display},label:typeof patch.label==='string'&&patch.label.trim()&&patch.label.length<=64?patch.label:baseState.stations[id].label,overrides:{demo_enabled:flags(patch.overrides.demo_enabled),...(mode(patch.overrides.network_mode)?{network_mode:patch.overrides.network_mode}:{})}}}catch{/* Ignore invalid device-only recovery data. */}
+    try{devicePatches[id]={display:{...DEFAULT_DISPLAY,...patch.display},label:typeof patch.label==='string'&&patch.label.trim()&&patch.label.length<=64?patch.label:baseState.stations[id].label,overrides:{demo_enabled:flags(patch.overrides.demo_enabled),...(mode(patch.overrides.network_mode)?{network_mode:patch.overrides.network_mode}:{})}}}catch{/* Ignore invalid device-only recovery data. */}
   }
 }
 function patchStation(row:StationRecord,patch:StationPatch):StationRecord {
-  const next={...row,label:patch.label??row.label,display:patch.display?{...patch.display}:row.display,overrides:{...row.overrides,demo_enabled:{...row.overrides.demo_enabled}}}
+  const next={...row,label:patch.label??row.label,display:patch.display?{...row.display,...patch.display}:row.display,overrides:{...row.overrides,demo_enabled:{...row.overrides.demo_enabled}}}
   for(const [key,value] of Object.entries(patch.overrides?.demo_enabled??{})){if(value===null)delete next.overrides.demo_enabled[key];else next.overrides.demo_enabled[key]=value}
   if(patch.overrides && 'network_mode' in patch.overrides){if(patch.overrides.network_mode===null)delete next.overrides.network_mode;else next.overrides.network_mode=patch.overrides.network_mode}
   return next

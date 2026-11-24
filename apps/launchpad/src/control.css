@@ -78,3 +78,8 @@
 .station-preview-attract .preview-footer { position:absolute; inset:auto 2rem 3.5rem; padding:1rem; background:var(--surface-page); }
 .preview-unavailable { margin:auto; padding:1rem; font-size:.85rem; }
 @media(max-width:650px) { .preview-caption { max-width:7rem; } .preview-footer-actions { gap:.5rem; } .station-preview-attract .preview-footer { inset-inline:1rem; } }
+
+.control-workflow-zoom { max-width:28rem; margin-block:1rem; }
+.control-workflow-zoom label { display:flex; justify-content:space-between; gap:1rem; }
+.control-workflow-zoom output { color:var(--brand-highlight); }
+.control-workflow-zoom input { width:100%; min-height:48px; accent-color:var(--brand-highlight); }

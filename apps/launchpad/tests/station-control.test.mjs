@@ -122,3 +122,25 @@ test('live authenticated responses are persisted only as unauthenticated cache',
   assert.equal(JSON.parse(storage.get('reinvent-control-cache-v1')).authenticated,false)
   assert.ok(!JSON.stringify([...storage]).includes('1121'))
 })
+
+test('legacy display caches default workflow zoom without discarding geometry',()=>{
+ const cached=state();cached.stations['3'].display.width=82
+ const {get}=load({url:'http://booth.invalid/?station=3',storage:new Map([['reinvent-control-cache-v1',JSON.stringify(cached)]])})
+ assert.equal(get().effective.display.temporal_ui_zoom,100)
+ assert.equal(get().effective.display.width,82)
+})
+test('remote workflow zoom applies only to the selected station and survives cached reload',async()=>{
+ const saved=state(10);saved.stations['2'].display.temporal_ui_zoom=80
+ const storage=new Map()
+ const station2=load({url:'http://booth.invalid/?station=2',storage,fetch:async()=>response(saved)})
+ await station2.get().refresh()
+ assert.equal(station2.get().effective.display.temporal_ui_zoom,80)
+ const station1=load({url:'http://booth.invalid/?station=1',fetch:async()=>response(saved)})
+ await station1.get().refresh()
+ assert.equal(station1.get().effective.display.temporal_ui_zoom,100)
+ assert.equal(station2.get().effective.display.zoom,100)
+ const reloaded=load({url:'http://booth.invalid/?station=2',storage})
+ assert.equal(reloaded.get().effective.display.temporal_ui_zoom,80)
+ reloaded.get().saveDeviceFallback('2',{display:{...display,width:75}})
+ assert.equal(reloaded.get().effective.display.temporal_ui_zoom,80)
+})

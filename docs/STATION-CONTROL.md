@@ -34,6 +34,14 @@ When the selected hub is unavailable, the launchpad retains its cached configura
 
 A station On setting overrides global Off. Inherit removes that station override. Policy changes affect the next launch and do not stop the current demo. Offline policy is limited by the local runtime's reported demo capabilities. It does not switch Temporal Cloud clients to OSS, emulate unavailable AI providers, or provision AWS replacements. Hosted-only apps remain unavailable offline.
 
+## Temporal UI zoom
+
+On the laptop, open `/config`, unlock the controls, and select a specific Mac Mini. Under **Temporal UI zoom**, use the slider or − / percentage reset / + buttons, then **Save settings**. The range is 70–130%; reset is 100%.
+
+Only that station's lower workflow panel changes. Its demo and workflow stay open while the setting updates through the existing two-second control-hub polling. This is separate from **Content zoom**, which scales the whole demo area. The attendee screen has no zoom controls.
+
+The setting persists with each station's configuration, including browser cache during a hub outage. Older saved configurations default to 100% without changing their geometry. Each station must already have its own station ID and use the same control hub as the laptop.
+
 ## Hosted booth
 
 The hosted deployment is a different setup from the LAN one above: the stations' browsers load `https://reinvent-booth.tmprl-demo.cloud`, and nothing in the cloud can reach a laptop on the booth LAN (the gateway runs in EKS, and the HTTPS page cannot call an `http://` LAN address). The hub is the hosted `control-hub` component.
