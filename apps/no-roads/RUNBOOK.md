@@ -44,7 +44,7 @@ temporal --disable-config-file worker deployment set-current-version \
 
 ## The walkthrough
 
-The whole demo takes five to ten minutes, most of it audience participation. Each Workflow runs about 36 seconds, so the dashboard keeps moving for a minute or two after the last start.
+The whole demo takes five to ten minutes, most of it audience participation. Each Workflow runs about 12 seconds, so the dashboard keeps moving for a minute or two after the last start.
 
 ### 1. The dashboard, before anyone submits
 
@@ -56,7 +56,7 @@ The whole demo takes five to ten minutes, most of it audience participation. Eac
 
 1. Ask the audience to open the link, type a name in **Your name or handle**, and press **Start workflow** (or `Enter`).
 2. Each submission starts a `DemoWorkflow`. The page shows `✓ Workflow demo-<name>-<id>-serverless-webinar started for "<name>"`, the **Activity feed** adds a row, and **Running** climbs within a few seconds.
-3. Say: "Every name is a real Workflow on Temporal Cloud. Each one runs four Activities, about 36 seconds in all, on whichever Lambda Worker Temporal started."
+3. Say: "Every name is a real Workflow on Temporal Cloud. Each one runs four Activities, about 12 seconds in all, on whichever Lambda Worker Temporal started."
 4. For proof, open the demo's Namespace in Temporal Cloud and search Workflows for an audience member's name. The Workflow ID starts with `demo-<name>`.
 
 ### 3. Fire a burst
@@ -234,8 +234,8 @@ func DemoWorkflow(ctx workflow.Context, input DemoInput) (DemoOutput, error) {
 **What you need to understand:**
 
 - This is an ordinary Go Workflow. The same code runs on the local long-polling Worker and on Lambda; only the Worker's `main` differs.
-- Each `SimulateWork` Activity sleeps for 12 seconds ([`shared/activities/demo_activities.go` lines 37–41](https://github.com/temporal-sa/temporal-demo-serverless-no-roads/blob/0d1f338d33fc8a626753524e6cd682544e6573eb/shared/activities/demo_activities.go#L37-L41)). Sleeping inside an Activity holds a Worker slot, which is what fills each Lambda. A `workflow.Sleep` would free the slot.
-- The comment on `StartToCloseTimeout` is slightly off: the timeout applies to each Activity attempt separately, so 60 seconds only has to exceed the longest single Activity (12 seconds).
+- Each `SimulateWork` Activity sleeps for 4 seconds ([`shared/activities/demo_activities.go` lines 37–41](https://github.com/temporal-sa/temporal-demo-serverless-no-roads/blob/0d1f338d33fc8a626753524e6cd682544e6573eb/shared/activities/demo_activities.go#L37-L41)). Sleeping inside an Activity holds a Worker slot, which is what fills each Lambda. A `workflow.Sleep` would free the slot.
+- `StartToCloseTimeout` applies to each Activity attempt separately. Its 60-second budget exceeds the longest simulated Activity (4 seconds).
 - The Activities use the default Retry Policy. If a Lambda stops mid-Activity, the attempt times out and Temporal retries it on another Worker.
 
 ### How the dashboard reads the Task Queue
@@ -281,7 +281,7 @@ rate := (1.0 - float64(totalBacklogIncRate)/float64(totalTasksAddRate)) * 100.0
 
 When someone asks what they'd change for their own system, these are the parts to leave out:
 
-- **The Activities sleep.** [`shared/activities/demo_activities.go` lines 56–66](https://github.com/temporal-sa/temporal-demo-serverless-no-roads/blob/0d1f338d33fc8a626753524e6cd682544e6573eb/shared/activities/demo_activities.go#L56-L66): each one holds a slot for 12 seconds and returns a string. Real Activities replace them; the Workflow doesn't change.
+- **The Activities sleep.** [`shared/activities/demo_activities.go` lines 56–66](https://github.com/temporal-sa/temporal-demo-serverless-no-roads/blob/0d1f338d33fc8a626753524e6cd682544e6573eb/shared/activities/demo_activities.go#L56-L66): each one holds a slot for 4 seconds and returns a string. Real Activities replace them; the Workflow doesn't change.
 - **The low concurrency limits** exist so a small burst overflows one Worker. See [Keep each Lambda small](#keep-each-lambda-small-so-a-burst-needs-more-of-them).
 - **The presenter burst.** [`demo-app/api/seed.go` lines 67–92](https://github.com/temporal-sa/temporal-demo-serverless-no-roads/blob/0d1f338d33fc8a626753524e6cd682544e6573eb/demo-app/api/seed.go#L67-L92) starts up to 200 Workflows in parallel goroutines. It has no authentication; anyone who finds `/api/seed` can call it.
 - **The dashboard and its metrics endpoint.** Temporal Cloud scales the Lambdas without them.
@@ -289,7 +289,7 @@ When someone asks what they'd change for their own system, these are the parts t
 
 ## Reset and tear down
 
-- **Between runs:** there is no reset button. Running Workflows finish on their own about 36 seconds after their last Task starts. To clear them at once, terminate them with one batch operation:
+- **Between runs:** there is no reset button. Running Workflows finish on their own about 12 seconds after their last Task starts. To clear them at once, terminate them with one batch operation:
 
   ```bash
   temporal workflow terminate \

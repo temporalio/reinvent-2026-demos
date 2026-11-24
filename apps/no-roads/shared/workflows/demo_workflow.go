@@ -20,7 +20,7 @@ type DemoOutput struct {
 //
 // It runs four activities in sequence:
 //   - ProcessSubmission: fast, constructs the greeting
-//   - SimulateWork1/2/3: each holds a worker slot for ~12 seconds (~36s total)
+//   - SimulateWork1/2/3: each holds a worker slot for ~4 seconds (~12s total)
 //
 // Chaining three sleep activities means each workflow occupies worker capacity
 // long enough that concurrent submissions cause activity tasks to visibly queue
@@ -31,7 +31,7 @@ func DemoWorkflow(ctx workflow.Context, input DemoInput) (DemoOutput, error) {
 	logger.Info("DemoWorkflow started", "name", input.Name)
 
 	ao := workflow.ActivityOptions{
-		// Must exceed the sum of all three WorkDuration constants.
+		// Applies to each Activity attempt; exceeds the longest simulated step.
 		StartToCloseTimeout: 60 * time.Second,
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)

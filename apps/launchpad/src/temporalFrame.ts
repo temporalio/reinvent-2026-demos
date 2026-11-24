@@ -64,16 +64,27 @@ export function styleTemporalFrame(frame: HTMLIFrameElement) {
  * Show a same-origin Temporal UI URL. Clicking a link inside the loaded app lets
  * its client router handle it; before the app has loaded, replace the src.
  */
-export function showInTemporalFrame(frame: HTMLIFrameElement, url: string) {
+export function showInTemporalFrame(frame: HTMLIFrameElement, url: string, options: { resetScroll?: boolean } = {}) {
   const doc = loadedDocument(frame)
   if (!doc) {
     frame.src = url
     return
   }
+  function resetScroll() {
+    if (!options.resetScroll) return
+    if (doc!.scrollingElement) doc!.scrollingElement.scrollTop = 0
+    // Temporal UI has nested scrolling regions. An explicit attendee selection
+    // should reveal the workflow header even when the router keeps the same URL.
+    for (const element of doc!.querySelectorAll<HTMLElement>('*')) {
+      if (element.scrollTop) element.scrollTop = 0
+    }
+  }
+  resetScroll()
   const link = doc.createElement('a')
   link.href = url
   link.hidden = true
   doc.body.append(link)
   link.click()
   link.remove()
+  if (options.resetScroll) frame.contentWindow?.requestAnimationFrame(resetScroll)
 }

@@ -32,3 +32,11 @@ test('app-reported human steps require the owned iframe and an existing source e
  assert.equal(readDemoExecution({...ev,data:{...data,step:'imaginary'}},origin,owner,'data-pipeline'),null)
  for(const [demoId,step,variant] of [['no-roads','SimulateWork2','default'],['loan','approval','default'],['agent-harness','approval','default'],['agentic-sdlc','gate:plan','issue']])assert.ok(liveExcerpt(demoId,{runId:'run',step,status:'waiting',variant}))
 })
+test('pipeline recovery highlight follows its recorded Signal then load',()=>{
+ const events=[event(1,'workflowExecutionStartedEventAttributes',{workflowType:{name:'DataPipelineRecoverableFailure'}}),scheduled(2,'transform'),complete(3,2),event(4,'workflowTaskFailedEventAttributes',{}),event(5,'workflowExecutionSignaledEventAttributes',{signalName:'demo_fix_code'})]
+ const cursor=historyCursor(events,'same-run')
+ assert.equal(cursor.step,'recovery');assert.equal(cursor.status,'waiting')
+ assert.match(liveExcerpt('data-pipeline',cursor).code,/self.demo_code_fixed = True/)
+ assert.equal(historyCursor([...events,scheduled(6,'load')],'same-run').step,'load')
+ assert.equal(historyCursor([...events.slice(0,-1),event(5,'workflowExecutionSignaledEventAttributes',{signalName:'unrelated'})],'same-run').step,'bug')
+})

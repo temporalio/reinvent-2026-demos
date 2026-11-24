@@ -26,6 +26,7 @@ export function historyCursor(events:HistoryEvent[],runId:string):LiveCursor|nul
   const done=e.childWorkflowExecutionCompletedEventAttributes
   if(done)children.delete(String(done.initiatedEventId))
   if(e.workflowTaskFailedEventAttributes)last={runId,step:'bug',status:'retrying'}
+  if(type==='DataPipelineRecoverableFailure' && e.workflowExecutionSignaledEventAttributes?.signalName==='demo_fix_code')last={runId,step:'recovery',status:'waiting'}
   if(e.timerStartedEventAttributes && !scheduled.size && !children.size)last={runId,step:'timer',status:'waiting'}
   if(e.workflowExecutionCompletedEventAttributes)last={runId,step:last?.step||'complete',status:'completed'}
   if(e.workflowExecutionFailedEventAttributes || e.workflowExecutionTimedOutEventAttributes || e.workflowExecutionTerminatedEventAttributes || e.workflowExecutionCanceledEventAttributes)last={runId,step:last?.step||'complete',status:'failed'}

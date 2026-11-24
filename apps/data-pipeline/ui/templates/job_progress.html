@@ -30,8 +30,8 @@
 <script>
 const job={{ job_id | tojson }},run={{ run_id | tojson }},scenario={{ selected_scenario | tojson }};
 const params=new URLSearchParams({job_id:job,workflow_id:{{ workflow_id | tojson }},run_id:run,scenario});
-const labels={get_available_task_queue:'Assign worker',validate:'Validate manifest',extract:'Copy input to worker',transform:'Transform JSON to CSV',load:'Load CSV with idempotency key',poll:'Confirm downstream completion',signal:'Wait for completion Signal',update:'Wait for completion Update',bug:'Workflow code needs a fix',complete:'Shipment complete'};
-let current=null,logSignature='',sending=false;
+const labels={get_available_task_queue:'Assign worker',validate:'Validate manifest',extract:'Copy input to worker',transform:'Transform JSON to CSV',load:'Load CSV with idempotency key',poll:'Confirm downstream completion',signal:'Wait for completion Signal',update:'Wait for completion Update',bug:'Workflow code needs a fix',recovery:'Recovery Signal recorded',complete:'Shipment complete'};
+let current=null,logSignature='',sending=false,recoverySent=false;
 const button=document.getElementById('checkpoint');
 function report(data){
   if(data.workflow_url&&parent!==window)parent.postMessage({type:'booth:workflow',url:data.workflow_url},location.origin);
@@ -50,11 +50,13 @@ function render(data){
  document.getElementById('record-count').textContent=data.transformed?data.manifest.objects+' of '+data.manifest.objects+' namespace records transformed into CSV'+(data.loaded?' and loaded.':'.'):'Transformation has not completed yet.';
  const signature=JSON.stringify(data.events);
  if(signature!==logSignature){logSignature=signature;const log=document.getElementById('pipeline-log');log.replaceChildren(...data.events.map(event=>{const li=document.createElement('li');li.textContent=event.text;li.dataset.status=event.status;return li}));log.scrollTop=log.scrollHeight;}
- const waiting=data.state==='running'&&['signal','update'].includes(data.step);
+ const recovering=['bug','recovery'].includes(data.step)&&scenario==='RecoverableFailure';
+ const recoveryPending=recoverySent||data.recovery_requested;
+ const waiting=data.state==='running'&&(['signal','update'].includes(data.step)||(recovering&&!recoveryPending));
  button.hidden=!waiting;
  button.disabled=sending;
- button.textContent=data.step==='signal'?'Signal: complete load':'Update: complete load';
- document.getElementById('checkpoint-status').textContent=data.state!=='running'?(data.state==='completed'?'The job completed. Start another shipment to explore a different scenario.':'This job has ended. The configured timeout or validation failure is recorded in Temporal; an expired checkpoint cannot be signaled. Start another shipment to try again.'):waiting?'The loaded data is waiting for your confirmation. The workflow has a 60-second checkpoint deadline.':data.step==='bug'?'The workflow is retrying a code bug. A corrected worker can resume it without repeating completed Activities.':'Temporal is coordinating the recorded steps shown on the left.';
+ button.textContent=recovering?'Fix code and resume':data.step==='signal'?'Signal: complete load':'Update: complete load';
+ document.getElementById('checkpoint-status').textContent=data.state!=='running'?(data.state==='completed'?'The job completed. Start another shipment to explore a different scenario.':'This job has ended. The configured timeout or validation failure is recorded in Temporal; an expired checkpoint cannot be signaled. Start another shipment to try again.'):recovering?(recoveryPending?'Recovery Signal recorded. Waiting for the worker to continue this same run.':'Simulates deploying a code fix. Your workflow continues with completed work preserved.'):waiting?'The loaded data is waiting for your confirmation. The workflow has a 60-second checkpoint deadline.':data.step==='bug'?'The workflow is retrying a code bug. A corrected worker can resume it without repeating completed Activities.':'Temporal is coordinating the recorded steps shown on the left.';
  document.getElementById('retry-note').textContent=data.attempt>1?'Activity attempt '+data.attempt+'. Completed earlier stages are retained.':data.notice||'';
  document.getElementById('error-message').textContent='';
  if(data.workflow_url&&document.getElementById('workflow-link'))document.getElementById('workflow-link').href=data.workflow_url;
@@ -65,9 +67,11 @@ async function refresh(){
  catch(e){document.getElementById('error-message').textContent=e.message;if(current)report({...current,stale:true});setTimeout(refresh,2000)}
 }
 button.addEventListener('click',async()=>{
- if(!current||current.status!=='waiting'||sending)return;
+ if(!current||current.state!=='running'||sending)return;
+ const recover=current.step==='bug'&&scenario==='RecoverableFailure';
+ if(!recover&&current.status!=='waiting')return;
  sending=true;button.disabled=true;
- try{const r=await fetch('/data-pipeline/'+current.step+'?'+params,{method:'POST'});if(!r.ok)throw Error('The checkpoint is no longer available. Refreshing the recorded job status.');document.getElementById('checkpoint-result').textContent=current.step==='signal'?'Completion Signal accepted. Waiting for the worker to resume.':'Completion Update accepted. Waiting for the job to finish.';}
+ try{const r=await fetch('/data-pipeline/'+(recover?'recover':current.step)+'?'+params,{method:'POST'});if(!r.ok){const data=await r.json();throw Error(data.error||'The checkpoint is no longer available. Refreshing the recorded job status.')}if(recover){recoverySent=true;button.hidden=true}document.getElementById('checkpoint-result').textContent=recover?'Simulated code fix accepted. Resuming this same workflow.':current.step==='signal'?'Completion Signal accepted. Waiting for the worker to resume.':'Completion Update accepted. Waiting for the job to finish.';}
  catch(e){document.getElementById('checkpoint-result').textContent=e.message}
  finally{sending=false;button.disabled=false}
 });

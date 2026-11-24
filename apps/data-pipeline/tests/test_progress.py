@@ -54,3 +54,50 @@ class ClosedJobTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(status, 409)
             self.assertIn('Start another shipment', response.json['error'])
             handle.signal.assert_not_awaited()
+
+
+class RecoveryControlTests(unittest.IsolatedAsyncioTestCase):
+    async def call_recovery(self, *, state='RUNNING', workflow_type='DataPipelineRecoverableFailure', events=None, run_id='run-2'):
+        from ui.app import recover
+        handle = SimpleNamespace(
+            describe=AsyncMock(return_value=SimpleNamespace(status=SimpleNamespace(name=state), workflow_type=workflow_type)),
+            signal=AsyncMock(), fetch_history=AsyncMock(return_value=SimpleNamespace(events=events or [])),
+        )
+        client = SimpleNamespace(get_workflow_handle=unittest.mock.Mock(return_value=handle))
+        with app.test_request_context('/recover?job_id=abc&workflow_id=datapipeline-abc&run_id='+run_id, method='POST'), patch('ui.app.get_client', AsyncMock(return_value=client)):
+            response, status = await recover()
+        return response.json, status, handle, client
+
+    async def test_simulated_checkpoint_appears_after_transform_only(self):
+        progress = summarize([scheduled(1, 'transform'), completed(2, 1)], 'running', 'RecoverableFailure')
+        self.assertEqual((progress['step'], progress['status'], progress['progress']), ('bug', 'waiting', 40))
+        self.assertNotEqual(summarize([scheduled(1, 'transform'), completed(2, 1)], 'running', 'HappyPath')['step'], 'bug')
+
+    async def test_recovery_requires_recorded_bug_and_exact_run(self):
+        bug = HistoryEvent(event_id=3, workflow_task_failed_event_attributes={'cause': 1})
+        result, status, handle, client = await self.call_recovery(events=[scheduled(1, 'transform'), completed(2, 1), bug])
+        self.assertEqual(status, 202)
+        client.get_workflow_handle.assert_called_once_with('datapipeline-abc', run_id='run-2')
+        handle.signal.assert_awaited_once_with('demo_fix_code')
+
+    async def test_early_other_scenario_and_closed_runs_cannot_recover(self):
+        for options in ({}, {'state':'FAILED'}, {'state':'COMPLETED'}, {'workflow_type':'DataPipelineAPIFailure'}):
+            with self.subTest(options=options):
+                result, status, handle, _ = await self.call_recovery(**options)
+                self.assertEqual(status, 409)
+                self.assertIn('error', result)
+                handle.signal.assert_not_awaited()
+
+    async def test_double_tap_is_already_accepted(self):
+        events = [HistoryEvent(event_id=1, workflow_task_failed_event_attributes={'cause':1}), HistoryEvent(event_id=2, workflow_execution_signaled_event_attributes={'signal_name':'demo_fix_code'})]
+        result, status, handle, _ = await self.call_recovery(events=events)
+        self.assertEqual(status, 202)
+        handle.signal.assert_not_awaited()
+        progress = summarize(events, 'running', 'RecoverableFailure')
+        self.assertEqual((progress['step'], progress['status']), ('recovery','waiting'))
+        self.assertTrue(progress['recovery_requested'])
+
+    async def test_missing_run_does_not_signal_latest_run(self):
+        result, status, handle, _ = await self.call_recovery(run_id='')
+        self.assertEqual(status, 400)
+        handle.describe.assert_not_awaited()

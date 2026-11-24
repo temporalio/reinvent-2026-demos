@@ -47,6 +47,7 @@ export function DemoStage({ demo, persona, temporalUi, notice, onPlaybackChange 
     const timer=setInterval(apply,500);apply();return()=>clearInterval(timer)
   },[demo.id])
   const [workflowUrl,setWorkflowUrl]=useState<string|null>(null)
+  const [temporalZoom,setTemporalZoom]=useState(100)
   const [nativeCursor,setNativeCursor]=useState<LiveCursor|null>(null)
   const [recordedCursor,setRecordedCursor]=useState<LiveCursor|null>(null)
   const selectedRunId=workflowUrl?.split('/workflows/')[1]?.split('/')[1]
@@ -91,7 +92,7 @@ export function DemoStage({ demo, persona, temporalUi, notice, onPlaybackChange 
         return
       }
       // A repeated background announcement must not pull the panel away from where the visitor browsed.
-      if(temporalFrame.current && (activate || url!==lastWorkflow.current))showInTemporalFrame(temporalFrame.current,url)
+      if(temporalFrame.current && (activate || url!==lastWorkflow.current))showInTemporalFrame(temporalFrame.current,url,{resetScroll:activate})
       lastWorkflow.current=url
       setWorkflowUrl(url)
       if(activate) {setTab('temporal'); buttons.current[3]?.focus()}
@@ -154,7 +155,7 @@ export function DemoStage({ demo, persona, temporalUi, notice, onPlaybackChange 
         {t.id==='business' && <div className="business-story"><h2>{story?.[0]}</h2><p>{story?.[1]}</p><p className="business-detail">{notice || story?.[2]}</p></div>}
         {t.id==='architecture' && tab==='architecture' && <ArchitecturePanel demoId={demo.id} execution={tacoRun} phase={phase} cursor={liveCursor} />}
         {t.id==='code' && <CodeSamples demoId={demo.id} execution={tacoRun} phase={phase} money={moneyRun} cursor={liveCursor} />}
-        {t.id==='temporal' && (temporalUi ? <iframe ref={temporalFrame} title={`${demo.title}: Temporal workflow history`} src={demoWorkflowList(temporalUi,demo.id,location.origin)} onLoad={event=>styleTemporalFrame(event.currentTarget)} className="stage-temporal" /> : <p>The hosted Temporal UI route has not been enabled for this project. Local preview connects this tab to Temporal OSS.</p>)}
+        {t.id==='temporal' && (temporalUi ? <><div className="temporal-zoom-controls" role="group" aria-label="Temporal UI zoom"><span>Workflow view</span><button aria-label="Zoom out in Temporal UI" disabled={temporalZoom<=70} onClick={()=>setTemporalZoom(value=>Math.max(70,value-10))}>−</button><button aria-label="Reset Temporal UI zoom to 100%" onClick={()=>setTemporalZoom(100)}>{temporalZoom}%</button><button aria-label="Zoom in on Temporal UI" disabled={temporalZoom>=130} onClick={()=>setTemporalZoom(value=>Math.min(130,value+10))}>+</button></div><div className="temporal-viewport"><iframe ref={temporalFrame} title={`${demo.title}: Temporal workflow history`} src={demoWorkflowList(temporalUi,demo.id,location.origin)} onLoad={event=>styleTemporalFrame(event.currentTarget)} className="stage-temporal" style={{zoom:temporalZoom/100,width:`${10000/temporalZoom}%`,height:`${10000/temporalZoom}%`}} /></div></> : <p>The hosted Temporal UI route has not been enabled for this project. Local preview connects this tab to Temporal OSS.</p>)}
       </div>)}
     </section>}
   </div>

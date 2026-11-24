@@ -42,7 +42,7 @@ SCENARIO_DESCRIPTIONS = {
     "HumanInLoopUpdate": "Load the CSV, then wait up to 60 seconds for a completion Update. The Update returns an acknowledgement; missing the deadline fails this job.",
     "Idempotency": "Call the load Activity twice with the same job key. The second call recognizes the key and skips the duplicate load.",
     "APIFailure": "Make completion polling fail on its first nine attempts. Temporal retries every two seconds and the tenth attempt succeeds without repeating extraction or transformation.",
-    "RecoverableFailure": "Raise an intentional workflow-code bug after transformation. Temporal keeps retrying the Workflow Task; fixing and redeploying the code lets the recorded work resume.",
+    "RecoverableFailure": "An intentional code bug stops the workflow after transformation. Tap Fix code and resume to simulate deploying corrected code; the same run continues without repeating completed work.",
     "NonRecoverableFailure": "Reject the manifest during validation and fail the Workflow before extraction. Temporal retains the failure and history; this input needs correction rather than more retries.",
 }
 
@@ -164,9 +164,10 @@ async def get_progress() -> Response | tuple[Response, int]:
         state = desc.status.name.lower()
         history = await handle.fetch_history()
         from ui.progress import summarize
-        result = summarize(history.events, state, request.args.get("scenario", "HappyPath"))
+        scenario = desc.workflow_type.removeprefix("DataPipeline")
+        result = summarize(history.events, state, scenario)
         result["workflow_url"] = temporal_workflow_url(request_workflow_id(job_id), desc.run_id)
-        if state == "running":
+        if state == "running" and result["step"] != "bug":
             try:
                 result["progress"] = await handle.query("progress", rpc_timeout=timedelta(seconds=3))
             except Exception:
@@ -180,6 +181,34 @@ async def get_progress() -> Response | tuple[Response, int]:
         return jsonify(result)
     except Exception:
         return jsonify({"error": "Could not reach Temporal. Your recorded job is retained; reconnecting."}), 503
+
+
+@app.route("/recover", methods=["POST"])
+async def recover() -> tuple[Response, int]:
+    """Record the booth's simulated code fix on this exact recoverable pipeline run."""
+    job_id, run_id = request.args.get("job_id"), request.args.get("run_id")
+    if not job_id or not run_id:
+        return jsonify(error="job_id and run_id are required"), 400
+    workflow_id = request_workflow_id(job_id)
+    try:
+        client = await get_client()
+        handle = client.get_workflow_handle(workflow_id, run_id=run_id)
+        desc = await handle.describe()
+        if desc.status.name != "RUNNING":
+            return jsonify(error="This job has ended. Start another shipment to try again."), 409
+        if desc.workflow_type != "DataPipelineRecoverableFailure":
+            return jsonify(error="Code recovery is only available for RecoverableFailure."), 409
+        from ui.progress import summarize
+        history = await handle.fetch_history()
+        progress = summarize(history.events, "running", "RecoverableFailure")
+        if progress["recovery_requested"]:
+            return jsonify(message="Recovery Signal already recorded. Waiting for the worker to continue."), 202
+        if progress["step"] != "bug":
+            return jsonify(error="This workflow has not reached the recoverable code bug."), 409
+        await handle.signal("demo_fix_code")
+        return jsonify(message="Simulated code fix accepted. The same workflow will resume with completed work preserved."), 202
+    except Exception:
+        return jsonify(error="Could not send the recovery Signal. Your workflow is retained; please try again."), 503
 
 
 @app.route("/signal", methods=["POST"])

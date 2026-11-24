@@ -154,11 +154,12 @@ The web interface provides an intuitive way to demonstrate Temporal workflows to
 - **Talking points:** "Notice how the Load activity runs twice but produces the same result - Temporal guarantees exactly-once execution"
 - **Demo tip:** Show activity history to highlight duplicate execution with same results
 
-**RecoverableFailure** - Transient error handling and recovery
-- **What happens:** Workflow throws an exception mid-execution, triggering retry logic
-- **Key features:** Automatic retries, exponential backoff, workflow resilience
-- **Talking points:** "This simulates infrastructure failures - watch how Temporal automatically retries and recovers"
-- **Demo tip:** Show failed attempts in workflow history, then resume to demonstrate recovery
+**RecoverableFailure** - Code bug and touchscreen recovery
+- **What happens:** A simulated code bug pauses the Workflow at a durable checkpoint after transformation. Tap **Fix code and resume** to continue that same run.
+- **Key features:** Recorded Activity results survive the failure; validation, extraction, and transformation do not run again.
+- **Talking points:** "In your company, you would fix the code and deploy the worker. This button simulates that deployment so you can see the same process recover."
+- **Demo tip:** Open the lower Temporal UI panel before and after the fix. The Workflow ID and Run ID stay the same, with a recorded recovery Signal followed by loading and completion.
+- **Implementation:** The booth sends a run-scoped `demo_fix_code` Signal to enable a prewritten corrected branch. It does not edit source, deploy code, or restart a worker. An arbitrary production bug requires a real code fix; a Signal alone cannot fix it.
 
 **NonRecoverableFailure** - Permanent business logic failure
 - **What happens:** Validation activity fails (input.validation set to "blue"), workflow terminates

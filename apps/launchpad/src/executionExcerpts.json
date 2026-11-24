@@ -81,8 +81,8 @@
     "scenario": {
       "get_available_task_queue": {
         "path": "apps/data-pipeline/DataPipelineWorkflowScenarios.py",
-        "startLine": 43,
-        "endLine": 46,
+        "startLine": 44,
+        "endLine": 47,
         "code": "unique_worker_task_queue = await workflow.execute_activity(\n    activity=get_available_task_queue,\n    start_to_close_timeout=timedelta(seconds=10),\n)",
         "focus": [
           0,
@@ -92,8 +92,8 @@
       },
       "validate": {
         "path": "apps/data-pipeline/DataPipelineWorkflowScenarios.py",
-        "startLine": 62,
-        "endLine": 67,
+        "startLine": 63,
+        "endLine": 68,
         "code": "validation = await workflow.execute_activity(\n    validate,\n    input,\n    start_to_close_timeout=timedelta(seconds=300),\n    heartbeat_timeout=timedelta(seconds=20),\n)",
         "focus": [
           0,
@@ -103,8 +103,8 @@
       },
       "extract": {
         "path": "apps/data-pipeline/DataPipelineWorkflowScenarios.py",
-        "startLine": 80,
-        "endLine": 86,
+        "startLine": 81,
+        "endLine": 87,
         "code": "activity_output = await workflow.execute_activity(\n    extract,\n    input,\n    task_queue=unique_worker_task_queue,\n    start_to_close_timeout=timedelta(seconds=300),\n    heartbeat_timeout=timedelta(seconds=20),\n)",
         "focus": [
           0,
@@ -114,8 +114,8 @@
       },
       "transform": {
         "path": "apps/data-pipeline/DataPipelineWorkflowScenarios.py",
-        "startLine": 96,
-        "endLine": 102,
+        "startLine": 97,
+        "endLine": 103,
         "code": "activity_output = await workflow.execute_activity(\n    transform,\n    input,\n    task_queue=unique_worker_task_queue,\n    start_to_close_timeout=timedelta(seconds=300),\n    heartbeat_timeout=timedelta(seconds=20),\n)",
         "focus": [
           0,
@@ -125,8 +125,8 @@
       },
       "load": {
         "path": "apps/data-pipeline/DataPipelineWorkflowScenarios.py",
-        "startLine": 118,
-        "endLine": 124,
+        "startLine": 117,
+        "endLine": 123,
         "code": "activity_output = await workflow.execute_activity(\n    load,\n    input,\n    task_queue=unique_worker_task_queue,\n    start_to_close_timeout=timedelta(seconds=300),\n    heartbeat_timeout=timedelta(seconds=20),\n)",
         "focus": [
           0,
@@ -136,8 +136,8 @@
       },
       "signal": {
         "path": "apps/data-pipeline/DataPipelineWorkflowScenarios.py",
-        "startLine": 145,
-        "endLine": 145,
+        "startLine": 144,
+        "endLine": 144,
         "code": "await workflow.wait_condition(lambda: self.signal_received, timeout=60)",
         "focus": [
           0
@@ -146,8 +146,8 @@
       },
       "poll": {
         "path": "apps/data-pipeline/DataPipelineWorkflowScenarios.py",
-        "startLine": 164,
-        "endLine": 171,
+        "startLine": 163,
+        "endLine": 170,
         "code": "activity_output = await workflow.execute_activity(\n    poll,\n    args=[input, workflow_type],\n    task_queue=unique_worker_task_queue,\n    start_to_close_timeout=timedelta(seconds=3000),\n    heartbeat_timeout=timedelta(seconds=20),\n    retry_policy=RetryPolicy(initial_interval=timedelta(seconds=2), backoff_coefficient=1),\n)",
         "focus": [
           0,
@@ -157,8 +157,8 @@
       },
       "update": {
         "path": "apps/data-pipeline/DataPipelineWorkflowScenarios.py",
-        "startLine": 156,
-        "endLine": 156,
+        "startLine": 155,
+        "endLine": 155,
         "code": "await workflow.wait_condition(lambda: self.update_received, timeout=60)",
         "focus": [
           0
@@ -167,8 +167,8 @@
       },
       "complete": {
         "path": "apps/data-pipeline/DataPipelineWorkflowScenarios.py",
-        "startLine": 181,
-        "endLine": 181,
+        "startLine": 180,
+        "endLine": 180,
         "code": "return f\"Successfully processed: {input.input_filename}!\"",
         "focus": [
           0
@@ -177,13 +177,25 @@
       },
       "bug": {
         "path": "apps/data-pipeline/DataPipelineWorkflowScenarios.py",
-        "startLine": 108,
+        "startLine": 107,
         "endLine": 108,
-        "code": "raise Exception(\"Workflow bug!\")",
+        "code": "if self.BUG == workflow_type:\n    await workflow.wait_condition(lambda: self.demo_code_fixed)",
         "focus": [
-          0
+          0,
+          1
         ],
         "label": "Workflow code needs a fix"
+      },
+      "recovery": {
+        "path": "apps/data-pipeline/DataPipelineWorkflowScenarios.py",
+        "startLine": 192,
+        "endLine": 195,
+        "code": "def demo_fix_code(self) -> None:\n    \"\"\"Simulate deploying a fix for this run, without editing or restarting a worker.\"\"\"\n    if workflow.info().workflow_type == self.BUG:\n        self.demo_code_fixed = True",
+        "focus": [
+          2,
+          3
+        ],
+        "label": "Simulated code fix / recovery Signal"
       }
     }
   },

@@ -50,4 +50,5 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - run: docker build -t reinvent-pipeline apps/data-pipeline
-      - run: docker run --rm --network none --entrypoint python reinvent-pipeline -m unittest discover -s tests -v
+      - run: docker build --target test -t reinvent-pipeline-tests apps/data-pipeline
+      - run: docker run --rm --network none --entrypoint python reinvent-pipeline-tests -m unittest discover -s tests -v

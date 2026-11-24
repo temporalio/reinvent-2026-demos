@@ -309,7 +309,7 @@
           "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation. Rust fragments follow the 1.1.2 SDK API pinned in these demos."
         },
         "go": {
-          "code": "ao := workflow.ActivityOptions{\n\t// Must exceed the sum of all three WorkDuration constants.\n\tStartToCloseTimeout: 60 * time.Second,\n}\nctx = workflow.WithActivityOptions(ctx, ao)\n\n// Step 1: fast processing activity\nvar result string\nif err := workflow.ExecuteActivity(ctx, \"ProcessSubmission\", input).Get(ctx, &result); err != nil {\n\treturn DemoOutput{}, err\n}\n\n// Steps 2-4: chained sleep activities — each holds a worker slot, driving\n// backlog depth and sync match rate pressure under load.\nvar workResult string\nif err := workflow.ExecuteActivity(ctx, \"SimulateWork1\", input).Get(ctx, &workResult); err != nil {\n\treturn DemoOutput{}, err\n}\nif err := workflow.ExecuteActivity(ctx, \"SimulateWork2\", input).Get(ctx, &workResult); err != nil {\n\treturn DemoOutput{}, err\n}\nif err := workflow.ExecuteActivity(ctx, \"SimulateWork3\", input).Get(ctx, &workResult); err != nil {\n\treturn DemoOutput{}, err\n}\n\nlogger.Info(\"DemoWorkflow completed\", \"name\", input.Name)\nreturn DemoOutput{Message: result}, nil",
+          "code": "ao := workflow.ActivityOptions{\n\t// Applies to each Activity attempt; exceeds the longest simulated step.\n\tStartToCloseTimeout: 60 * time.Second,\n}\nctx = workflow.WithActivityOptions(ctx, ao)\n\n// Step 1: fast processing activity\nvar result string\nif err := workflow.ExecuteActivity(ctx, \"ProcessSubmission\", input).Get(ctx, &result); err != nil {\n\treturn DemoOutput{}, err\n}\n\n// Steps 2-4: chained sleep activities \u2014 each holds a worker slot, driving\n// backlog depth and sync match rate pressure under load.\nvar workResult string\nif err := workflow.ExecuteActivity(ctx, \"SimulateWork1\", input).Get(ctx, &workResult); err != nil {\n\treturn DemoOutput{}, err\n}\nif err := workflow.ExecuteActivity(ctx, \"SimulateWork2\", input).Get(ctx, &workResult); err != nil {\n\treturn DemoOutput{}, err\n}\nif err := workflow.ExecuteActivity(ctx, \"SimulateWork3\", input).Get(ctx, &workResult); err != nil {\n\treturn DemoOutput{}, err\n}\n\nlogger.Info(\"DemoWorkflow completed\", \"name\", input.Name)\nreturn DemoOutput{Message: result}, nil",
           "kind": "native-excerpt",
           "note": "Curated native excerpt from the running implementation. Surrounding imports, setup, and other Workflow steps are omitted."
         }
@@ -369,8 +369,8 @@
       }
     },
     "agentic-sdlc": {
-      "concept": "Test the agent’s work, then repair it",
-      "summary": "The Workflow checks the pushed branch rather than trusting an agent’s response. Failed tests become feedback, with a bound on repair rounds.",
+      "concept": "Test the agent\u2019s work, then repair it",
+      "summary": "The Workflow checks the pushed branch rather than trusting an agent\u2019s response. Failed tests become feedback, with a bound on repair rounds.",
       "nativeLanguage": "python",
       "source": {
         "path": "apps/agentic-sdlc/agentic_sdlc/pipeline/workflow.py",

@@ -1,3 +1,4 @@
+import {NoRoadsArchitecture} from './NoRoadsArchitecture'
 import type {LiveCursor} from './workflowHistory'
 import { useId } from 'react'
 import { type TacoExecution, type TacoPhase } from './tacoExecution'
@@ -7,6 +8,7 @@ import { architectureProfiles } from './architectureProfiles'
 export function ArchitecturePanel({ demoId, execution, phase,cursor }: {demoId:string;execution?:TacoExecution|null;phase?:TacoPhase;cursor?:LiveCursor|null}) {
   const id=useId()
   const profile=architectureProfiles[demoId]
+  if(demoId==='no-roads')return <NoRoadsArchitecture cursor={cursor} id={id} />
   if(demoId==='data-pipeline')return <PipelineArchitecture cursor={cursor} id={id} />
   if(!profile)return <p>Architecture information is not available for this demo.</p>
   const nodes=[
@@ -48,7 +50,7 @@ export function ArchitecturePanel({ demoId, execution, phase,cursor }: {demoId:s
 function PipelineArchitecture({cursor,id}:{cursor?:LiveCursor|null;id:string}) {
  const nodes=[['info.json','Namespace manifest'],['Validate','Accept or reject input'],['Extract','Copy to selected worker'],['Transform','Namespace entries to CSV'],['Load','Job key prevents duplicates'],['Confirm completion','Poll, Signal, or Update'],['info.csv','Loaded output'],['Temporal','Durable history + retries']]
  const positions=[[10,55],[235,55],[460,55],[685,55],[685,235],[460,235],[235,235],[10,235]]
- const active=cursor?({get_available_task_queue:7,validate:1,extract:2,transform:3,bug:3,load:4,poll:5,signal:5,update:5,complete:6} as Record<string,number>)[cursor.step]:undefined
+ const active=cursor?({get_available_task_queue:7,validate:1,extract:2,transform:3,bug:3,recovery:7,load:4,poll:5,signal:5,update:5,complete:6} as Record<string,number>)[cursor.step]:undefined
  const moving=cursor && ['running','retrying'].includes(cursor.status)
  return <div className="architecture-story pipeline-architecture">
   <p className="eyebrow">{cursor?`RECORDED JOB STEP / ${cursor.step} / ${cursor.status}${cursor.stale?' / UPDATES INTERRUPTED':''}`:'PIPELINE / INPUT TO LOADED OUTPUT'}</p>
