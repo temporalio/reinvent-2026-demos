@@ -18,6 +18,9 @@ if (boothParams.get('booth') === '1' || parentBoothFrame) {
   style.rel = 'stylesheet'
   style.href = '/booth/embed.css'
   document.head.append(style)
+  const keyboard = document.createElement('script')
+  keyboard.src = '/booth/touch-keyboard.js'
+  document.head.append(keyboard)
   let lastWorkflow = ''
   let uiBase = null
   const runtimeReady = fetch('/runtime-config.json').then(response=>response.ok?response.json():null).then(runtime=>{

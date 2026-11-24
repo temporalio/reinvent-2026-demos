@@ -2,13 +2,12 @@
 .missions .mission-card {
   --star-position:20% 25%;
   --sky-turn:scaleY(1);
-  --rock-turn:0deg;
+  --rock-transform:none;
   --rock-top:auto;
   --rock-bottom:-14%;
   --rock-left:auto;
   --rock-right:-14%;
   --rock-width:48%;
-  --rock-height:55%;
   overflow:hidden;
   background:var(--surface-overlay);
 }
@@ -20,20 +19,20 @@
 .missions .mission-card::after {
   content:""; position:absolute; inset:auto;
   top:var(--rock-top); bottom:var(--rock-bottom); left:var(--rock-left); right:var(--rock-right);
-  width:var(--rock-width); height:var(--rock-height);
-  background:url('/assets/missions/asteroid.png') center/contain no-repeat;
-  transform:rotate(var(--rock-turn)); opacity:.95; pointer-events:none; z-index:1;
+  width:var(--rock-width); height:auto; aspect-ratio:680 / 473;
+  background:url('/assets/missions/asteroid.png') center/100% 100% no-repeat;
+  transform:var(--rock-transform); opacity:.95; pointer-events:none; z-index:1;
 }
 .missions .mission-card > * { position:relative; z-index:2; }
 .missions .mission-card:nth-child(3n+2) {
   --star-position:20% 25%; --sky-turn:scaleY(-1);
-  --rock-top:-29%; --rock-bottom:auto; --rock-right:-9%; --rock-turn:180deg;
-  --rock-width:57%; --rock-height:63%;
+  --rock-top:-5%; --rock-bottom:auto; --rock-left:auto; --rock-right:-5%;
+  --rock-transform:scaleY(-1); --rock-width:52%;
 }
 .missions .mission-card:nth-child(3n) {
   --star-position:75% 50%; --sky-turn:rotate(180deg);
-  --rock-top:15%; --rock-bottom:auto; --rock-left:-31%; --rock-right:auto;
-  --rock-turn:75deg; --rock-width:48%; --rock-height:65%;
+  --rock-top:auto; --rock-bottom:-5%; --rock-left:-5%; --rock-right:auto;
+  --rock-transform:scaleX(-1); --rock-width:48%;
 }
 /* Back only the content, preserving the visible starfield and edge artwork. */
 .missions .mission-card-heading h2,.missions .mission-description,.missions .mission-connectivity,.missions .mission-card .pending {
