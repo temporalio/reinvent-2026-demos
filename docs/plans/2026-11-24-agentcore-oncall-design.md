@@ -6,6 +6,6 @@ The incident panel stacks above compute and execution history, filling the confi
 
 Local mode runs real Workflows with the upstream scripted model and invocation controller. Verify investigation, approval wait, drained worker, replacement process, approval Signal, resumption, and no repeated calls. Local mode must not inherit Cloud or AWS credentials.
 
-The single production manifest includes the Go API but explicitly disables incident starts. Pinned Fieldkit 77037f86 supports only aws-lambda, so an AgentCore runtime and its Bedrock grant cannot be enabled honestly yet. The source worker and its upstream deployment reference remain available for the platform upgrade; no production stub or always-on substitute is used.
+The single production manifest runs the Go API (`oncall-api`) and the agent's Worker as an `aws-agentcore` component (`oncall-agent`) on the `ri26-oncall` task queue. spec.aws grants the agent's exec role the Bedrock model (`BEDROCK_MODEL_ID`), and the namespace registers the `OncallPhase` search attribute. Validated against Fieldkit platform a1e2bf3b. No production stub or always-on substitute is used.
 
 Text and spacing are compact to reduce scrolling in each half of the vertical split; controls and keyboard keys keep their touch target sizes. Bottom logo marquees use a translucent dark background so moon terrain does not obscure them.

@@ -28,10 +28,10 @@ test('enabling a future demo cannot bypass its missing integration',()=>{
  assert.equal(launchRestriction({id:'agentcore-research',tentative:false,kind:'coming-soon'},{mode:'hosted'},{...online,demo_enabled:{'agentcore-research':true}},true),'Coming soon — demo integration pending')
 })
 
-test('on-call requires real AgentCore support hosted and an explicit local adapter locally',()=>{
+test('on-call launches hosted and needs the local adapter locally',()=>{
  const demo={id:'agentcore-research',tentative:false,kind:'agentcore'}
  const settings={demo_enabled:{},network_mode:'online'}
- assert.equal(launchRestriction(demo,{mode:'hosted'},settings,true),'AgentCore runtime awaits Fieldkit support')
+ assert.equal(launchRestriction(demo,{mode:'hosted'},settings,true),null)
  assert.equal(launchRestriction(demo,{mode:'local',availableDemos:[]},settings,true),'Not running on this station')
  assert.equal(launchRestriction(demo,{mode:'local',availableDemos:['agentcore-research']},settings,true),null)
 })

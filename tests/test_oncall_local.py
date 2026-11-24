@@ -21,11 +21,17 @@ class OncallLocalTests(unittest.TestCase):
         self.assertEqual(services['oncall-api']['environment']['WORKER_LOCATION'], 'local')
         self.assertIn('oncall-agent:8080/invocations', services['oncall-invoker']['environment']['AGENT_INVOKE_URL'])
 
-    def test_hosted_api_refuses_execution_until_platform_supports_agentcore(self):
+    def test_hosted_agent_runs_on_agentcore_with_bedrock(self):
         spec = yaml.safe_load((ROOT / 'deploy/reinvent-2026.yaml').read_text())['spec']
-        env = {item['name']: item.get('value') for item in spec['components']['oncall-api']['env']}
-        self.assertEqual(env['ONCALL_EXECUTION_ENABLED'], 'false')
-        self.assertNotIn('oncall-agent', spec['components'])
+        api_env = {item['name']: item.get('value') for item in spec['components']['oncall-api']['env']}
+        agent = spec['components']['oncall-agent']
+        agent_env = {item['name']: item.get('value') for item in agent['env']}
+        self.assertNotIn('ONCALL_EXECUTION_ENABLED', api_env)
+        self.assertEqual(agent['serverless']['provider'], 'aws-agentcore')
+        self.assertEqual(agent_env['TEMPORAL_TASK_QUEUE'], api_env['TEMPORAL_TASK_QUEUE'])
+        self.assertEqual(agent_env['AGENT_MODEL'], 'bedrock')
+        self.assertIn('oncall-agent', spec['aws']['components'])
+        self.assertIn('OncallPhase', spec['temporal']['searchAttributes'])
 
     def test_replacement_preserves_station_key_and_removes_old_name(self):
         catalog = json.loads((ROOT / 'apps/launchpad/src/catalog.json').read_text())

@@ -6,7 +6,6 @@ const localDemos = new Set(['tacos','money-transfer','data-pipeline','flight-sim
 export function launchRestriction(demo:{id:string;tentative:boolean;kind?:string},runtime:LaunchRuntime,settings:LaunchSettings,ready:boolean):string|null {
   if(!ready)return 'Loading station settings…'
   if(settings.demo_enabled[demo.id]===false)return 'Disabled for this station'
-  if(demo.kind==='agentcore' && runtime.mode!=='local')return 'AgentCore runtime awaits Fieldkit support'
   if(demo.kind==='coming-soon')return 'Coming soon — demo integration pending'
   if(demo.kind==='video')return settings.network_mode==='offline' && runtime.mode!=='local'?'Offline mode requires the local demo runner':null
   if(demo.tentative && runtime.mode!=='local')return 'Requires booth GitHub setup'

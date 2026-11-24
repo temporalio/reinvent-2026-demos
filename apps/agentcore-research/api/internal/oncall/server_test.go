@@ -325,12 +325,3 @@ func payload(t *testing.T, v any) *commonpb.Payload {
 	}
 	return p
 }
-
-func TestHostedGateRefusesIncidentWithoutAgentCore(t *testing.T) {
-	h := NewServer(Config{ExecutionDisabled: true}, "default", nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
-	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, httptest.NewRequest("POST", "/api/incidents", strings.NewReader(`{"id":"abcd1234","scenario":"bad-deploy"}`)))
-	if rec.Code != http.StatusServiceUnavailable {
-		t.Fatalf("got %d, want 503", rec.Code)
-	}
-}

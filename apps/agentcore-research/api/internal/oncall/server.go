@@ -74,7 +74,7 @@ func (s *Server) handleView(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
-	view := View{ExecutionAvailable: !s.cfg.ExecutionDisabled, ServerTime: time.Now().UTC(), Scenarios: scenarios, WorkerLocation: s.cfg.WorkerLocation}
+	view := View{ServerTime: time.Now().UTC(), Scenarios: scenarios, WorkerLocation: s.cfg.WorkerLocation}
 	g, gctx := errgroup.WithContext(ctx)
 	g.Go(func() error {
 		view.Worker = s.workerStatus(gctx)
@@ -112,10 +112,6 @@ type startRequest struct {
 // the incident before this returns and retry safely: a repeat of the same ID
 // gets 409, which the browser treats as its own earlier start.
 func (s *Server) handleStart(w http.ResponseWriter, r *http.Request) {
-	if s.cfg.ExecutionDisabled {
-		s.problem(w, http.StatusServiceUnavailable, "AgentCore runtime awaits Fieldkit support")
-		return
-	}
 	var req startRequest
 	if !s.decode(w, r, &req) {
 		return

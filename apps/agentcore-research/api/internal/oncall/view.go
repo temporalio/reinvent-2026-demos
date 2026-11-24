@@ -15,12 +15,11 @@ import (
 
 // View is everything the UI shows, in one response.
 type View struct {
-	ExecutionAvailable bool          `json:"executionAvailable"`
-	ServerTime         time.Time     `json:"serverTime"`
-	Scenarios          []Scenario    `json:"scenarios"`
-	WorkerLocation     string        `json:"workerLocation"`
-	Worker             WorkerStatus  `json:"worker"`
-	Incident           *IncidentView `json:"incident,omitempty"`
+	ServerTime     time.Time     `json:"serverTime"`
+	Scenarios      []Scenario    `json:"scenarios"`
+	WorkerLocation string        `json:"workerLocation"`
+	Worker         WorkerStatus  `json:"worker"`
+	Incident       *IncidentView `json:"incident,omitempty"`
 }
 
 // IncidentView is one incident Workflow, read without a Worker.
