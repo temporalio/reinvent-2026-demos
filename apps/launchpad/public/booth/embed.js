@@ -96,7 +96,7 @@ if (boothParams.get('booth') === '1' || parentBoothFrame) {
   // Banking/Tacos have compact native layouts; the remaining apps use a virtual canvas.
   // Travel Agent's chat grows with every message, so fitting it to the frame would zoom the
   // whole page out a little further on each reply. It keeps its own scrolling conversation.
-  const virtualFit = sharedStage && !['banking','dejavutacos','data-pipeline','flightsim','photobooth','agentcore-oncall','travel-agent'].includes(document.documentElement.dataset.demo)
+  const virtualFit = sharedStage && !['banking','dejavutacos','data-pipeline','loans','flightsim','photobooth','agentcore-oncall','travel-agent'].includes(document.documentElement.dataset.demo)
   let fitPending = false
   function fitNativeCanvas() {
     fitPending = false
