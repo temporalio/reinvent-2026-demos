@@ -43,7 +43,7 @@ export function TransferReview({
         <div className="review-account bg-panel p-4 border border-border mb-2 grid gap-2">
           <p className="eyebrow">From</p>
           <div className="flex items-center gap-3">
-            <AccountIcon type={from?.account_type} />
+            <AccountIcon id={from?.id} type={from?.account_type} />
             <div className="flex-1">
               <p className="text-sm font-medium">{from?.name}</p>
               <p className="text-xs text-t-slate">{from?.owner}</p>
@@ -68,7 +68,7 @@ export function TransferReview({
         <div className="review-account bg-panel p-4 border border-border mb-6 grid gap-2">
           <p className="eyebrow">To</p>
           <div className="flex items-center gap-3">
-            <AccountIcon type={to?.account_type} />
+            <AccountIcon id={to?.id} type={to?.account_type} />
             <div className="flex-1">
               <p className="text-sm font-medium">{to?.name}</p>
               <p className="text-xs text-t-slate">{to?.owner}</p>

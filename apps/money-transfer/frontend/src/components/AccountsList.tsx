@@ -40,7 +40,7 @@ export function AccountsList({ onStartTransfer }: AccountsListProps) {
             .map((account) => (
               <div key={account.id} className="account-tile bg-panel p-3.5 border border-border">
                 <div className="flex items-center gap-3">
-                  <AccountIcon type={account.account_type} />
+                  <AccountIcon id={account.id} type={account.account_type} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium">{account.name}</p>
                     <p className="account-meta text-xs text-t-slate">{account.owner}</p>
