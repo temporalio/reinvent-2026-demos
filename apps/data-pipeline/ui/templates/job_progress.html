@@ -29,7 +29,7 @@
 </div>
 <script>
 const job={{ job_id | tojson }},run={{ run_id | tojson }},scenario={{ selected_scenario | tojson }};
-const params=new URLSearchParams({job_id:job,run_id:run,scenario});
+const params=new URLSearchParams({job_id:job,workflow_id:{{ workflow_id | tojson }},run_id:run,scenario});
 const labels={get_available_task_queue:'Assign worker',validate:'Validate manifest',extract:'Copy input to worker',transform:'Transform JSON to CSV',load:'Load CSV with idempotency key',poll:'Confirm downstream completion',signal:'Wait for completion Signal',update:'Wait for completion Update',bug:'Workflow code needs a fix',complete:'Shipment complete'};
 let current=null,logSignature='',sending=false;
 const button=document.getElementById('checkpoint');

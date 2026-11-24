@@ -45,7 +45,7 @@ func SubmitHandler(tc client.Client) http.HandlerFunc {
 		// Keep the name at the front of the ID so the audience UI can show it,
 		// and append the task queue so isolated workspaces sharing this
 		// namespace cannot collide.
-		workflowID := taskqueue.ExecutionID("demo-" + sanitizeName(req.Name) + "-" + shortID())
+		workflowID := taskqueue.ExecutionID("noroads-" + sanitizeName(req.Name) + "-" + shortID())
 
 		opts := client.StartWorkflowOptions{
 			ID:        workflowID,

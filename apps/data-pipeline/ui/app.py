@@ -5,7 +5,7 @@ from pathlib import Path
 import uuid
 from urllib.parse import quote, urlsplit
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, abort, jsonify, render_template, request
 from flask.wrappers import Response
 
 from client import get_client
@@ -54,6 +54,14 @@ def manifest():
             "lines": len(source.read_text().splitlines()), "preview": json.dumps(payload, indent=2)}
 
 
+def request_workflow_id(job_id: str) -> str:
+    """Keep bookmarked legacy jobs readable without accepting an unrelated Workflow ID."""
+    candidate = request.args.get("workflow_id", f"job-{job_id}")
+    if candidate not in (f"job-{job_id}", f"datapipeline-{job_id}"):
+        abort(400, description="Workflow ID does not match this shipment")
+    return candidate
+
+
 def temporal_workflow_url(workflow_id: str, run_id: str) -> str | None:
     """Link to the run in the Temporal UI, from the UI base and qualified namespace Fieldkit injects
     (the local preview sets both too). TEMPORAL_NAMESPACE is not used: it can differ from the UI's namespace.
@@ -98,7 +106,7 @@ async def run_job() -> str | tuple[str, int]:
         key=job_id,
     )
 
-    workflow_id = f"job-{job_id}"
+    workflow_id = f"datapipeline-{job_id}"
     if selected_scenario == "HappyPath":
         handle = await client.start_workflow(
             "DataPipelineWorkflowHappyPath",
@@ -118,6 +126,7 @@ async def run_job() -> str | tuple[str, int]:
         "job_progress.html",
         selected_scenario=selected_scenario,
         job_id=job_id,
+        workflow_id=workflow_id,
         workflow_url=temporal_workflow_url(workflow_id, handle.first_execution_run_id),
         run_id=handle.first_execution_run_id,
         manifest=manifest(),
@@ -133,12 +142,12 @@ async def order_confirmation() -> str | tuple[str, int]:
         return "Error: job_id parameter is required", 400
 
     client = await get_client()
-    pipeline_workflow = client.get_workflow_handle(f"job-{job_id}", run_id=request.args.get("run_id"))
+    pipeline_workflow = client.get_workflow_handle(request_workflow_id(job_id), run_id=request.args.get("run_id"))
     desc = await pipeline_workflow.describe()
     scenario = "HappyPath" if desc.workflow_type == "DataPipelineWorkflowHappyPath" else desc.workflow_type.removeprefix("DataPipeline")
-    return render_template("job_progress.html", job_id=job_id, run_id=desc.run_id,
+    return render_template("job_progress.html", job_id=job_id, run_id=desc.run_id, workflow_id=request_workflow_id(job_id),
                            selected_scenario=scenario, scenario_description=SCENARIO_DESCRIPTIONS.get(scenario, "Follow the recorded job."),
-                           manifest=manifest(), workflow_url=temporal_workflow_url(f"job-{job_id}", desc.run_id))
+                           manifest=manifest(), workflow_url=temporal_workflow_url(request_workflow_id(job_id), desc.run_id))
 
 
 @app.route("/get_progress")
@@ -150,13 +159,13 @@ async def get_progress() -> Response | tuple[Response, int]:
 
     try:
         client = await get_client()
-        handle = client.get_workflow_handle(f"job-{job_id}", run_id=request.args.get("run_id"))
+        handle = client.get_workflow_handle(request_workflow_id(job_id), run_id=request.args.get("run_id"))
         desc = await handle.describe()
         state = desc.status.name.lower()
         history = await handle.fetch_history()
         from ui.progress import summarize
         result = summarize(history.events, state, request.args.get("scenario", "HappyPath"))
-        result["workflow_url"] = temporal_workflow_url(f"job-{job_id}", desc.run_id)
+        result["workflow_url"] = temporal_workflow_url(request_workflow_id(job_id), desc.run_id)
         if state == "running":
             try:
                 result["progress"] = await handle.query("progress", rpc_timeout=timedelta(seconds=3))
@@ -182,7 +191,7 @@ async def signal() -> tuple[str, int] | tuple[Response, int]:
 
     try:
         client = await get_client()
-        pipeline_workflow = client.get_workflow_handle(f"job-{job_id}", run_id=request.args.get("run_id"))
+        pipeline_workflow = client.get_workflow_handle(request_workflow_id(job_id), run_id=request.args.get("run_id"))
         if (await pipeline_workflow.describe()).status.name != "RUNNING":
             return jsonify({"error": "This job has ended. Start another shipment to try again."}), 409
         await pipeline_workflow.signal("load_complete_signal", "complete")
@@ -203,7 +212,7 @@ async def update() -> Response:
     update_result = None
     try:
         client = await get_client()
-        pipeline_workflow = client.get_workflow_handle(f"job-{job_id}", run_id=request.args.get("run_id"))
+        pipeline_workflow = client.get_workflow_handle(request_workflow_id(job_id), run_id=request.args.get("run_id"))
         if (await pipeline_workflow.describe()).status.name != "RUNNING":
             return jsonify({"error": "This job has ended. Start another shipment to try again."}), 409
         update_result = await pipeline_workflow.execute_update(

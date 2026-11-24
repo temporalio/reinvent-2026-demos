@@ -170,7 +170,7 @@ async def create_transfer(request: TransferRequest, session: CurrentSession):
     )
     # Crashable workspaces share a Namespace and differ only by task queue, and
     # browser sessions share a workspace, so the ID carries both.
-    workflow_id = f"transfer-{task_queue}-{session.tag}-{transfer_id}"
+    workflow_id = f"moneytransfer-{task_queue}-{session.tag}-{transfer_id}"
     sessions.add_transfer(session, transfer, workflow_id)
 
     client = await get_temporal_client()

@@ -42,7 +42,7 @@ from datetime import timedelta
 from typing import Literal
 
 from pydantic import BaseModel, Field
-from temporalio.client import Client
+from temporalio.client import Client, WorkflowExecutionStatus
 from temporalio.common import (
     SearchAttributeKey,
     SearchAttributePair,
@@ -54,7 +54,7 @@ from temporalio.exceptions import (
     ActivityAlreadyStartedError,
     WorkflowAlreadyStartedError,
 )
-from temporalio.service import RPCError
+from temporalio.service import RPCError, RPCStatusCode
 
 from agentic_sdlc import config
 from agentic_sdlc.activities.github import BOT_MARKER, UNTRUSTED_ASSOCIATIONS, CommentInput, HumanComment
@@ -254,7 +254,7 @@ async def handle(temporal: Client, actions: list[Action], settings_for: Settings
         else:
             query = (f"AgenticSdlcGitHubRefs = '{action.ref}' AND ExecutionStatus = 'Running'")
             async for execution in temporal.list_workflows(query):
-                await _record_activity(temporal, execution.id.partition(".gh.")[0])
+                await _record_activity(temporal, execution.id.removeprefix("agenticsdlc-").partition(".gh.")[0])
                 await temporal.get_workflow_handle(execution.id).signal(action.signal, action.arg)
                 done.append(f"signalled {execution.id}")
     return done
@@ -291,15 +291,26 @@ async def _start(temporal: Client, start: StartRun, settings_for: SettingsFor) -
     await _record_activity(temporal, start.task_queue)
     settings = await settings_for(start.task_queue)
     copy, _ = config.parse_slot_queue(start.task_queue)
-    prefix = f"{start.task_queue}.gh."
+    prefix = config.runs_prefix(start.task_queue)
     running_types = "WorkflowType IN ('IssueToProduction', 'DependencyRepair', 'PullRequestReview')"
     running = [w async for w in temporal.list_workflows(
-        f"WorkflowId STARTS_WITH '{prefix}' AND ExecutionStatus = 'Running' AND {running_types}")]
+        f"{config.runs_query(start.task_queue)} AND ExecutionStatus = 'Running' AND {running_types}")]
     # Every run spends real model money, so the copy as a whole is capped too, not just each slot.
     everywhere = [w async for w in temporal.list_workflows(
-        f"WorkflowId STARTS_WITH '{copy}--s' AND ExecutionStatus = 'Running' AND {running_types}")]
-    already = any(w.id == prefix + run_id for w in running)
-    if not already and (len(running) >= config.MAX_ACTIVE_GITHUB_RUNS or len(everywhere) >= config.MAX_ACTIVE_RUNS_ALL_SLOTS):
+        f"(WorkflowId STARTS_WITH 'agenticsdlc-{copy}--s' OR WorkflowId STARTS_WITH '{copy}--s') AND ExecutionStatus = 'Running' AND {running_types}")]
+    legacy_id = f"{start.task_queue}.gh.{run_id}"
+    try:
+        legacy = await temporal.get_workflow_handle(legacy_id).describe()
+    except RPCError as error:
+        if error.status != RPCStatusCode.NOT_FOUND:
+            raise
+    else:
+        # A renamed ID must not make an old webhook delivery start a second paid run.
+        return f"started {legacy_id}" if legacy.status == WorkflowExecutionStatus.RUNNING else f"already done {run_id}"
+    existing = next((w.id for w in running if w.id in (prefix + run_id, legacy_id)), None)
+    if existing:
+        return f"started {existing}"
+    if len(running) >= config.MAX_ACTIVE_GITHUB_RUNS or len(everywhere) >= config.MAX_ACTIVE_RUNS_ALL_SLOTS:
         log.warning("not starting %s: %d runs already active here, %d in all", run_id, len(running), len(everywhere))
         # The web server holds no GitHub token: the owning copy's worker posts the comment, from the
         # copy's own queue so it works while the slot's Workers are crashed.

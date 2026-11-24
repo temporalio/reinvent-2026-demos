@@ -72,7 +72,7 @@ func SeedHandler(tc client.Client) http.HandlerFunc {
 				defer wg.Done()
 
 				name := fmt.Sprintf("seed-%03d", i+1)
-				workflowID := taskqueue.ExecutionID("demo-seed-" + shortID())
+				workflowID := taskqueue.ExecutionID("noroads-seed-" + shortID())
 
 				opts := client.StartWorkflowOptions{
 					ID:        workflowID,

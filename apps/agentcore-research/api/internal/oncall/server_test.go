@@ -141,7 +141,7 @@ func TestStartScopesTheWorkflowToTheSession(t *testing.T) {
 		t.Fatalf("status %d: %s", rec.Code, rec.Body)
 	}
 	o := tc.started[0]
-	if want := "agentcore-oncall-" + session + "-abcd1234"; o.ID != want {
+	if want := "agentcore-agentcore-oncall-" + session + "-abcd1234"; o.ID != want {
 		t.Errorf("workflow ID %q, want %q", o.ID, want)
 	}
 	if o.WorkflowIDConflictPolicy != enumspb.WORKFLOW_ID_CONFLICT_POLICY_FAIL {

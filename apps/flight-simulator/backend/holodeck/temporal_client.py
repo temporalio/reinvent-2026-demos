@@ -119,4 +119,5 @@ def workflow_ui_url(workflow_id: str, run_id: str | None = None) -> str | None:
 
 def wf_id(demo: str, suffix: str, station: str | None = None) -> str:
     """Per-station workflow IDs keep stations apart in a shared namespace."""
-    return f"holodeck-{station or settings.station}-{demo}-{suffix}"
+    prefix = "flightsim" if demo == "flight" else demo
+    return f"{prefix}-{station or settings.station}-{suffix}"

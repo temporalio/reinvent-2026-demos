@@ -174,7 +174,7 @@ def _temporal_workflow_url(workflow_id: str, run_id: str) -> str | None:
 
 async def _start_application_workflow(client: Client, applicant: LoanApplicant) -> dict:
     """Start the supervisor underwriting workflow (LENNY over sub-agents); returns the apply response."""
-    workflow_id = f"loan-{applicant.id}-{generate(size=6)}"
+    workflow_id = f"loanunderwriting-{applicant.id}-{generate(size=6)}"
     handle = await client.start_workflow(
         LoanUnderwritingSupervisorWorkflow.run,
         applicant,
@@ -229,7 +229,7 @@ async def apply_bulk(body: BulkApplyRequest):
             client.start_workflow(
                 LoanUnderwritingWorkflow.run,
                 applicant,
-                id=f"loan-{applicant.id}-{generate(size=6)}",
+                id=f"loanunderwriting-{applicant.id}-{generate(size=6)}",
                 task_queue=TASK_QUEUE,
             )
             for applicant in applicants

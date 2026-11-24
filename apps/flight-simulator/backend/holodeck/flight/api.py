@@ -67,12 +67,32 @@ def _handle(session_id: str, station: str):
     return wf_id("flight", session_id, station)
 
 
+_session_workflows: dict[tuple[str, str], str] = {}
+
+
+async def _session_handle(client, session_id: str, station: str):
+    key = (station, session_id)
+    if key not in _session_workflows:
+        candidate = _handle(session_id, station)
+        try:
+            await client.get_workflow_handle(candidate).describe()
+        except RPCError as error:
+            if error.status != RPCStatusCode.NOT_FOUND:
+                raise HTTPException(502, error.message) from error
+            candidate = f"holodeck-{station}-flight-{session_id}"
+        if len(_session_workflows) >= 1024:
+            _session_workflows.pop(next(iter(_session_workflows)))
+        _session_workflows[key] = candidate
+    return client.get_workflow_handle(_session_workflows[key])
+
+
 @router.post("/sessions")
 async def create_session(body: SessionBody, x_station: str | None = Header(default=None)) -> dict:
     station = _station(x_station)
     session_id = uuid.uuid4().hex[:10]
     client = await get_client()
     workflow_id = _handle(session_id, station)
+    _session_workflows[(station, session_id)] = workflow_id
     handle = await client.start_workflow(
         FlightSessionWorkflow.run,
         SessionInput(session_id=session_id, station=station, email=body.email, consent_text_version=body.consent_text_version),
@@ -91,7 +111,7 @@ async def create_session(body: SessionBody, x_station: str | None = Header(defau
 @router.post("/sessions/{session_id}/telemetry")
 async def telemetry(session_id: str, body: TelemetryBody, x_station: str | None = Header(default=None)) -> dict:
     client = await get_client()
-    h = client.get_workflow_handle(_handle(session_id, _station(x_station)))
+    h = await _session_handle(client, session_id, _station(x_station))
     try:
         data = body.model_dump()
         data["events"] = [GameEvent(**e) for e in data["events"]]
@@ -106,7 +126,7 @@ async def telemetry(session_id: str, body: TelemetryBody, x_station: str | None 
 @router.get("/sessions/{session_id}")
 async def get_session(session_id: str, x_station: str | None = Header(default=None)) -> dict:
     client = await get_client()
-    h = client.get_workflow_handle(_handle(session_id, _station(x_station)))
+    h = await _session_handle(client, session_id, _station(x_station))
     try:
         state = await h.query(FlightSessionWorkflow.state)
     except RPCError as e:
@@ -118,7 +138,7 @@ async def get_session(session_id: str, x_station: str | None = Header(default=No
 async def get_summary(session_id: str, x_station: str | None = Header(default=None)) -> dict:
     """Activity counts, retries and history size for the end-of-game payoff screen."""
     client = await get_client()
-    h = client.get_workflow_handle(_handle(session_id, _station(x_station)))
+    h = await _session_handle(client, session_id, _station(x_station))
     try:
         summary = await h.query(FlightSessionWorkflow.summary)
     except RPCError as e:
@@ -129,7 +149,7 @@ async def get_summary(session_id: str, x_station: str | None = Header(default=No
 @router.post("/sessions/{session_id}/finish")
 async def finish(session_id: str, x_station: str | None = Header(default=None)) -> dict:
     client = await get_client()
-    h = client.get_workflow_handle(_handle(session_id, _station(x_station)))
+    h = await _session_handle(client, session_id, _station(x_station))
     try:
         res = await h.execute_update(FlightSessionWorkflow.finish)
     except WorkflowUpdateFailedError as e:

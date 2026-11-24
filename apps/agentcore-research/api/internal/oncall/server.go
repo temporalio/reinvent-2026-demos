@@ -81,7 +81,7 @@ func (s *Server) handleView(w http.ResponseWriter, r *http.Request) {
 		return nil
 	})
 	if incidentID != "" {
-		wid := s.workflowID(ctx, incidentID)
+		wid := s.existingWorkflowID(ctx, incidentID)
 		var desc *describeResult
 		var proof *Proof
 		g.Go(func() (err error) {
@@ -129,7 +129,7 @@ func (s *Server) handleStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	wid := s.workflowID(r.Context(), req.ID)
+	wid := s.existingWorkflowID(r.Context(), req.ID)
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 	// Starting records the Workflow and its first task with the server. No
@@ -193,7 +193,7 @@ func (s *Server) handleDecision(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	decision := map[string]any{"approved": req.Approved, "approver": approver(r), "note": req.Note}
-	wid := s.workflowID(r.Context(), incidentID)
+	wid := s.existingWorkflowID(r.Context(), incidentID)
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 	if err := s.tc.SignalWorkflow(ctx, wid, "", signalDecide, decision); err != nil {

@@ -114,7 +114,7 @@ class AgentRun:
         info = workflow.info()
         self._id = info.workflow_id
         self._branches = f"runs/{info.task_queue}/{request.run_id}"
-        self._environments_id = f"{info.task_queue}.gh.environments"
+        self._environments_id = f"agenticsdlc-{info.task_queue}.gh.environments" if self._id.startswith("agenticsdlc-") else f"{info.task_queue}.gh.environments"
         self._inbox: list[Feedback] = []  # comments not yet handed to an agent
         self._steers: dict[str, list[Feedback]] = {}  # per coder lane, waiting for its turn to end
         self._seen: set[str] = set()

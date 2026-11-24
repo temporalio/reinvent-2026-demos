@@ -7,6 +7,7 @@ from uuid import uuid4
 from fastapi import BackgroundTasks, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sse_starlette.sse import EventSourceResponse
+from temporalio.service import RPCError, RPCStatusCode
 
 from dejavu_tacos import config
 from dejavu_tacos.api.events import emit_event, event_generator
@@ -133,7 +134,7 @@ async def create_order(
     else:
         # Start Temporal workflow (by string name to avoid importing the workflow package)
         client = await get_temporal_client()
-        workflow_id = f"order-{order_id}"
+        workflow_id = f"spacetacos-{order_id}"
         handle = await client.start_workflow(
             "OrderWorkflow",
             {
@@ -234,8 +235,14 @@ async def mark_order_ready(order_id: str):
     if config.settings.mode == ArchitectureMode.TEMPORAL:
         # Send signal to the Temporal workflow (by string name)
         client = await get_temporal_client()
-        handle = client.get_workflow_handle(f"order-{order_id}")
-        await handle.signal("order_ready")
+        handle = client.get_workflow_handle(f"spacetacos-{order_id}")
+        try:
+            await handle.signal("order_ready")
+        except RPCError as error:
+            if error.status != RPCStatusCode.NOT_FOUND:
+                raise
+            # A kitchen can still finish an order started before the naming change.
+            await client.get_workflow_handle(f"order-{order_id}").signal("order_ready")
 
     # Emit SSE event
     await emit_event(

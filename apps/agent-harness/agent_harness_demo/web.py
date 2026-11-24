@@ -120,7 +120,7 @@ def owner_prefix(request: Request) -> str:
 def prefix_for(subject: str) -> str:
     # A hash keeps email addresses and SSO subjects out of workflow IDs.
     owner = hashlib.sha256(subject.encode()).hexdigest()[:16]
-    return f"{config.TASK_QUEUE}.{owner}."
+    return f"travelagent-{config.TASK_QUEUE}.{owner}."
 
 
 Owner = Annotated[str, Depends(owner_prefix)]
@@ -128,7 +128,8 @@ Owner = Annotated[str, Depends(owner_prefix)]
 
 async def require_owned(temporal: Client, prefix: str, workflow_id: str) -> None:
     """Allow the caller's own sessions and the subagents those sessions started."""
-    if workflow_id.startswith(prefix):
+    owned_prefixes = (prefix, prefix.removeprefix("travelagent-"))
+    if workflow_id.startswith(owned_prefixes):
         return
     try:
         description = await temporal.get_workflow_handle(workflow_id).describe()
@@ -136,7 +137,7 @@ async def require_owned(temporal: Client, prefix: str, workflow_id: str) -> None
         if err.status != RPCStatusCode.NOT_FOUND:
             raise
     else:
-        if (description.parent_id or "").startswith(prefix):
+        if (description.parent_id or "").startswith(owned_prefixes):
             return
     # 404 rather than 403, so IDs belonging to other people aren't confirmed to exist.
     raise HTTPException(status_code=404, detail="Session not found")
@@ -239,8 +240,9 @@ def create_app() -> FastAPI:
 
     async def running_sessions(prefix: str) -> list[dict]:
         types = " OR ".join(f"WorkflowType='{t}'" for t in agent_types)
+        legacy_prefix = prefix.removeprefix("travelagent-")
         query = (
-            f"TaskQueue='{config.TASK_QUEUE}' AND WorkflowId STARTS_WITH '{prefix}' "
+            f"TaskQueue='{config.TASK_QUEUE}' AND (WorkflowId STARTS_WITH '{prefix}' OR WorkflowId STARTS_WITH '{legacy_prefix}') "
             f"AND ExecutionStatus='Running' AND ({types})"
         )
         executions = [

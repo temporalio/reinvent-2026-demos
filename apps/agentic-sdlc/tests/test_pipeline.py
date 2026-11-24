@@ -310,7 +310,7 @@ class Person:
 
 async def run_scenario(client: Client, world: World, *, kind: RunKind = "issue", policy=default_policy,
                        autonomy="auto", budget=5.0, steer: str | None = None, pr_number: int | None = None,
-                       idle_close_hours: float = 24.0, close_pr_when_quiet: bool = True) -> RunState:
+                       idle_close_hours: float = 24.0, close_pr_when_quiet: bool = True, new_ids: bool = False) -> RunState:
     task_queue = f"test-{uuid.uuid4().hex[:6]}"
     home = ISSUE if kind == "issue" else pr_number
     async with Worker(client, task_queue=task_queue, workflows=[*RUNS.values(), *FAKE_AGENTS],
@@ -321,7 +321,7 @@ async def run_scenario(client: Client, world: World, *, kind: RunKind = "issue",
                        issue_number=ISSUE if kind == "issue" else None, pr_number=pr_number, autonomy=autonomy,
                        budget_usd=budget, canary_bake_seconds=2, canary_check_seconds=1, review_window_seconds=2,
                        idle_close_hours=idle_close_hours),
-            id=f"{task_queue}.gh.{kind}-{home}", task_queue=task_queue,
+            id=f"{'agenticsdlc-' if new_ids else ''}{task_queue}.gh.{kind}-{home}", task_queue=task_queue,
         )
         driving = asyncio.create_task(_act(handle, Person(handle, home), policy, steer, close_pr_when_quiet))
         try:
@@ -832,3 +832,10 @@ async def test_an_answer_to_an_old_approval_request_is_ignored(env):
     state = await run_scenario(env.client, world, policy=policy)
     assert state.status == "completed"
     assert [(r.gate, r.ask) for r in world.releases if r.gate == "production"] == [("production", 1), ("production", 2)]
+
+
+async def test_new_demo_prefix_preserves_the_delivery_orchestration(env):
+    world = World()
+    state = await run_scenario(env.client, world, new_ids=True)
+    assert state.status == "completed"
+    assert world.deploys == ["staging", "canary", "promote"]

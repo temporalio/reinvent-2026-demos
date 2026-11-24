@@ -4,8 +4,11 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"net/http"
 	"regexp"
+
+	"go.temporal.io/api/serviceerror"
 )
 
 // Each browser gets an unguessable session ID in a cookie. Every Workflow ID
@@ -52,7 +55,7 @@ func sessionFrom(ctx context.Context) string {
 // workflowID scopes an incident to the Task Queue and the session:
 // <task queue>-<session>-<incident>.
 func (s *Server) workflowID(ctx context.Context, incidentID string) string {
-	return s.cfg.TaskQueue + "-" + sessionFrom(ctx) + "-" + incidentID
+	return "agentcore-" + s.cfg.TaskQueue + "-" + sessionFrom(ctx) + "-" + incidentID
 }
 
 // approver names the person deciding. On the platform the ingress sets this
@@ -63,4 +66,23 @@ func approver(r *http.Request) string {
 		return email
 	}
 	return "local presenter"
+}
+
+// existingWorkflowID retains access to incidents recorded before the prefix change.
+// Both candidate IDs contain exactly this session and Task Queue.
+func (s *Server) existingWorkflowID(ctx context.Context, incidentID string) string {
+	current := s.workflowID(ctx, incidentID)
+	if _, err := s.tc.DescribeWorkflowExecution(ctx, current, ""); err == nil {
+		return current
+	} else {
+		var missing *serviceerror.NotFound
+		if !errors.As(err, &missing) {
+			return current
+		}
+	}
+	legacy := s.cfg.TaskQueue + "-" + sessionFrom(ctx) + "-" + incidentID
+	if _, err := s.tc.DescribeWorkflowExecution(ctx, legacy, ""); err == nil {
+		return legacy
+	}
+	return current
 }
