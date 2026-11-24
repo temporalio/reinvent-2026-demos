@@ -57,3 +57,11 @@
 .execution-progress button[aria-pressed=true] { border-color:var(--brand-highlight); color:var(--brand-highlight); background:var(--surface-hero); }
 .execution-progress p { margin:.25rem 0 0; font-size:clamp(.5rem,2.1cqh,.7rem); color:var(--text-muted); overflow-wrap:anywhere; }
 .demo-architecture .execution-node-active rect { stroke:var(--brand-highlight); stroke-width:3px; fill:var(--surface-hero); }
+
+/* Workflow inspection stays inside the Holodeck's configured iframe rectangle. */
+.demo-stage-holodeck { position:relative; }
+.holodeck-workflow { position:absolute; inset:0; z-index:2; display:flex; flex-direction:column; min-width:0; min-height:0; overflow:hidden; background:var(--surface-page); }
+.holodeck-workflow header { display:flex; align-items:center; gap:1rem; padding:.4rem; border-bottom:1px solid var(--border-default); flex:none; }
+.holodeck-workflow header button { min-height:44px; }
+.holodeck-workflow header span { font:.75rem var(--font-mono); color:var(--text-muted); }
+.holodeck-workflow iframe { flex:1; min-height:0; width:100%; border:0; }
