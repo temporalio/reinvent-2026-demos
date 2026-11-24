@@ -48,7 +48,7 @@ Each beat takes a minute or two, longer when the model is slow. The model call s
 ### 1. Start a trip and ask for one
 
 1. Open the app. It starts a new trip or resumes your most recent one; **New trip** in the header starts a fresh one.
-2. Type in the message box and press **Send** (or `Enter`): *"Book me a flight from SFO to JFK on November 3 and a hotel for three nights. Traveler is Ada Lovelace."*
+2. Tap one of the four trip ideas under the conversation, or type your own and press **Send** (or `Enter`). Each new trip gets a fresh set. After every reply, the buttons change to answers to Ziggy's question, so nobody needs the on-screen keyboard.
 3. Your message appears in **Conversation**, whose header reads "Each message is a Workflow Update". A **thinking** badge shows the model call running.
 4. Say: "This conversation is a Temporal Workflow. My message just went in as an Update, and the model call is an Activity. If anything fails from here on, the conversation is already saved."
 

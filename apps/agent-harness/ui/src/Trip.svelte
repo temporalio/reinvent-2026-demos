@@ -115,13 +115,23 @@
 
   let draft = $state("");
 
+  // Replies to tap instead of typing, from the Workflow's Haiku helper. They describe the
+  // conversation as it stood after Ziggy's last reply, so they hide while a turn is open.
+  const busy = $derived(messages.some((m) => m.status !== "done" && m.status !== "error"));
+  const suggestions = $derived(busy ? [] : (agent.states.suggestions?.replies ?? []));
+  const opening = $derived(messages.length === 0);
+
+  function ask(text: string) {
+    // The message shows at once from `pending`; the server's reply reconciles it.
+    void agent.sendMessage("ask", { text });
+  }
+
   function send(event: SubmitEvent) {
     event.preventDefault();
     const text = draft.trim();
     if (!text) return;
     draft = "";
-    // The message shows at once from `pending`; the server's reply reconciles it.
-    void agent.sendMessage("ask", { text });
+    ask(text);
   }
 </script>
 
@@ -178,6 +188,16 @@
       <Conversation {messages} />
     {/if}
 
+    {#if choices.length === 0 && (suggestions.length > 0 || opening)}
+      <section class="suggestions" class:opening aria-label={opening ? "Trip ideas" : "Suggested replies"}>
+        {#each suggestions as text (text)}
+          <button type="button" class="button small secondary ultraviolet" onclick={() => ask(text)}>{text}</button>
+        {:else}
+          <p class="muted thinking" role="status">Finding a few trip ideas…</p>
+        {/each}
+      </section>
+    {/if}
+
     {#if choices.length === 0}
       <form class="composer" onsubmit={send}>
         <label class="visually-hidden" for="composer">Message Ziggy</label>
@@ -214,6 +234,12 @@
   .recovering { border-color: var(--yellow); display: grid; gap: .5rem; }
   .failure { border-color: var(--red); display: grid; gap: .5rem; justify-items: start; }
   .recovering p, .failure p { margin: 0; }
+  .suggestions { display: flex; flex-wrap: wrap; gap: .5rem; }
+  .suggestions.opening { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .suggestions .button { text-align: left; white-space: normal; line-height: 1.3; height: auto; }
+  .suggestions p { margin: 0; }
+  .thinking { animation: breathe 1.6s ease-in-out infinite; }
+  @keyframes breathe { 50% { opacity: .45; } }
   .composer { display: flex; gap: .6rem; align-items: stretch; }
   textarea {
     flex: 1; resize: none; padding: .7rem .8rem; font: inherit; color: var(--off-white);

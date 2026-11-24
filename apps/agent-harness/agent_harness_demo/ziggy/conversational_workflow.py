@@ -23,7 +23,9 @@ from typing import Literal
 
 from pydantic import BaseModel
 from temporalio import workflow
+from temporalio.common import RetryPolicy
 from temporalio.contrib.workflow_streams import WorkflowStream
+from temporalio.exceptions import ActivityError
 from temporalio.workflow import ActivityConfig
 
 with workflow.unsafe.imports_passed_through():
@@ -50,6 +52,7 @@ with workflow.unsafe.imports_passed_through():
     from temporal_agent_harness.harness.agent_workflow import AgentWorkflowRunner
 
     from . import activities, choices, trip_board
+    from .suggestions import Exchange, SuggestRequest, Suggestions, suggest_replies
     from .models import TravelerContext
 
 
@@ -177,10 +180,16 @@ about your own notes — so there is never a reason to batch them up or skip the
 @agent.defn(name="ZiggyChatAgent")
 class ZiggyChatAgentWorkflow:
     trip_board = agent.state(trip_board.TripBoard)
+    # Replies the traveler can tap instead of typing, written by a small Haiku helper.
+    suggestions = agent.state(Suggestions)
 
     @agent.init
     def __init__(self, config: AgentConfig, data: TravelerContext | None = None) -> None:
         self._instruction = system_instruction(SYSTEM_INSTRUCTION, data)
+        self._today = data.today if data else workflow.now().date()
+        self._transcript: list[Exchange] = []
+        # Counts turns, so suggestions for a conversation that has since moved on are dropped.
+        self._turns = 0
         self._runner = AgentWorkflowRunner(
             config,
             stream=WorkflowStream(),
@@ -223,13 +232,45 @@ class ZiggyChatAgentWorkflow:
             runner=self._runner,
         )
 
+    @agent.setup
+    async def setup(self) -> None:
+        # Not awaited: the opening ideas must never hold up a message the traveler typed.
+        self._suggest_next()
+
     @agent.accepts(mid_turn=MidTurn.ENQUEUE)
     async def ask(self, message: TextMessage) -> TextReply:
         """Chat with the travel assistant. Describe the trip you want (flights, hotels,
         dates, traveler name) in plain text; the assistant converses, writes and runs Python
         scripts against a simulated travel backend as needed, and replies with the results."""
-        reply_text = await self._handle_chat_turn(self._gemini, message.text)
+        self._turns += 1
+        self.suggestions.set(Suggestions())
+        reply_text = ""
+        try:
+            reply_text = await self._handle_chat_turn(self._gemini, message.text)
+        finally:
+            self._transcript.append(Exchange(traveler=message.text, ziggy=reply_text))
+            self._suggest_next()
         return TextReply(text=reply_text)
+
+    def _suggest_next(self) -> None:
+        """Ask the Haiku helper, in the background, what the traveler might send next."""
+        turn = self._turns
+        request = SuggestRequest(today=self._today, transcript=list(self._transcript))
+
+        async def suggest() -> None:
+            try:
+                replies = await workflow.execute_activity(
+                    suggest_replies,
+                    request,
+                    start_to_close_timeout=timedelta(seconds=20),
+                    retry_policy=RetryPolicy(maximum_attempts=3),
+                )
+            except ActivityError:
+                return  # The buttons are a convenience; the traveler can still type.
+            if turn == self._turns:
+                self.suggestions.set(Suggestions(replies=replies))
+
+        self._suggesting = asyncio.create_task(suggest())
 
     # ACCEPT: reconfiguring the session is not work, so it should not wait behind work. It
     # joins the open turn and applies immediately, which is the whole point of being able to

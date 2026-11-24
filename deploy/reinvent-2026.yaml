@@ -505,6 +505,10 @@ spec:
         loan:
           id: us.anthropic.claude-sonnet-5-5
           env: BEDROCK_MODEL_ID
+        # Travel Agent's suggested-reply helper (agent_harness_demo/ziggy/suggestions.py).
+        travel-suggestions:
+          id: us.anthropic.claude-haiku-5-5
+          env: SUGGEST_MODEL_ID
   # Kiosks and staff need no Fieldkit session. The control hub authenticates
   # writes with its daily PIN/session cookie and enforces same-origin requests.
   ingress:
