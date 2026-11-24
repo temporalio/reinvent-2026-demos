@@ -36,6 +36,12 @@ export interface TextReply {
   text: string;
 }
 /**
+ * Messages the traveler can send with one tap, for the conversation as it stands.
+ */
+export interface Suggestions {
+  replies: string[];
+}
+/**
  * Where the traveler is in time, sent once when a conversation starts.
  *
  * A model only knows the date it was trained up to, so without this it plans trips in the
@@ -98,6 +104,7 @@ export interface ZiggyChatAgent {
     set_model: { input: SetModel; output: TextReply };
   };
   states: {
+    suggestions: Suggestions;
     trip_board: TripBoard;
   };
 }

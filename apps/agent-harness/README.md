@@ -19,7 +19,7 @@ The app has two views of the same sessions, and each links to the other with the
 - **Harness console** (`/console/`): the harness's own UI, unchanged, with the state flow, raw events, and a replay scrubber. Open it from **Harness console** in the header; **← Demo view** in its top bar comes back.
 
 1. Open the app. It starts a trip, or resumes your most recent one.
-2. Ask: *"Book me a flight from SFO to JFK on November 3 and a hotel for three nights. Traveler is Ada Lovelace."*
+2. Tap one of the four trip ideas, or ask: *"Book me a flight from SFO to JFK on November 3 and a hotel for three nights. Traveler is Ada Lovelace."* After each reply, the buttons offer answers to Ziggy's question.
 3. Pick an itinerary and fare from the option cards, then approve each card as it appears: the script Ziggy wrote, then each search and booking that script makes. Bookings land on the departures board as they happen.
 4. In a crashable workspace, choose **Crash Workers** while a booking is in progress. The page stays up and says the worker isn't answering. When the replacement worker starts, the turn finishes where it stopped.
 5. Open **Harness console** to show the same turn as events and state flow, or **Temporal UI** to show the Workflow history.
@@ -97,6 +97,7 @@ Changes from the upstream example:
 | `TEMPORAL_ADDRESS`, `TEMPORAL_NAMESPACE`, `TEMPORAL_API_KEY`, `TEMPORAL_TLS*` | both | `localhost:7233`, `default` | Temporal connection. `temporal.toml` files are ignored. |
 | `TEMPORAL_TASK_QUEUE` | both | `agent-harness` | Queue for every agent. The catalog sets it per workspace. |
 | `GEMINI_API_KEY` | worker | required | Model calls. |
+| `SUGGEST_MODEL_ID` | worker | unset | Bedrock model (Claude Haiku) that writes the suggested replies, with the worker's AWS credentials and `AWS_REGION`. Unset, the page opens with built-in trip ideas and offers no replies after that. |
 | `PAYLOAD_BUCKET` | both | unset | S3 bucket for payloads over 1.5 MB. |
 | `PAYLOAD_DIR` | both | harness default | Local directory for those payloads when no bucket is set. Web and worker must share it. |
 | `TRUST_AUTH_HEADERS` | web | `false` | Read the user from `X-Temporal-Auth-Subject`. Set it only behind the catalog ingress. |

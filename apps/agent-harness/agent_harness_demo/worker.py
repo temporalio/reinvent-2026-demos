@@ -13,7 +13,7 @@ from temporal_agent_harness.ai_sdks.google_genai_plugin import GoogleGenAIPlugin
 from temporal_agent_harness.plugin import AgentHarnessPlugin
 
 from . import config
-from .ziggy import activities
+from .ziggy import activities, suggestions
 from .ziggy.conversational_subagent_workflow import ZiggyChatSubagentWorkflow
 from .ziggy.conversational_workflow import ZiggyChatAgentWorkflow
 from .ziggy.workflow import ZiggyDynamicAgentWorkflow
@@ -43,6 +43,8 @@ async def run() -> None:
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
         raise SystemExit("GEMINI_API_KEY is not set; the conversational agents need it.")
+    if not os.environ.get(suggestions.MODEL_ENV):
+        logging.info("%s is not set; suggested replies use built-in trip ideas only", suggestions.MODEL_ENV)
     storage = await config.payload_storage()
     # The harness plugin goes last so its payload converter, shared with the web process,
     # wraps the Gemini plugin's. It also registers the travel tools as activities.
@@ -56,6 +58,7 @@ async def run() -> None:
         client,
         task_queue=config.TASK_QUEUE,
         workflows=[ZiggyChatAgentWorkflow, ZiggyChatSubagentWorkflow, ZiggyDynamicAgentWorkflow],
+        activities=[suggestions.suggest_replies],
         deployment_config=deployment_config(),
     )
     logging.info("Polling %s in namespace %s", config.TASK_QUEUE, client.namespace)

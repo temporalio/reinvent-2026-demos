@@ -137,9 +137,7 @@
 
   <ol class="messages" bind:this={scroller} {onscroll} aria-live="polite">
     {#if messages.length === 0}
-      <li class="hint muted">
-        Try: <em>“Fly Ada Lovelace from SFO to JFK on November 3, back on the 7th, and find a hotel near Central Park.”</em>
-      </li>
+      <li class="hint muted">Pick a trip idea below, or tell Ziggy where you're going.</li>
     {/if}
     {#each messages as message (message.id)}
       {@const label = setting(message)}

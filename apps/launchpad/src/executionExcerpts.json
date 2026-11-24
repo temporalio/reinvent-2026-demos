@@ -291,8 +291,8 @@
     "default": {
       "model": {
         "path": "apps/agent-harness/agent_harness_demo/ziggy/conversational_workflow.py",
-        "startLine": 263,
-        "endLine": 284,
+        "startLine": 304,
+        "endLine": 325,
         "code": "async def _handle_chat_turn(self, gemini: AsyncClient, user_text: str) -> str:\n    \"\"\"Run one conversational turn: stream the model, dispatch any ``run_travel_code``\n    calls, feed results back, and loop until the model replies with no further calls.\n\n    The whole conversation goes out as the input of every call; see\n    ``InteractionConversation`` for why it is not chained by interaction id.\"\"\"\n    tools = [function_param(self._code_tool)]\n    self._conversation.add_user_text(user_text)\n    while True:\n        stream = await gemini.interactions.create(\n            model=self._model,\n            input=self._conversation.steps,\n            system_instruction=self._instruction,\n            tools=tools,\n            stream=True,\n        )\n        reply = await self._conversation.read_reply(stream)\n        if not reply.function_calls:\n            return reply.text\n        self._conversation.add_function_results(\n            await asyncio.gather(*(self._run_one_tool(fc) for fc in reply.function_calls))\n        )",
         "focus": [
           9
@@ -301,8 +301,8 @@
       },
       "input": {
         "path": "apps/agent-harness/agent_harness_demo/ziggy/conversational_workflow.py",
-        "startLine": 263,
-        "endLine": 284,
+        "startLine": 304,
+        "endLine": 325,
         "code": "async def _handle_chat_turn(self, gemini: AsyncClient, user_text: str) -> str:\n    \"\"\"Run one conversational turn: stream the model, dispatch any ``run_travel_code``\n    calls, feed results back, and loop until the model replies with no further calls.\n\n    The whole conversation goes out as the input of every call; see\n    ``InteractionConversation`` for why it is not chained by interaction id.\"\"\"\n    tools = [function_param(self._code_tool)]\n    self._conversation.add_user_text(user_text)\n    while True:\n        stream = await gemini.interactions.create(\n            model=self._model,\n            input=self._conversation.steps,\n            system_instruction=self._instruction,\n            tools=tools,\n            stream=True,\n        )\n        reply = await self._conversation.read_reply(stream)\n        if not reply.function_calls:\n            return reply.text\n        self._conversation.add_function_results(\n            await asyncio.gather(*(self._run_one_tool(fc) for fc in reply.function_calls))\n        )",
         "focus": [
           18
@@ -311,8 +311,8 @@
       },
       "tool": {
         "path": "apps/agent-harness/agent_harness_demo/ziggy/conversational_workflow.py",
-        "startLine": 286,
-        "endLine": 316,
+        "startLine": 327,
+        "endLine": 357,
         "code": "async def _run_one_tool(self, call: FunctionCallStep) -> FunctionResultStepParam:\n    \"\"\"Execute one ``run_travel_code`` call via ``run_tool`` and return its result.\n\n    ``run_tool`` parks the call id so the script's host calls and the tool's own\n    lifecycle events correlate with the streaming activity's ``tool_requested``.\"\"\"\n    try:\n        if call.name != self._code_tool.__name__:\n            raise ValueError(f\"unknown tool: {call.name!r}\")\n        result = await self._runner.run_tool(\n            call.id, self._code_tool, injections=None, **call.arguments\n        )\n        response: FunctionResultStepParam = {\n            \"type\": \"function_result\",\n            \"call_id\": call.id,\n            \"name\": call.name,\n            \"result\": str(result),\n        }\n        if call.signature:\n            response[\"signature\"] = call.signature\n        return response\n    except Exception as e:\n        response = {\n            \"type\": \"function_result\",\n            \"call_id\": call.id,\n            \"name\": call.name,\n            \"result\": str(e),\n            \"is_error\": True,\n        }\n        if call.signature:\n            response[\"signature\"] = call.signature\n        return response",
         "focus": [
           8
@@ -321,8 +321,8 @@
       },
       "approval": {
         "path": "apps/agent-harness/agent_harness_demo/ziggy/conversational_workflow.py",
-        "startLine": 286,
-        "endLine": 316,
+        "startLine": 327,
+        "endLine": 357,
         "code": "async def _run_one_tool(self, call: FunctionCallStep) -> FunctionResultStepParam:\n    \"\"\"Execute one ``run_travel_code`` call via ``run_tool`` and return its result.\n\n    ``run_tool`` parks the call id so the script's host calls and the tool's own\n    lifecycle events correlate with the streaming activity's ``tool_requested``.\"\"\"\n    try:\n        if call.name != self._code_tool.__name__:\n            raise ValueError(f\"unknown tool: {call.name!r}\")\n        result = await self._runner.run_tool(\n            call.id, self._code_tool, injections=None, **call.arguments\n        )\n        response: FunctionResultStepParam = {\n            \"type\": \"function_result\",\n            \"call_id\": call.id,\n            \"name\": call.name,\n            \"result\": str(result),\n        }\n        if call.signature:\n            response[\"signature\"] = call.signature\n        return response\n    except Exception as e:\n        response = {\n            \"type\": \"function_result\",\n            \"call_id\": call.id,\n            \"name\": call.name,\n            \"result\": str(e),\n            \"is_error\": True,\n        }\n        if call.signature:\n            response[\"signature\"] = call.signature\n        return response",
         "focus": [
           8

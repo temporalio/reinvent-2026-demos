@@ -322,8 +322,8 @@
       "source": {
         "path": "apps/agent-harness/agent_harness_demo/ziggy/conversational_workflow.py",
         "symbol": "ZiggyChatAgentWorkflow.__init__",
-        "startLine": 204,
-        "endLine": 224
+        "startLine": 213,
+        "endLine": 233
       },
       "examples": {
         "go": {

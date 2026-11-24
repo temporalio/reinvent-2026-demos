@@ -270,7 +270,8 @@ html[data-shared-stage=true][data-demo=loans] .profile-grid { grid-template-colu
 html[data-shared-stage=true][data-demo=loans] :is(.screen,#screen-1) { padding:.5rem; }
 html[data-shared-stage=true][data-demo=loans] .hero-sub { margin:.3rem 0 .5rem !important; }
 html[data-shared-stage=true][data-demo=loans] .bulk-button-row { flex-direction:row; flex-wrap:wrap; }
-html[data-shared-stage=true][data-demo=travel-agent] .app { height:auto; min-height:var(--booth-canvas-height); padding:.5rem; }
+/* Travel Agent is not virtually fitted: it fills the frame and its conversation scrolls inside. */
+html[data-shared-stage=true][data-demo=travel-agent] .app { height:100dvh; min-height:0; padding:.5rem; gap:.5rem; }
 html[data-shared-stage=true][data-demo=travel-agent] .workspace { grid-template-columns:repeat(2,minmax(0,1fr)); gap:.5rem; }
 html[data-shared-stage=true][data-demo=travel-agent] .workspace > .travel { grid-column:2; grid-row:1; }
 html[data-shared-stage=true][data-demo=travel-agent] .travel > :is(.map,.route-map,.departures) { min-height:7rem; }
