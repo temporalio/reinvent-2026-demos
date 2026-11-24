@@ -116,7 +116,7 @@
 
   {#if sessionId && !preview}
     {#key sessionId}
-      <Trip {sessionId} />
+      <Trip {sessionId} {runId} />
     {/key}
   {:else if preview}
     <main class="workspace preview-workspace">

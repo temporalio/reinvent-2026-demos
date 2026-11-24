@@ -74,3 +74,9 @@
 .code-line[data-status="retrying"] { background:rgba(255,107,255,.16); box-shadow:inset 3px 0 #ff6bff; }
 .code-line[data-status="failed"] { background:rgba(255,110,65,.18); box-shadow:inset 3px 0 #ff6e41; }
 .code-line[data-status="completed"] { background:rgba(18,190,186,.16); box-shadow:inset 3px 0 #12beba; }
+
+.pipeline-link { opacity:.35; }
+.pipeline-link-active { opacity:1; stroke-width:3px; }
+.pipeline-architecture [data-status=waiting] rect { stroke:#ffd246; fill:#ffd24612; }
+.pipeline-architecture [data-status=failed] rect { stroke:#ff6e41; fill:#ff6e4112; }
+.pipeline-architecture [data-status=retrying] rect { stroke:#ff6bff; fill:#ff6bff12; }

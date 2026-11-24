@@ -12,7 +12,7 @@
   import RouteMap from "./RouteMap.svelte";
   import { departures } from "./travel.ts";
 
-  let { sessionId }: { sessionId: string } = $props();
+  let { sessionId, runId }: { sessionId: string; runId: string | null } = $props();
 
   const agent = new AgentSession<ZiggyChatAgent>({
     get sessionId() {
@@ -111,6 +111,12 @@
   // Choices waiting on the traveler, from Ziggy or any subagent, take over the chat column
   // until they're answered; the chat comes back, scrolled to the newest, once they are.
   const choices = $derived(agent.pendingCallbacks.filter((c) => isChoiceTool(c.part.toolName)));
+  $effect(() => {
+    if (parent === window || !runId) return;
+    const step = agent.pendingCallbacks.length ? 'approval' : thinking ? 'model' : running.length ? 'tool' : 'input';
+    parent.postMessage({type:'booth:demo-execution',demoId:'agent-harness',runId,step,
+      variant:'default',status:step==='approval'||step==='input'?'waiting':'running',stale:agent.connection==='reconnecting'},location.origin);
+  });
   const still = $derived(motion.paused || motion.reduced);
 
   let draft = $state("");

@@ -20,10 +20,11 @@ const (
 
 // SeedResponse summarises the result of a seed burst.
 type SeedResponse struct {
-	Requested int      `json:"requested"`
-	Started   int      `json:"started"`
-	Failed    int      `json:"failed"`
-	Errors    []string `json:"errors,omitempty"`
+	Requested     int      `json:"requested"`
+	Started       int      `json:"started"`
+	Failed        int      `json:"failed"`
+	Errors        []string `json:"errors,omitempty"`
+	TemporalUIURL string   `json:"temporalUiUrl,omitempty"`
 }
 
 // SeedHandler fires a configurable burst of DemoWorkflows simultaneously.
@@ -58,10 +59,11 @@ func SeedHandler(tc client.Client) http.HandlerFunc {
 		}
 
 		var (
-			wg      sync.WaitGroup
-			mu      sync.Mutex
-			started int
-			errs    []string
+			wg         sync.WaitGroup
+			mu         sync.Mutex
+			started    int
+			exampleURL string
+			errs       []string
 		)
 
 		for i := 0; i < count; i++ {
@@ -77,7 +79,7 @@ func SeedHandler(tc client.Client) http.HandlerFunc {
 					TaskQueue: taskqueue.Name(),
 				}
 
-				_, err := tc.ExecuteWorkflow(r.Context(), opts, workflows.DemoWorkflow, workflows.DemoInput{
+				execution, err := tc.ExecuteWorkflow(r.Context(), opts, workflows.DemoWorkflow, workflows.DemoInput{
 					Name: name,
 				})
 
@@ -87,6 +89,9 @@ func SeedHandler(tc client.Client) http.HandlerFunc {
 					errs = append(errs, fmt.Sprintf("%s: %v", workflowID, err))
 				} else {
 					started++
+					if exampleURL == "" {
+						exampleURL = workflowUIURL(execution.GetID(), execution.GetRunID())
+					}
 				}
 			}(i)
 		}
@@ -95,10 +100,11 @@ func SeedHandler(tc client.Client) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(SeedResponse{
-			Requested: count,
-			Started:   started,
-			Failed:    len(errs),
-			Errors:    errs,
+			Requested:     count,
+			Started:       started,
+			Failed:        len(errs),
+			Errors:        errs,
+			TemporalUIURL: exampleURL,
 		})
 	}
 }

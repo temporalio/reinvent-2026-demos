@@ -16,7 +16,15 @@ test('every straight image cut faces its clipped corner, independent of card asp
   const left=row['--rock-left']!=='auto',top=row['--rock-top']!=='auto'
   assert.ok(parseFloat(row[left?'--rock-left':'--rock-right'])<0)
   assert.ok(parseFloat(row[top?'--rock-top':'--rock-bottom'])<0)
-  assert.equal(row['--rock-transform'],top?(left?'rotate(180deg)':'scaleY(-1)'):(left?'scaleX(-1)':'none'))
+  const quarterTurns={
+    'false,false':'scaleX(-1) rotate(90deg)',
+    'true,false':'translateY(-100%) rotate(-90deg)',
+    'false,true':'translateX(-100%) rotate(90deg)',
+    'true,true':'translateX(-100%) translateY(-100%) scaleY(-1) rotate(90deg)'
+  }
+  assert.equal(row['--rock-transform'],row['--rock-origin']==='bottom right'?quarterTurns[`${top},${left}`]:top?(left?'rotate(180deg)':'scaleY(-1)'):(left?'scaleX(-1)':'none'))
+  assert.ok(parseFloat(row['--rock-width'])<=45)
+  assert.ok(parseFloat(row['--rock-width'])>=36)
   assert.equal(row['--rock-turn'],undefined)
  }
 })

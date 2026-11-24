@@ -22,3 +22,30 @@ button,.pipeline-button { display:inline-flex; align-items:center; justify-conte
 .pipeline-complete { max-width:48rem; margin:2rem auto; }
 @media(max-width:540px) { .pipeline-grid { grid-template-columns:1fr; } }
 @media(prefers-reduced-motion:reduce) { .status-progress { transition:none; } }
+
+html,body { height:100%; overflow:hidden; }
+.pipeline-page { height:100dvh; min-height:0; }
+.pipeline-grid { height:100%; min-height:0; }
+.pipeline-panel { display:flex; flex-direction:column; min-height:0; overflow:hidden; }
+.pipeline-panel p { margin:.5rem 0; }
+.pipeline-panel button,.pipeline-button { flex:none; }
+.manifest-count { font-family:var(--font-mono); }
+.manifest-count strong { font-size:2.5rem; color:var(--brand-highlight); }
+.small-heading { font-size:1rem; margin:.7rem 0 .4rem; }
+.manifest-preview { min-height:0; flex:1; overflow:auto; padding:.75rem; border:1px solid var(--border-default); background:var(--surface-page); font:.8rem/1.6 var(--font-mono); white-space:pre-wrap; overflow-wrap:anywhere; }
+.small-preview { max-height:18rem; }
+.scenario-description { min-height:6em; }
+.pipeline-progress-number { margin:.4rem 0 !important; }
+.pipeline-log { flex:1; min-height:5rem; overflow:auto; list-style:none; padding:.7rem; border:1px solid var(--border-default); font:.75rem/1.7 var(--font-mono); }
+.pipeline-log li { border-left:3px solid var(--border-default); padding:.25rem .6rem; margin-bottom:.3rem; }
+.pipeline-log li[data-status=completed] { border-color:var(--status-completed); }
+.pipeline-log li[data-status=retrying] { border-color:var(--brand-highlight); }
+.pipeline-button.secondary { color:var(--text-primary); background:transparent; border-color:var(--border-default); }
+button[hidden] { display:none; }
+button:disabled { opacity:.5; cursor:default; }
+.status-progress[data-status=failed] { background:var(--status-failed); }
+@media(max-width:540px) { .pipeline-grid { grid-template-columns:1fr 1fr;gap:.5rem; } .pipeline-panel { padding:.7rem; } }
+
+.completion-stats { display:grid; grid-template-columns:1fr 1fr; gap:.3rem .7rem; padding:.6rem; border:1px solid var(--status-completed); font:.8rem var(--font-mono); }
+.completion-stats[hidden] { display:none; }
+.completion-stats dd { margin:0; color:var(--brand-highlight); }

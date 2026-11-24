@@ -8,7 +8,6 @@ import { KitchenDisplay } from './components/KitchenDisplay'
 import { Menu } from './components/Menu'
 import { OrderTracker } from './components/OrderTracker'
 import { SettingsModal } from './components/SettingsModal'
-import { pathLabel } from './data/scenarios'
 import { useSSE } from './hooks/useSSE'
 import temporalLogo from './kit/brand/temporal-logo.svg'
 import type {
@@ -228,7 +227,7 @@ function App() {
           </section>
           <section className="mission-panel kitchen-panel" aria-labelledby="kitchen-title">
             <header className="panel-label"><span>02 / MISSION CONTROL</span><h2 id="kitchen-title">Kitchen uplink</h2>        <button className="mission-options" onClick={() => setSettingsOpen(true)} aria-haspopup="dialog" disabled={saving}>
-          {saving ? 'Saving…' : pathLabel(settings)} · Demo options
+          {saving ? 'Saving…' : 'Demo Options'}
         </button></header>
             <PanelViewport label="Kitchen uplink"><KitchenDisplay onOnlineChange={setStoreOnline} activeOrderId={orderId} /></PanelViewport>
           </section>

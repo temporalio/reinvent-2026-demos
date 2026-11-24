@@ -812,6 +812,7 @@
       }
     }, 1800);
 
+    reportLoanStep('assess','running');
     pollInterval = setInterval(async () => {
       try {
         const r = await fetch(`/loans/assessment/${currentWorkflowId}`);
@@ -820,10 +821,17 @@
           clearInterval(pollInterval);
           clearInterval(stepInterval);
           Array.from(feed.children).forEach(el => el.classList.add('done'));
+          reportLoanStep('approval','waiting');
           setTimeout(() => showVerdict(d.assessment), 600);
         }
       } catch(e) { /* retry */ }
     }, 1500);
+  }
+
+  function reportLoanStep(step,status) {
+    const link=[...document.querySelectorAll('a[href]')].map(a=>a.href).find(url=>url.includes('/workflows/'+encodeURIComponent(currentWorkflowId)+'/'));
+    const runId=link?.split('/workflows/')[1]?.split('/')[1];
+    if(runId&&parent!==window)parent.postMessage({type:'booth:demo-execution',demoId:'loan',runId,step,status,variant:'default',stale:false},location.origin);
   }
 
   // ── Show verdict → Screen 4 ──
@@ -865,6 +873,7 @@
           if (result.ready) {
             clearInterval(poll);
             decisionInProgress = false;
+            reportLoanStep('approval','completed');
             showResult(result);
           }
         }
