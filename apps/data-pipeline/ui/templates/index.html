@@ -5,24 +5,25 @@
     <p class="eyebrow">01 / MISSION DATA</p>
     <h1 id="pipeline-input">Cargo manifest</h1>
     <p class="muted">Validate, extract, transform, and load a data shipment.</p>
-    <dl class="pipeline-data">
-      <dt>Input file</dt><dd>{{ data['input_filename'] }}</dd>
-      <dt>Working folder</dt><dd>{{ data['foldername'] }}</dd>
-      <dt>Completion mode</dt><dd>{{ data['poll_or_wait'] }}</dd>
-      <dt>Validation</dt><dd>{{ data['validation'] }}</dd>
-    </dl>
+    <p class="manifest-count"><strong>{{ manifest.objects }}</strong> namespace records <span class="muted">/ {{ manifest.lines }} source lines</span></p>
+    <p>Each namespace becomes a row in <code>info.csv</code>. The worker loads that file with a job key to prevent duplicate loads.</p>
+    <h2 class="small-heading">{{ manifest.filename }}</h2>
+    <pre class="manifest-preview" aria-label="Input JSON">{{ manifest.preview }}</pre>
   </section>
   <section class="pipeline-panel" aria-labelledby="pipeline-control">
     <p class="eyebrow">02 / MISSION CONTROL</p>
     <h2 id="pipeline-control">Choose the journey</h2>
     <label for="scenario">Scenario</label>
     <select id="scenario" name="scenario">{% for choice in scenarios %}<option value="{{ choice }}">{{ choice }}</option>{% endfor %}</select>
-    <p class="muted">Try a failed API call, a recoverable failure, or a pause for a human signal or update.</p>
+    <p class="scenario-description" id="scenario-description" role="status">{{ descriptions[scenarios[0]] }}</p>
     <input type="hidden" id="job_id" value="{{ job_id }}">
-    <button type="button" onclick="runJob()">Launch data pipeline ↗</button>
+    <button type="button" onclick="runJob()">Launch data pipeline</button>
   </section>
 </div>
 <script>
+if(parent!==window)parent.postMessage({type:'booth:demo-reset',demoId:'data-pipeline'},location.origin);
+const descriptions = {{ descriptions | tojson }};
+document.getElementById('scenario').addEventListener('change', event => {document.getElementById('scenario-description').textContent=descriptions[event.target.value]});
 function runJob() {
   const query = new URLSearchParams({scenario:document.getElementById('scenario').value, job_id:document.getElementById('job_id').value});
   if(document.documentElement.dataset.booth === 'true') query.set('booth','1');

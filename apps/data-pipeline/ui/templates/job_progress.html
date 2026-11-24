@@ -1,211 +1,76 @@
 {% extends 'base.html' %}
-{% block scripts %}<script>
-        // Declare interval in the global scope
-        var interval;
-
-        // Define the startCountdown function
-        function startCountdown(seconds, countdownElement) {
-            function updateCountdown() {
-                countdownElement.innerText = seconds + ' seconds remaining';
-                seconds = seconds -5;
-
-                if (seconds < 0) {
-                    clearInterval(interval);
-                    countdownElement.style.display = 'none';
-                }
-            }
-
-            // Set up interval to call updateCountdown every second
-            interval = setInterval(updateCountdown, 5000);
-        }
-        
-        function startCountdown(seconds, countdownElement) {
-            function updateCountdown() {
-                countdownElement.innerText = seconds + ' seconds remaining';
-                seconds--;
-
-                if (seconds < 0) {
-                    clearInterval(interval);
-                    countdownElement.style.display = 'none';
-                }
-            }
-
-            // Set up interval to call updateCountdown every second
-            interval = setInterval(updateCountdown, 1000);
-        }        
-
-        // Define the updateScenarioElements function
-        isCountdown = false;
-        function updateScenarioElements(selectedScenario, progress) {
-            // Get the elements for HumanInLoopSignal and HumanInLoopUpdate scenarios
-            var signalElement = document.getElementById('humanInLoopSignal');
-            var updateElement = document.getElementById('humanInLoopUpdate');
-            var signalCountdownElement = document.getElementById('signalCountdown');
-            var updateCountdownElement = document.getElementById('updateCountdown');
-
-            // Hide all elements initially
-            signalElement.style.display = 'none';
-            updateElement.style.display = 'none';
-            signalCountdownElement.style.display = 'none';
-            updateCountdownElement.style.display = 'none';
-
-            // Check if the countdown is already active
-            var isCountdownActive = signalCountdownElement.style.display === 'block' || updateCountdownElement.style.display === 'block';
-
-            // Show elements based on the selected scenario and progress
-            if (selectedScenario === 'HumanInLoopSignal' && progress === 80 && !isCountdownActive) {
-                signalElement.style.display = 'block';
-                signalCountdownElement.style.display = 'block';
-                if (!isCountdown) {
-                    isCountdown = true;
-                    startCountdown(59, signalCountdownElement);  // Start 60 second countdown 
-                }
-            } else if (selectedScenario === 'HumanInLoopUpdate' && progress === 80 && !isCountdownActive) {
-                updateElement.style.display = 'block';
-                updateCountdownElement.style.display = 'block';
-                if (!isCountdown) {
-                    isCountdown = true;
-                    startCountdown(59, updateCountdownElement);  // Start 59 second countdown
-                }                
-            }
-        }        
-
-        // Define the updateProgress function
-        function updateProgress() {
-            // Get the job_id from the URL query parameters
-            var urlParams = new URLSearchParams(window.location.search);
-            var job_id = urlParams.get('job_id');
-            var selectedScenario = urlParams.get('scenario');
-
-            // Fetch progress from the server
-            fetch('/data-pipeline/get_progress?job_id=' + encodeURIComponent(job_id))
-                .then(response => {
-                    if (response.ok) {
-                        return response.json();
-                    } else {
-                        // If response status is not okay, throw an error
-                        throw new Error(`Failed to fetch progress. Status: ${response.status}`);
-                    }
-                })
-                .then(data => {
-                    // Update the progress bar
-                    document.getElementById('progress-bar').style.width = data.progress + '%';
-                    document.getElementById('progress-percent').textContent = data.progress + '%';
-                    document.getElementById('job-progress').setAttribute('aria-valuenow', data.progress);
-
-                    // Check if the progress is complete and redirect to order confirmation if needed
-                    if (data.progress === 100) {
-                        // Redirect to order confirmation with the job_id
-                        window.location.href = '/data-pipeline/confirmation?job_id=' + encodeURIComponent(job_id);
-                    } else {
-                        // Continue updating progress
-                        setTimeout(updateProgress, 1000);
-                    }
-
-                    // Show/hide elements based on the selected scenario and progress
-                    updateScenarioElements(selectedScenario, data.progress);
-                })
-                .catch(error => {
-                    // Log the detailed error message to the console
-                    console.error('Error fetching progress:', error.message);
-
-                    // Display the error message in the web browser
-                    document.getElementById('error-message').innerText = error.message;
-
-                    // Handle the error by showing a red status bar
-                    document.getElementById('progress-bar').style.backgroundColor = 'red';
-                });
-        }    
-
-        // Start updating progress when the page loads
-        document.addEventListener("DOMContentLoaded", function () {
-            updateProgress();
-        });
-
-        // Define the signal function
-        function signal() {
-            // Get the job_id from the URL query parameters
-            var urlParams = new URLSearchParams(window.location.search);
-            var job_id = urlParams.get('job_id');
-            
-            // Perform AJAX request to the server for signaling
-            fetch('/data-pipeline/signal?job_id=' + encodeURIComponent(job_id), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-            })
-            .then(response => {
-                if (response.ok) {
-                    console.log('Signal sent successfully');
-                } else {
-                    console.error('Failed to send signal');
-                }
-            })
-            .catch(error => {
-                console.error('Error during signal:', error.message);
-            });
-        }
-
-        // Define the update function
-        function update() {
-            // Get the job_id from the URL query parameters
-            var urlParams = new URLSearchParams(window.location.search);
-            var job_id = urlParams.get('job_id');
-
-            // Perform AJAX request to the server for updating
-            fetch('/data-pipeline/update?job_id=' + encodeURIComponent(job_id), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-            })
-            .then(response => {
-                if (response.ok) {
-                    return response.json();
-                } else {
-                    console.error('Failed to send update');
-                    throw new Error('Failed to send update');
-                }
-            })
-            .then(data => {
-                // Get the updateResult element
-                var updateResultElement = document.getElementById('updateResult');
-
-                // Update the display with the result
-                updateResultElement.innerText = data.result;
-
-                // Check if the result contains rejected and set text color
-                if (data.result.includes("rejected")) {
-                    updateResultElement.style.color = 'red';
-                } else {
-                    // Reset text color if not "rejected"
-                    updateResultElement.style.color = '';
-                }
-            })
-            .catch(error => {
-                console.error('Error during update:', error.message);
-            });
-        }   
-    </script>{% endblock %}
 {% block content %}
 <div class="pipeline-grid">
   <section class="pipeline-panel" aria-labelledby="pipeline-progress-title">
     <p class="eyebrow">01 / ACTIVE SHIPMENT</p>
     <h1 id="pipeline-progress-title">Processing cargo</h1>
-    <p class="muted">Scenario: {{ selected_scenario }}</p>
+    <p class="muted">{{ selected_scenario }} / {{ manifest.filename }} / {{ manifest.objects }} namespace records</p>
     <p class="pipeline-progress-number" id="progress-percent">0%</p>
     <div class="status-bar" id="job-progress" role="progressbar" aria-label="Pipeline progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="progress-bar" class="status-progress" style="width:0"></div></div>
+    <p id="current-step" role="status">Reading recorded job progress...</p>
+    <dl id="completion-stats" class="completion-stats" hidden></dl>
+    <p id="record-count" class="muted">Waiting for transformation to complete.</p>
+    <ol class="pipeline-log" id="pipeline-log" aria-label="Recorded pipeline events"></ol>
     <p id="error-message" role="alert"></p>
-    {% if workflow_url %}<a class="pipeline-button" href="{{ workflow_url }}" target="_blank" rel="noopener">View workflow ↗</a>{% endif %}
   </section>
   <section class="pipeline-panel" aria-labelledby="pipeline-actions-title">
     <p class="eyebrow">02 / MISSION CONTROL</p>
-    <h2 id="pipeline-actions-title">Human checkpoints</h2>
-    <p class="muted">When the selected scenario needs approval, its control becomes available here.</p>
-    <div id="humanInLoopSignal" style="display:none"><button onclick="signal()">Signal: complete load</button><p id="signalCountdown"></p></div>
-    <div id="humanInLoopUpdate" style="display:none"><button onclick="update()">Update: complete load</button><p id="updateCountdown"></p></div>
-    <p id="updateResult" role="status"></p>
+    <h2 id="pipeline-actions-title">{{ selected_scenario }}</h2>
+    <p>{{ scenario_description }}</p>
+    <p id="checkpoint-status" role="status">The job is running on Temporal. Follow its recorded steps on the left.</p>
+    <button id="checkpoint" hidden></button>
+    <p id="checkpoint-result" role="status"></p>
+    <p id="retry-note" class="muted"></p>
+    <h2 class="small-heading">Input manifest</h2>
+    <pre class="manifest-preview small-preview">{{ manifest.preview }}</pre>
+    {% if workflow_url %}<a id="workflow-link" class="pipeline-button" href="{{ workflow_url }}">View workflow</a>{% endif %}
+    <a class="pipeline-button secondary" id="restart" href="/data-pipeline/?booth=1">Start another shipment</a>
   </section>
 </div>
+<script>
+const job={{ job_id | tojson }},run={{ run_id | tojson }},scenario={{ selected_scenario | tojson }};
+const params=new URLSearchParams({job_id:job,run_id:run,scenario});
+const labels={get_available_task_queue:'Assign worker',validate:'Validate manifest',extract:'Copy input to worker',transform:'Transform JSON to CSV',load:'Load CSV with idempotency key',poll:'Confirm downstream completion',signal:'Wait for completion Signal',update:'Wait for completion Update',bug:'Workflow code needs a fix',complete:'Shipment complete'};
+let current=null,logSignature='',sending=false;
+const button=document.getElementById('checkpoint');
+function report(data){
+  if(data.workflow_url&&parent!==window)parent.postMessage({type:'booth:workflow',url:data.workflow_url},location.origin);
+  if(parent!==window)parent.postMessage({type:'booth:demo-execution',demoId:'data-pipeline',runId:run,step:data.step,status:data.status,variant:scenario==='HappyPath'?'happy':'scenario',stale:!!data.stale},location.origin);
+}
+function render(data){
+ current=data;
+ document.getElementById('pipeline-progress-title').textContent=data.state==='completed'?'Cargo pipeline complete':data.state==='running'?'Processing cargo':'Shipment stopped';
+ const stats=document.getElementById('completion-stats');stats.hidden=data.state!=='completed';
+ if(!stats.hidden){stats.replaceChildren(...[['Input records',String(data.manifest.objects)],['Activities completed',String(data.completed_activities)],['Elapsed time',data.elapsed_seconds+' seconds'],['Output','info.csv / '+(data.loaded?'loaded':'not loaded')]].flatMap(([label,value])=>{const dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=label;dd.textContent=value;return [dt,dd]}))}
+ report(data);
+ document.getElementById('progress-percent').textContent=data.progress+'%';
+ document.getElementById('progress-bar').style.width=data.progress+'%';
+ document.getElementById('job-progress').setAttribute('aria-valuenow',data.progress);
+ document.getElementById('current-step').textContent=(labels[data.step]||data.step)+' / '+data.status;
+ document.getElementById('record-count').textContent=data.transformed?data.manifest.objects+' of '+data.manifest.objects+' namespace records transformed into CSV'+(data.loaded?' and loaded.':'.'):'Transformation has not completed yet.';
+ const signature=JSON.stringify(data.events);
+ if(signature!==logSignature){logSignature=signature;const log=document.getElementById('pipeline-log');log.replaceChildren(...data.events.map(event=>{const li=document.createElement('li');li.textContent=event.text;li.dataset.status=event.status;return li}));log.scrollTop=log.scrollHeight;}
+ const waiting=data.state==='running'&&['signal','update'].includes(data.step);
+ button.hidden=!waiting;
+ button.disabled=sending;
+ button.textContent=data.step==='signal'?'Signal: complete load':'Update: complete load';
+ document.getElementById('checkpoint-status').textContent=data.state!=='running'?(data.state==='completed'?'The job completed. Start another shipment to explore a different scenario.':'This job has ended. The configured timeout or validation failure is recorded in Temporal; an expired checkpoint cannot be signaled. Start another shipment to try again.'):waiting?'The loaded data is waiting for your confirmation. The workflow has a 60-second checkpoint deadline.':data.step==='bug'?'The workflow is retrying a code bug. A corrected worker can resume it without repeating completed Activities.':'Temporal is coordinating the recorded steps shown on the left.';
+ document.getElementById('retry-note').textContent=data.attempt>1?'Activity attempt '+data.attempt+'. Completed earlier stages are retained.':data.notice||'';
+ document.getElementById('error-message').textContent='';
+ if(data.workflow_url&&document.getElementById('workflow-link'))document.getElementById('workflow-link').href=data.workflow_url;
+ document.getElementById('progress-bar').dataset.status=data.status;
+}
+async function refresh(){
+ try{const r=await fetch('/data-pipeline/get_progress?'+params);const data=await r.json();if(!r.ok)throw Error(data.error||'Connection interrupted. Reconnecting to recorded progress.');render(data);if(data.state==='running')setTimeout(refresh,1000)}
+ catch(e){document.getElementById('error-message').textContent=e.message;if(current)report({...current,stale:true});setTimeout(refresh,2000)}
+}
+button.addEventListener('click',async()=>{
+ if(!current||current.status!=='waiting'||sending)return;
+ sending=true;button.disabled=true;
+ try{const r=await fetch('/data-pipeline/'+current.step+'?'+params,{method:'POST'});if(!r.ok)throw Error('The checkpoint is no longer available. Refreshing the recorded job status.');document.getElementById('checkpoint-result').textContent=current.step==='signal'?'Completion Signal accepted. Waiting for the worker to resume.':'Completion Update accepted. Waiting for the job to finish.';}
+ catch(e){document.getElementById('checkpoint-result').textContent=e.message}
+ finally{sending=false;button.disabled=false}
+});
+refresh();
+</script>
 {% endblock %}

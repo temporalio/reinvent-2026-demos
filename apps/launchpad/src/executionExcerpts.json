@@ -1,0 +1,775 @@
+{
+  "data-pipeline": {
+    "happy": {
+      "get_available_task_queue": {
+        "path": "apps/data-pipeline/DataPipelineWorkflowHappyPath.py",
+        "startLine": 30,
+        "endLine": 33,
+        "code": "unique_worker_task_queue = await workflow.execute_activity(\n    activity=get_available_task_queue,\n    start_to_close_timeout=timedelta(seconds=10),\n)",
+        "focus": [
+          0,
+          1
+        ],
+        "label": "Get available task queue"
+      },
+      "validate": {
+        "path": "apps/data-pipeline/DataPipelineWorkflowHappyPath.py",
+        "startLine": 42,
+        "endLine": 47,
+        "code": "validation = await workflow.execute_activity(\n    validate,\n    input,\n    start_to_close_timeout=timedelta(seconds=300),\n    heartbeat_timeout=timedelta(seconds=20),\n)",
+        "focus": [
+          0,
+          1
+        ],
+        "label": "Validate"
+      },
+      "extract": {
+        "path": "apps/data-pipeline/DataPipelineWorkflowHappyPath.py",
+        "startLine": 55,
+        "endLine": 61,
+        "code": "activity_output = await workflow.execute_activity(\n    extract,\n    input,\n    task_queue=unique_worker_task_queue,\n    start_to_close_timeout=timedelta(seconds=300),\n    heartbeat_timeout=timedelta(seconds=20),\n)",
+        "focus": [
+          0,
+          1
+        ],
+        "label": "Extract"
+      },
+      "transform": {
+        "path": "apps/data-pipeline/DataPipelineWorkflowHappyPath.py",
+        "startLine": 67,
+        "endLine": 73,
+        "code": "activity_output = await workflow.execute_activity(\n    transform,\n    input,\n    task_queue=unique_worker_task_queue,\n    start_to_close_timeout=timedelta(seconds=300),\n    heartbeat_timeout=timedelta(seconds=20),\n)",
+        "focus": [
+          0,
+          1
+        ],
+        "label": "Transform"
+      },
+      "load": {
+        "path": "apps/data-pipeline/DataPipelineWorkflowHappyPath.py",
+        "startLine": 79,
+        "endLine": 85,
+        "code": "activity_output = await workflow.execute_activity(\n    load,\n    input,\n    task_queue=unique_worker_task_queue,\n    start_to_close_timeout=timedelta(seconds=300),\n    heartbeat_timeout=timedelta(seconds=20),\n)",
+        "focus": [
+          0,
+          1
+        ],
+        "label": "Load"
+      },
+      "poll": {
+        "path": "apps/data-pipeline/DataPipelineWorkflowHappyPath.py",
+        "startLine": 91,
+        "endLine": 98,
+        "code": "activity_output = await workflow.execute_activity(\n    poll,\n    args=[input, workflow_type],\n    task_queue=unique_worker_task_queue,\n    start_to_close_timeout=timedelta(seconds=3000),\n    heartbeat_timeout=timedelta(seconds=20),\n    retry_policy=RetryPolicy(initial_interval=timedelta(seconds=2), backoff_coefficient=1),\n)",
+        "focus": [
+          0,
+          1
+        ],
+        "label": "Poll"
+      },
+      "complete": {
+        "path": "apps/data-pipeline/DataPipelineWorkflowHappyPath.py",
+        "startLine": 105,
+        "endLine": 105,
+        "code": "return f\"Successfully processed: {input.input_filename}!\"",
+        "focus": [
+          0
+        ],
+        "label": "Shipment complete"
+      }
+    },
+    "scenario": {
+      "get_available_task_queue": {
+        "path": "apps/data-pipeline/DataPipelineWorkflowScenarios.py",
+        "startLine": 43,
+        "endLine": 46,
+        "code": "unique_worker_task_queue = await workflow.execute_activity(\n    activity=get_available_task_queue,\n    start_to_close_timeout=timedelta(seconds=10),\n)",
+        "focus": [
+          0,
+          1
+        ],
+        "label": "Get available task queue"
+      },
+      "validate": {
+        "path": "apps/data-pipeline/DataPipelineWorkflowScenarios.py",
+        "startLine": 62,
+        "endLine": 67,
+        "code": "validation = await workflow.execute_activity(\n    validate,\n    input,\n    start_to_close_timeout=timedelta(seconds=300),\n    heartbeat_timeout=timedelta(seconds=20),\n)",
+        "focus": [
+          0,
+          1
+        ],
+        "label": "Validate"
+      },
+      "extract": {
+        "path": "apps/data-pipeline/DataPipelineWorkflowScenarios.py",
+        "startLine": 80,
+        "endLine": 86,
+        "code": "activity_output = await workflow.execute_activity(\n    extract,\n    input,\n    task_queue=unique_worker_task_queue,\n    start_to_close_timeout=timedelta(seconds=300),\n    heartbeat_timeout=timedelta(seconds=20),\n)",
+        "focus": [
+          0,
+          1
+        ],
+        "label": "Extract"
+      },
+      "transform": {
+        "path": "apps/data-pipeline/DataPipelineWorkflowScenarios.py",
+        "startLine": 96,
+        "endLine": 102,
+        "code": "activity_output = await workflow.execute_activity(\n    transform,\n    input,\n    task_queue=unique_worker_task_queue,\n    start_to_close_timeout=timedelta(seconds=300),\n    heartbeat_timeout=timedelta(seconds=20),\n)",
+        "focus": [
+          0,
+          1
+        ],
+        "label": "Transform"
+      },
+      "load": {
+        "path": "apps/data-pipeline/DataPipelineWorkflowScenarios.py",
+        "startLine": 118,
+        "endLine": 124,
+        "code": "activity_output = await workflow.execute_activity(\n    load,\n    input,\n    task_queue=unique_worker_task_queue,\n    start_to_close_timeout=timedelta(seconds=300),\n    heartbeat_timeout=timedelta(seconds=20),\n)",
+        "focus": [
+          0,
+          1
+        ],
+        "label": "Load"
+      },
+      "signal": {
+        "path": "apps/data-pipeline/DataPipelineWorkflowScenarios.py",
+        "startLine": 145,
+        "endLine": 145,
+        "code": "await workflow.wait_condition(lambda: self.signal_received, timeout=60)",
+        "focus": [
+          0
+        ],
+        "label": "Wait for completion Signal"
+      },
+      "poll": {
+        "path": "apps/data-pipeline/DataPipelineWorkflowScenarios.py",
+        "startLine": 164,
+        "endLine": 171,
+        "code": "activity_output = await workflow.execute_activity(\n    poll,\n    args=[input, workflow_type],\n    task_queue=unique_worker_task_queue,\n    start_to_close_timeout=timedelta(seconds=3000),\n    heartbeat_timeout=timedelta(seconds=20),\n    retry_policy=RetryPolicy(initial_interval=timedelta(seconds=2), backoff_coefficient=1),\n)",
+        "focus": [
+          0,
+          1
+        ],
+        "label": "Poll"
+      },
+      "update": {
+        "path": "apps/data-pipeline/DataPipelineWorkflowScenarios.py",
+        "startLine": 156,
+        "endLine": 156,
+        "code": "await workflow.wait_condition(lambda: self.update_received, timeout=60)",
+        "focus": [
+          0
+        ],
+        "label": "Wait for completion Update"
+      },
+      "complete": {
+        "path": "apps/data-pipeline/DataPipelineWorkflowScenarios.py",
+        "startLine": 181,
+        "endLine": 181,
+        "code": "return f\"Successfully processed: {input.input_filename}!\"",
+        "focus": [
+          0
+        ],
+        "label": "Shipment complete"
+      },
+      "bug": {
+        "path": "apps/data-pipeline/DataPipelineWorkflowScenarios.py",
+        "startLine": 108,
+        "endLine": 108,
+        "code": "raise Exception(\"Workflow bug!\")",
+        "focus": [
+          0
+        ],
+        "label": "Workflow code needs a fix"
+      }
+    }
+  },
+  "no-roads": {
+    "default": {
+      "ProcessSubmission": {
+        "path": "apps/no-roads/shared/workflows/demo_workflow.go",
+        "startLine": 41,
+        "endLine": 43,
+        "code": "if err := workflow.ExecuteActivity(ctx, \"ProcessSubmission\", input).Get(ctx, &result); err != nil {\n\treturn DemoOutput{}, err\n}",
+        "focus": [
+          0
+        ],
+        "label": "ProcessSubmission"
+      },
+      "SimulateWork1": {
+        "path": "apps/no-roads/shared/workflows/demo_workflow.go",
+        "startLine": 48,
+        "endLine": 50,
+        "code": "if err := workflow.ExecuteActivity(ctx, \"SimulateWork1\", input).Get(ctx, &workResult); err != nil {\n\treturn DemoOutput{}, err\n}",
+        "focus": [
+          0
+        ],
+        "label": "Process workload stage 1"
+      },
+      "SimulateWork2": {
+        "path": "apps/no-roads/shared/workflows/demo_workflow.go",
+        "startLine": 51,
+        "endLine": 53,
+        "code": "if err := workflow.ExecuteActivity(ctx, \"SimulateWork2\", input).Get(ctx, &workResult); err != nil {\n\treturn DemoOutput{}, err\n}",
+        "focus": [
+          0
+        ],
+        "label": "Process workload stage 2"
+      },
+      "SimulateWork3": {
+        "path": "apps/no-roads/shared/workflows/demo_workflow.go",
+        "startLine": 54,
+        "endLine": 56,
+        "code": "if err := workflow.ExecuteActivity(ctx, \"SimulateWork3\", input).Get(ctx, &workResult); err != nil {\n\treturn DemoOutput{}, err\n}",
+        "focus": [
+          0
+        ],
+        "label": "Process workload stage 3"
+      }
+    }
+  },
+  "loan": {
+    "default": {
+      "FraudIdentityAgent": {
+        "path": "apps/loan/supervisor.py",
+        "startLine": 175,
+        "endLine": 186,
+        "code": "fraud, employment = await asyncio.gather(\n    workflow.execute_child_workflow(\n        FraudIdentityAgent.run,\n        applicant,\n        id=f\"{parent_id}-fraud\",\n    ),\n    workflow.execute_child_workflow(\n        EmploymentVerificationAgent.run,\n        applicant,\n        id=f\"{parent_id}-employment\",\n    ),\n)  # type: tuple[FraudAssessment, EmploymentAssessment]",
+        "focus": [
+          1,
+          6
+        ],
+        "label": "Run identity and employment specialists in parallel"
+      },
+      "EmploymentVerificationAgent": {
+        "path": "apps/loan/supervisor.py",
+        "startLine": 175,
+        "endLine": 186,
+        "code": "fraud, employment = await asyncio.gather(\n    workflow.execute_child_workflow(\n        FraudIdentityAgent.run,\n        applicant,\n        id=f\"{parent_id}-fraud\",\n    ),\n    workflow.execute_child_workflow(\n        EmploymentVerificationAgent.run,\n        applicant,\n        id=f\"{parent_id}-employment\",\n    ),\n)  # type: tuple[FraudAssessment, EmploymentAssessment]",
+        "focus": [
+          1,
+          6
+        ],
+        "label": "Run identity and employment specialists in parallel"
+      },
+      "timer": {
+        "path": "apps/loan/supervisor.py",
+        "startLine": 190,
+        "endLine": 193,
+        "code": "await workflow.sleep(\n    timedelta(seconds=1),\n    summary=\"Launching LoanUnderwriterAgent LENNY.. \",\n)",
+        "focus": [
+          0
+        ],
+        "label": "Start underwriter after specialist reports"
+      },
+      "approval": {
+        "path": "apps/loan/supervisor.py",
+        "startLine": 227,
+        "endLine": 227,
+        "code": "await workflow.wait_condition(lambda: self._human_decision is not None)",
+        "focus": [
+          0
+        ],
+        "label": "Wait for human lending decision"
+      },
+      "assess": {
+        "path": "apps/loan/supervisor.py",
+        "startLine": 217,
+        "endLine": 217,
+        "code": "result = str(await self.agent.invoke_async(prompt))",
+        "focus": [
+          0
+        ],
+        "label": "Generate underwriting assessment"
+      }
+    }
+  },
+  "agent-harness": {
+    "default": {
+      "model": {
+        "path": "apps/agent-harness/agent_harness_demo/ziggy/conversational_workflow.py",
+        "startLine": 263,
+        "endLine": 284,
+        "code": "async def _handle_chat_turn(self, gemini: AsyncClient, user_text: str) -> str:\n    \"\"\"Run one conversational turn: stream the model, dispatch any ``run_travel_code``\n    calls, feed results back, and loop until the model replies with no further calls.\n\n    The whole conversation goes out as the input of every call; see\n    ``InteractionConversation`` for why it is not chained by interaction id.\"\"\"\n    tools = [function_param(self._code_tool)]\n    self._conversation.add_user_text(user_text)\n    while True:\n        stream = await gemini.interactions.create(\n            model=self._model,\n            input=self._conversation.steps,\n            system_instruction=self._instruction,\n            tools=tools,\n            stream=True,\n        )\n        reply = await self._conversation.read_reply(stream)\n        if not reply.function_calls:\n            return reply.text\n        self._conversation.add_function_results(\n            await asyncio.gather(*(self._run_one_tool(fc) for fc in reply.function_calls))\n        )",
+        "focus": [
+          9
+        ],
+        "label": "Think and plan travel"
+      },
+      "input": {
+        "path": "apps/agent-harness/agent_harness_demo/ziggy/conversational_workflow.py",
+        "startLine": 263,
+        "endLine": 284,
+        "code": "async def _handle_chat_turn(self, gemini: AsyncClient, user_text: str) -> str:\n    \"\"\"Run one conversational turn: stream the model, dispatch any ``run_travel_code``\n    calls, feed results back, and loop until the model replies with no further calls.\n\n    The whole conversation goes out as the input of every call; see\n    ``InteractionConversation`` for why it is not chained by interaction id.\"\"\"\n    tools = [function_param(self._code_tool)]\n    self._conversation.add_user_text(user_text)\n    while True:\n        stream = await gemini.interactions.create(\n            model=self._model,\n            input=self._conversation.steps,\n            system_instruction=self._instruction,\n            tools=tools,\n            stream=True,\n        )\n        reply = await self._conversation.read_reply(stream)\n        if not reply.function_calls:\n            return reply.text\n        self._conversation.add_function_results(\n            await asyncio.gather(*(self._run_one_tool(fc) for fc in reply.function_calls))\n        )",
+        "focus": [
+          18
+        ],
+        "label": "Wait for your next message"
+      },
+      "tool": {
+        "path": "apps/agent-harness/agent_harness_demo/ziggy/conversational_workflow.py",
+        "startLine": 286,
+        "endLine": 316,
+        "code": "async def _run_one_tool(self, call: FunctionCallStep) -> FunctionResultStepParam:\n    \"\"\"Execute one ``run_travel_code`` call via ``run_tool`` and return its result.\n\n    ``run_tool`` parks the call id so the script's host calls and the tool's own\n    lifecycle events correlate with the streaming activity's ``tool_requested``.\"\"\"\n    try:\n        if call.name != self._code_tool.__name__:\n            raise ValueError(f\"unknown tool: {call.name!r}\")\n        result = await self._runner.run_tool(\n            call.id, self._code_tool, injections=None, **call.arguments\n        )\n        response: FunctionResultStepParam = {\n            \"type\": \"function_result\",\n            \"call_id\": call.id,\n            \"name\": call.name,\n            \"result\": str(result),\n        }\n        if call.signature:\n            response[\"signature\"] = call.signature\n        return response\n    except Exception as e:\n        response = {\n            \"type\": \"function_result\",\n            \"call_id\": call.id,\n            \"name\": call.name,\n            \"result\": str(e),\n            \"is_error\": True,\n        }\n        if call.signature:\n            response[\"signature\"] = call.signature\n        return response",
+        "focus": [
+          8
+        ],
+        "label": "Run approval-gated travel tool"
+      },
+      "approval": {
+        "path": "apps/agent-harness/agent_harness_demo/ziggy/conversational_workflow.py",
+        "startLine": 286,
+        "endLine": 316,
+        "code": "async def _run_one_tool(self, call: FunctionCallStep) -> FunctionResultStepParam:\n    \"\"\"Execute one ``run_travel_code`` call via ``run_tool`` and return its result.\n\n    ``run_tool`` parks the call id so the script's host calls and the tool's own\n    lifecycle events correlate with the streaming activity's ``tool_requested``.\"\"\"\n    try:\n        if call.name != self._code_tool.__name__:\n            raise ValueError(f\"unknown tool: {call.name!r}\")\n        result = await self._runner.run_tool(\n            call.id, self._code_tool, injections=None, **call.arguments\n        )\n        response: FunctionResultStepParam = {\n            \"type\": \"function_result\",\n            \"call_id\": call.id,\n            \"name\": call.name,\n            \"result\": str(result),\n        }\n        if call.signature:\n            response[\"signature\"] = call.signature\n        return response\n    except Exception as e:\n        response = {\n            \"type\": \"function_result\",\n            \"call_id\": call.id,\n            \"name\": call.name,\n            \"result\": str(e),\n            \"is_error\": True,\n        }\n        if call.signature:\n            response[\"signature\"] = call.signature\n        return response",
+        "focus": [
+          8
+        ],
+        "label": "Wait for tool approval or traveler choice"
+      }
+    }
+  },
+  "agentic-sdlc": {
+    "issue": {
+      "issue": {
+        "path": "apps/agentic-sdlc/agentic_sdlc/pipeline/workflow.py",
+        "startLine": 125,
+        "endLine": 134,
+        "code": "async def _take_issue(self) -> RunRepo:\n    async with self._step(\"issue\"):\n        repo = await workflow.execute_activity_method(GitHubActivities.prepare_run, PrepareRunInput(\n            repo=self._request.repo, issue_number=self._request.issue_number, branch_prefix=self._branches,\n        ), **GITHUB)\n        self._home = repo.issue_number\n        self._track(issue=repo.issue_number)\n        self._state.issue_url = repo.issue_url\n        self._detail(\"issue\", f\"Issue #{repo.issue_number}\")\n        return repo",
+        "focus": [
+          2
+        ],
+        "label": "Issue"
+      },
+      "clarify": {
+        "path": "apps/agentic-sdlc/agentic_sdlc/pipeline/workflow.py",
+        "startLine": 136,
+        "endLine": 155,
+        "code": "async def _clarify(self, repo: RunRepo) -> str | None:\n    \"\"\"The planner asks about anything the issue leaves open; people reply on the issue,\n    and the answers go into the plan.\"\"\"\n    planner = await self._planner(Workspace(repo=repo.repo, branch=repo.base_branch))\n    async with self._step(\"clarify\"):\n        reply = await self._turn(planner, \"clarify\", self._plan_request(), ClarifyReply)\n        questions = reply.clarification.questions[:3]\n        if not questions:\n            self._detail(\"clarify\", \"Nothing to ask: the issue is clear enough to plan\")\n            self._skip(\"gate:clarify\", \"The planner had no questions\")\n            return None\n        self._detail(\"clarify\", f\"{_count(len(questions), 'question')} for the developer\")\n        await self._post(repo.issue_number, _questions_comment(questions), agent=PLANNER)\n    outcome = await self._wait_for_people(\n        \"clarify\", \"The planner asked its questions on the issue\", questions=questions,\n        commands=[\"/skip\"], issue=repo.issue_number, github_url=repo.issue_url)\n    for item in outcome.comments:\n        item.kind = \"answer\"\n        self._resolve(item, \"addressed\", \"Used in the plan\")\n    return \"\\n\".join(c.text for c in outcome.comments) or None",
+        "focus": [
+          3,
+          5,
+          12,
+          13
+        ],
+        "label": "Clarify"
+      },
+      "gate:clarify": {
+        "path": "apps/agentic-sdlc/agentic_sdlc/pipeline/base.py",
+        "startLine": 224,
+        "endLine": 284,
+        "code": "async def _wait_for_people(self, key: str, question: str, context: str = \"\", *, commands: list[str] = (),\n                           conversational: bool = True, questions: list[str] | None = None,\n                           issue: int | None = None, pr: int | None = None, closes_after: timedelta | None = None,\n                           github_url: str | None = None, release: tuple[str, int] | None = None) -> Outcome:\n    \"\"\"Wait for a person on GitHub. A comment starting with one of ``commands`` decides the\n    gate; with ``conversational``, any other comment ends the wait too and is returned for\n    the agents. Waiting costs nothing and survives any restart, whether it lasts seconds or\n    days. ``closes_after`` gives up after that long; a closed PR ends the wait as well. With\n    ``release`` (a gate and the request's number), a reviewer's answer on GitHub decides the\n    gate; typed commands are never accepted for it.\"\"\"\n    start = workflow.now()\n    closes_at = start + closes_after if closes_after else None\n    self._state.gate = Gate(key=key, question=question, context=context[:2000], waiting_since=start.timestamp(),\n                            questions=questions or [], commands=list(commands), github_url=github_url,\n                            closes_at=closes_at.timestamp() if closes_at else None,\n                            approval_ask=release[1] if release else None)\n    self._state.status = \"waiting\"\n    self._mark(f\"gate:{key}\", \"waiting\")\n    # GitHub doesn't redeliver a webhook that failed (say, while the web server restarted),\n    # so read what's there once when a gate opens. Signals cover everything after.\n    await self._catch_up(issue, pr)\n    outcome = Outcome()\n    while True:\n        outcome = self._take_from_inbox(outcome, commands, conversational,\n                                        \"an approval on GitHub\" if release else None)\n        if release and (decision := self._take_decision(*release)):\n            outcome.decision = decision\n            break\n        if outcome.command or outcome.comments:\n            break\n        if pr and pr in self._closed_prs:\n            outcome.closed = True\n            break\n        remaining = closes_at - workflow.now() if closes_at else None\n        if remaining is not None and remaining <= timedelta(0):\n            outcome.timed_out = True\n            break\n        try:\n            await workflow.wait_condition(\n                lambda: bool(self._inbox) or bool(release and self._take_decision_pending(*release))\n                or (pr in self._closed_prs if pr else False), timeout=remaining)\n        except asyncio.TimeoutError:\n            pass\n    waited = (workflow.now() - start).total_seconds()\n    self._state.gate = None\n    self._state.status = \"running\"\n    if outcome.decision:\n        d = outcome.decision\n        self._mark(f\"gate:{key}\", \"completed\",\n                   note=f\"{'Approved' if d.approved else 'Rejected'} by {'@' + d.reviewer if d.reviewer else 'a reviewer'} on GitHub after {_duration(waited)}\")\n        self._prove(\"D2\", f\"{key.capitalize()} gate: waited {_duration(waited)} for a GitHub reviewer to approve the \"\n                          \"deployment, using no compute\")\n    elif outcome.command:\n        self._mark(f\"gate:{key}\", \"completed\", note=f\"{outcome.command.name} after {_duration(waited)}\")\n        self._prove(\"D2\", f\"{key.capitalize()} gate: waited {_duration(waited)} for {outcome.command.name} on GitHub, using no compute\")\n    elif outcome.comments:\n        self._mark(f\"gate:{key}\", \"active\", note=f\"A comment after {_duration(waited)}; agents are on it\")\n    else:\n        self._mark(f\"gate:{key}\", \"completed\",\n                   note=\"PR closed\" if outcome.closed else f\"Nobody commented in {_duration(waited)}; continuing\")\n    return outcome",
+        "focus": [
+          20,
+          38
+        ],
+        "label": "Wait For Clarify"
+      },
+      "plan": {
+        "path": "apps/agentic-sdlc/agentic_sdlc/pipeline/workflow.py",
+        "startLine": 157,
+        "endLine": 186,
+        "code": "async def _plan(self, repo: RunRepo, answers: str | None, new_requirements: list[str]) -> Plan:\n    planner = await self._planner(Workspace(repo=repo.repo, branch=repo.base_branch))\n    feedback: str | None = None\n    if new_requirements:\n        feedback = \"Requirements added during review:\\n\" + \"\\n\".join(f\"- {r}\" for r in new_requirements)\n    for _round in range(MAX_PLAN_ROUNDS):\n        async with self._step(\"plan\"):\n            reply = await self._turn(planner, \"plan\", self._plan_request(answers, feedback), PlanReply)\n            plan = reply.plan\n            plan.subtasks = plan.subtasks[:3]\n            self._state.plan = plan\n            self._detail(\"plan\", f\"{len(plan.subtasks)} subtask(s): \" + \", \".join(s.title for s in plan.subtasks))\n            await self._post(repo.issue_number, _plan_comment(plan, self._state.plan_revision, repo.repo),\n                             agent=PLANNER, labels=[\"agent-plan\"])\n        ask = await self._request_release(\"plan\", f\"issue:{repo.issue_number}\", repo.base_branch)\n        outcome = await self._wait_for_people(\n            \"plan\", \"The plan is on the issue, waiting for a reviewer to approve it on GitHub\", plan.summary,\n            issue=repo.issue_number, github_url=_release_url(repo.repo), release=(\"plan\", ask))\n        if outcome.decision:\n            if not outcome.decision.approved:\n                raise ApplicationError(\n                    f\"The plan was rejected by @{outcome.decision.reviewer}: {outcome.decision.comment or 'no reason given'}\",\n                    non_retryable=True)\n            return plan\n        for item in outcome.comments:\n            item.kind = \"plan_feedback\"\n            self._resolve(item, \"addressed\", \"The planner revised the plan\")\n            self._prove(\"D7\", f\"@{item.author} commented on the plan and the planner revised it before any code was written\")\n        feedback = \"\\n\".join(c.text for c in outcome.comments)\n    raise ApplicationError(\"The plan was sent back too many times.\", non_retryable=True)",
+        "focus": [
+          1,
+          7,
+          12,
+          14,
+          15
+        ],
+        "label": "Plan"
+      },
+      "gate:plan": {
+        "path": "apps/agentic-sdlc/agentic_sdlc/pipeline/base.py",
+        "startLine": 224,
+        "endLine": 284,
+        "code": "async def _wait_for_people(self, key: str, question: str, context: str = \"\", *, commands: list[str] = (),\n                           conversational: bool = True, questions: list[str] | None = None,\n                           issue: int | None = None, pr: int | None = None, closes_after: timedelta | None = None,\n                           github_url: str | None = None, release: tuple[str, int] | None = None) -> Outcome:\n    \"\"\"Wait for a person on GitHub. A comment starting with one of ``commands`` decides the\n    gate; with ``conversational``, any other comment ends the wait too and is returned for\n    the agents. Waiting costs nothing and survives any restart, whether it lasts seconds or\n    days. ``closes_after`` gives up after that long; a closed PR ends the wait as well. With\n    ``release`` (a gate and the request's number), a reviewer's answer on GitHub decides the\n    gate; typed commands are never accepted for it.\"\"\"\n    start = workflow.now()\n    closes_at = start + closes_after if closes_after else None\n    self._state.gate = Gate(key=key, question=question, context=context[:2000], waiting_since=start.timestamp(),\n                            questions=questions or [], commands=list(commands), github_url=github_url,\n                            closes_at=closes_at.timestamp() if closes_at else None,\n                            approval_ask=release[1] if release else None)\n    self._state.status = \"waiting\"\n    self._mark(f\"gate:{key}\", \"waiting\")\n    # GitHub doesn't redeliver a webhook that failed (say, while the web server restarted),\n    # so read what's there once when a gate opens. Signals cover everything after.\n    await self._catch_up(issue, pr)\n    outcome = Outcome()\n    while True:\n        outcome = self._take_from_inbox(outcome, commands, conversational,\n                                        \"an approval on GitHub\" if release else None)\n        if release and (decision := self._take_decision(*release)):\n            outcome.decision = decision\n            break\n        if outcome.command or outcome.comments:\n            break\n        if pr and pr in self._closed_prs:\n            outcome.closed = True\n            break\n        remaining = closes_at - workflow.now() if closes_at else None\n        if remaining is not None and remaining <= timedelta(0):\n            outcome.timed_out = True\n            break\n        try:\n            await workflow.wait_condition(\n                lambda: bool(self._inbox) or bool(release and self._take_decision_pending(*release))\n                or (pr in self._closed_prs if pr else False), timeout=remaining)\n        except asyncio.TimeoutError:\n            pass\n    waited = (workflow.now() - start).total_seconds()\n    self._state.gate = None\n    self._state.status = \"running\"\n    if outcome.decision:\n        d = outcome.decision\n        self._mark(f\"gate:{key}\", \"completed\",\n                   note=f\"{'Approved' if d.approved else 'Rejected'} by {'@' + d.reviewer if d.reviewer else 'a reviewer'} on GitHub after {_duration(waited)}\")\n        self._prove(\"D2\", f\"{key.capitalize()} gate: waited {_duration(waited)} for a GitHub reviewer to approve the \"\n                          \"deployment, using no compute\")\n    elif outcome.command:\n        self._mark(f\"gate:{key}\", \"completed\", note=f\"{outcome.command.name} after {_duration(waited)}\")\n        self._prove(\"D2\", f\"{key.capitalize()} gate: waited {_duration(waited)} for {outcome.command.name} on GitHub, using no compute\")\n    elif outcome.comments:\n        self._mark(f\"gate:{key}\", \"active\", note=f\"A comment after {_duration(waited)}; agents are on it\")\n    else:\n        self._mark(f\"gate:{key}\", \"completed\",\n                   note=\"PR closed\" if outcome.closed else f\"Nobody commented in {_duration(waited)}; continuing\")\n    return outcome",
+        "focus": [
+          20,
+          38
+        ],
+        "label": "Wait For Plan"
+      },
+      "build": {
+        "path": "apps/agentic-sdlc/agentic_sdlc/pipeline/workflow.py",
+        "startLine": 192,
+        "endLine": 208,
+        "code": "async def _build(self, repo: RunRepo, plan: Plan) -> list[str]:\n    \"\"\"One coding agent per subtask, each on its own branch, all at once.\"\"\"\n    async with self._step(\"build\"):\n        branches = [f\"{self._revision_branches}/{s.id}\" for s in plan.subtasks]\n        await workflow.execute_activity_method(GitHubActivities.create_branches, BranchesInput(\n            repo=repo.repo, from_sha=repo.base_sha, branches=branches,\n        ), **GITHUB)\n        self._state.steps.extend(Step(key=f\"code:{s.id}\", label=s.title, lane=s.id) for s in plan.subtasks)\n        await self._post(repo.issue_number, f\"\ud83d\udd28 {_count(len(plan.subtasks), 'coding agent')} building now. \"\n                                            \"Comment here to steer them: your comment becomes their next instruction \"\n                                            \"when their current turn ends.\")\n        await asyncio.gather(*(\n            self._code_subtask(repo, plan, subtask, branch) for subtask, branch in zip(plan.subtasks, branches)\n        ))\n        if len(plan.subtasks) > 1:\n            self._prove(\"D3\", f\"{len(plan.subtasks)} coding agents worked in parallel on separate branches\")\n        return branches",
+        "focus": [
+          4,
+          8,
+          11
+        ],
+        "label": "Build"
+      },
+      "pr": {
+        "path": "apps/agentic-sdlc/agentic_sdlc/pipeline/workflow.py",
+        "startLine": 250,
+        "endLine": 266,
+        "code": "async def _open_pull_request(self, repo: RunRepo, plan: Plan, branches: list[str]) -> PullRequest:\n    async with self._step(\"pr\"):\n        integration = self._integration_branch\n        merged = await workflow.execute_activity_method(GitHubActivities.merge_branches, MergeInput(\n            repo=repo.repo, base_sha=repo.base_sha, integration_branch=integration, branches=branches,\n        ), **GITHUB)\n        for branch in merged.conflicts:\n            await self._resolve_conflict(repo, plan, integration, branch)\n        pr = await workflow.execute_activity_method(GitHubActivities.open_pull_request, PullRequestInput(\n            repo=repo.repo, head=integration, base=repo.base_branch,\n            title=self._request.title, body=_pr_body(plan, repo),\n        ), **GITHUB)\n        self._track(pr=pr.number)\n        self._state.pr_url = pr.url\n        await self._set_check(integration, \"pending\", \"Agents are reviewing this change\")\n        self._detail(\"pr\", f\"PR #{pr.number}\")\n        return pr",
+        "focus": [
+          3,
+          7,
+          8,
+          14
+        ],
+        "label": "Pr"
+      },
+      "review": {
+        "path": "apps/agentic-sdlc/agentic_sdlc/pipeline/workflow.py",
+        "startLine": 280,
+        "endLine": 305,
+        "code": "async def _review(self, repo: RunRepo, plan: Plan, pr: PullRequest) -> None:\n    reviews = [(\"review\", \"quality\", \"Code review agent\")]\n    if SECURITY_REVIEW:\n        reviews.append((\"security\", \"security\", \"Security review agent\"))\n    for step, focus, reviewer_name in reviews:\n        async with self._step(step):\n            reviewer = await self._start_agent(self._role(f\"reviewer-{focus}\"), self._request.models.reviewer,\n                                               Workspace(repo=repo.repo, branch=self._integration_branch))\n            diff = await self._diff(repo.base_branch, self._integration_branch)\n            result = await self._turn(reviewer, \"review\", ReviewRequest(\n                issue_title=self._request.title, plan=plan, diff=diff, focus=focus), ReviewReply)\n            self._state.review = result.review\n            await workflow.execute_activity_method(GitHubActivities.post_review, ReviewInput(\n                repo=repo.repo, pr_number=pr.number, reviewer=reviewer_name, review=result.review), **GITHUB)\n            if result.review.verdict == \"request_changes\":\n                # One round of fixes, made on the PR branch by a coder who sees the comments.\n                self._detail(step, f\"Changes requested: {result.review.summary}\")\n                fixer = await self._integration_coder(repo)\n                comments = \"\\n\".join(f\"- {c.file}: {c.comment}\" for c in result.review.comments)\n                await self._turn(fixer, \"code\", CodeRequest(\n                    issue_title=self._request.title, plan_summary=plan.summary,\n                    subtask=Subtask(id=\"review-fixes\", title=\"Address review comments\", description=comments),\n                ), CodeReply, lane=step)\n                self._detail(step, \"Review comments addressed on the PR branch\")\n            else:\n                self._detail(step, result.review.summary)",
+        "focus": [
+          6,
+          8,
+          9,
+          12,
+          17,
+          19
+        ],
+        "label": "Review"
+      },
+      "security": {
+        "path": "apps/agentic-sdlc/agentic_sdlc/pipeline/workflow.py",
+        "startLine": 280,
+        "endLine": 305,
+        "code": "async def _review(self, repo: RunRepo, plan: Plan, pr: PullRequest) -> None:\n    reviews = [(\"review\", \"quality\", \"Code review agent\")]\n    if SECURITY_REVIEW:\n        reviews.append((\"security\", \"security\", \"Security review agent\"))\n    for step, focus, reviewer_name in reviews:\n        async with self._step(step):\n            reviewer = await self._start_agent(self._role(f\"reviewer-{focus}\"), self._request.models.reviewer,\n                                               Workspace(repo=repo.repo, branch=self._integration_branch))\n            diff = await self._diff(repo.base_branch, self._integration_branch)\n            result = await self._turn(reviewer, \"review\", ReviewRequest(\n                issue_title=self._request.title, plan=plan, diff=diff, focus=focus), ReviewReply)\n            self._state.review = result.review\n            await workflow.execute_activity_method(GitHubActivities.post_review, ReviewInput(\n                repo=repo.repo, pr_number=pr.number, reviewer=reviewer_name, review=result.review), **GITHUB)\n            if result.review.verdict == \"request_changes\":\n                # One round of fixes, made on the PR branch by a coder who sees the comments.\n                self._detail(step, f\"Changes requested: {result.review.summary}\")\n                fixer = await self._integration_coder(repo)\n                comments = \"\\n\".join(f\"- {c.file}: {c.comment}\" for c in result.review.comments)\n                await self._turn(fixer, \"code\", CodeRequest(\n                    issue_title=self._request.title, plan_summary=plan.summary,\n                    subtask=Subtask(id=\"review-fixes\", title=\"Address review comments\", description=comments),\n                ), CodeReply, lane=step)\n                self._detail(step, \"Review comments addressed on the PR branch\")\n            else:\n                self._detail(step, result.review.summary)",
+        "focus": [
+          6,
+          8,
+          9,
+          12,
+          17,
+          19
+        ],
+        "label": "Security"
+      },
+      "gate:merge": {
+        "path": "apps/agentic-sdlc/agentic_sdlc/pipeline/workflow.py",
+        "startLine": 307,
+        "endLine": 343,
+        "code": "async def _review_window(self, repo: RunRepo, plan: Plan, pr: PullRequest) -> Feedback | None:\n    \"\"\"People review the PR on GitHub. Feedback goes to a coding agent and the run comes\n    back here; a scope change is returned so the run can re-plan. On auto merge the window\n    closes by itself after a quiet minute; supervised waits for a reviewer to approve the merge on GitHub.\"\"\"\n    auto = self._request.autonomy == \"auto\"\n    window = timedelta(seconds=self._request.review_window_seconds) if auto else None\n    await self._set_check(self._integration_branch, \"success\", \"Agent review passed\")\n    await self._post(pr.number, \"\ud83d\udc40 Reviewed. Comment here to request changes; \"\n                                + (f\"the agents merge this in {_duration(window.total_seconds())} unless someone does.\"\n                                   if window else \"a reviewer approves the merge on GitHub (the waiting **release** run in \"\n                                                  f\"[Actions]({_release_url(repo.repo)}), *Review deployments*) when it's ready.\"))\n    planner = await self._planner(Workspace(repo=repo.repo, branch=repo.base_branch))\n    for _round in range(MAX_REVIEW_ROUNDS):\n        ask = None if auto else await self._request_release(\"merge\", f\"pr:{pr.number}\", self._integration_branch)\n        outcome = await self._wait_for_people(\n            \"merge\", \"Agents merge unless someone comments\" if auto else \"Waiting for a reviewer to approve the merge on GitHub\",\n            self._state.review.summary if self._state.review else \"\",\n            issue=repo.issue_number, pr=pr.number, closes_after=window, github_url=pr.url,\n            release=None if auto else (\"merge\", ask))\n        if outcome.decision and not outcome.decision.approved:\n            raise ApplicationError(\n                f\"The merge was rejected by @{outcome.decision.reviewer}: {outcome.decision.comment or 'no reason given'}\",\n                non_retryable=True)\n        if not outcome.comments:\n            return None  # approved, or nobody commented before the window closed\n        for item in outcome.comments:\n            await self._triage(planner, plan, item)\n        scope_changes = [c for c in outcome.comments if c.kind == \"scope_change\"]\n        if scope_changes:\n            change = scope_changes[0]\n            for item in outcome.comments:\n                if item is not change:\n                    self._resolve(item, \"addressed\", \"Included in the re-plan\")\n            change.text = \"\\n\".join(c.text for c in outcome.comments)  # re-plan with everything that was said\n            return change\n        await self._address_feedback(repo, plan, pr, outcome.comments)\n    raise ApplicationError(\"The pull request went through too many review rounds.\", non_retryable=True)",
+        "focus": [
+          6,
+          7,
+          11,
+          13,
+          14,
+          26,
+          35
+        ],
+        "label": "Wait For Merge"
+      },
+      "feedback": {
+        "path": "apps/agentic-sdlc/agentic_sdlc/pipeline/workflow.py",
+        "startLine": 345,
+        "endLine": 367,
+        "code": "async def _address_feedback(self, repo: RunRepo, plan: Plan, pr: PullRequest, comments: list[Feedback]) -> None:\n    \"\"\"A coding agent changes the PR branch to address the comments, the tests run, the\n    reviewer looks again, and the pipeline answers on the PR.\"\"\"\n    async with self._step(\"feedback\"):\n        for item in comments:\n            item.status = \"working\"\n        who = \", \".join(sorted({f\"@{c.author}\" for c in comments}))\n        self._detail(\"feedback\", f\"Addressing {_count(len(comments), 'comment')} from {who}\")\n        await self._set_check(self._integration_branch, \"pending\", \"Agent is addressing review comments\")\n        fixer = await self._integration_coder(repo)\n        workspace = Workspace(repo=repo.repo, branch=self._integration_branch)\n        reply = await self._code_until_green(fixer, workspace, plan.summary, Subtask(\n            id=\"pr-feedback\", title=\"Address comments on the pull request\",\n            description=\"\\n\".join(f\"- @{c.author}: {c.text}\" for c in comments)), lane=\"feedback\")\n        quoted = \"\\n\".join(f\"> **@{c.author}**: {c.text[:300]}\" for c in comments)\n        await self._post(pr.number, f\"{quoted}\\n\\n\ud83d\udee0\ufe0f Addressed: {reply.summary}\\n\\n\"\n                                    \"The reviewer agent is checking the change again.\", agent=CODER)\n        for item in comments:\n            self._resolve(item, \"addressed\", reply.summary)\n        self._detail(\"feedback\", reply.summary)\n        self._prove(\"D7\", f\"{who}'s comment on the PR was addressed by a coding agent and re-reviewed, without starting over\")\n    await self._review(repo, plan, pr)\n    await self._set_check(self._integration_branch, \"success\", \"Agent review passed\")",
+        "focus": [
+          8,
+          9,
+          11,
+          15,
+          21,
+          22
+        ],
+        "label": "Feedback"
+      },
+      "merge": {
+        "path": "apps/agentic-sdlc/agentic_sdlc/pipeline/workflow.py",
+        "startLine": 393,
+        "endLine": 398,
+        "code": "async def _merge(self, repo: RunRepo, pr: PullRequest) -> str:\n    async with self._step(\"merge\"):\n        sha = await workflow.execute_activity_method(GitHubActivities.merge_pull_request, MergePrInput(\n            repo=repo.repo, pr_number=pr.number, title=f\"{self._request.title} (#{pr.number})\"), **GITHUB)\n        self._detail(\"merge\", f\"Merged {sha[:7]}\")\n        return sha",
+        "focus": [
+          2
+        ],
+        "label": "Merge"
+      },
+      "staging": {
+        "path": "apps/agentic-sdlc/agentic_sdlc/pipeline/workflow.py",
+        "startLine": 400,
+        "endLine": 407,
+        "code": "async def _deploy_to_staging(self, sha: str) -> None:\n    async with self._step(\"staging\"):\n        await self._deploy(DeployRequest(action=\"staging\", sha=sha, run_id=self._request.run_id))\n        self._state.staging_sha = sha\n        check = await self._check(\"staging\")\n        if not check.healthy:\n            raise ApplicationError(f\"Staging checks failed: {check.detail}\", non_retryable=True)\n        self._detail(\"staging\", check.detail)",
+        "focus": [
+          2,
+          4
+        ],
+        "label": "Staging"
+      },
+      "gate:production": {
+        "path": "apps/agentic-sdlc/agentic_sdlc/pipeline/workflow.py",
+        "startLine": 409,
+        "endLine": 442,
+        "code": "async def _ask_to_ship(self, repo: RunRepo, plan: Plan) -> Command:\n    \"\"\"People try staging and decide on the issue. A comment that adjusts what they saw goes\n    to a coding agent, staging redeploys, and they're asked again; a new requirement gets a\n    reply suggesting its own issue.\"\"\"\n    slot = workflow.info().task_queue\n    staging = f\" Try it: {self._request.console_url}/apps/{slot}/staging/\" if self._request.console_url else \"\"\n    announce = True\n    while True:\n        if announce:\n            ask = await self._request_release(\"production\", f\"issue:{repo.issue_number}\", repo.base_branch)\n            await self._post(repo.issue_number, f\"\ud83d\udea6 Staging passed its checks.{staging}\\n\\nA reviewer approves the \"\n                                                f\"production deployment on GitHub to send it through a {CANARY_WEIGHT}% \"\n                                                f\"canary, or rejects it to stop here: open the waiting **release** run in \"\n                                                f\"[Actions]({_release_url(repo.repo)}) and choose *Review deployments*. \"\n                                                \"Or comment with what to change and an agent will adjust it on staging.\")\n        outcome = await self._wait_for_people(\n            \"production\", \"Waiting for a reviewer to approve production on GitHub, or a comment on the issue\",\n            f\"Staging passed its checks. The canary starts at {CANARY_WEIGHT}% of traffic.\",\n            issue=repo.issue_number, github_url=_release_url(repo.repo), release=(\"production\", ask))\n        if outcome.decision:\n            d = outcome.decision\n            return Command(name=\"/ship\" if d.approved else \"/stop\", argument=d.comment or f\"Rejected by @{d.reviewer}\")\n        planner = await self._planner(Workspace(repo=repo.repo, branch=repo.base_branch))\n        for item in outcome.comments:\n            await self._triage(planner, plan, item)\n        for item in outcome.comments:\n            if item.kind == \"scope_change\":\n                await self._post(repo.issue_number, f\"> **@{item.author}**: {item.text[:300]}\\n\\n\"\n                                                    f\"That's a new requirement ({item.reason}), not an adjustment to \"\n                                                    \"this change. Open an issue for it and label it `agent` if you'd \"\n                                                    \"like the agents to take it on.\", agent=PLANNER)\n                self._resolve(item, \"addressed\", \"A new requirement; suggested its own issue\")\n        adjustments = [c for c in outcome.comments if c.kind == \"feedback\"]\n        announce = bool(adjustments) and await self._adjust_on_staging(repo, plan, adjustments)",
+        "focus": [
+          9,
+          10,
+          15,
+          22,
+          24,
+          27,
+          33
+        ],
+        "label": "Wait For Production"
+      },
+      "adjust": {
+        "path": "apps/agentic-sdlc/agentic_sdlc/pipeline/workflow.py",
+        "startLine": 444,
+        "endLine": 474,
+        "code": "async def _adjust_on_staging(self, repo: RunRepo, plan: Plan, comments: list[Feedback]) -> bool:\n    \"\"\"A coding agent changes what's on staging (the run's base branch), the tests run, and\n    staging redeploys. Returns whether it did, so the run asks for an approval again.\"\"\"\n    quoted = \"\\n\".join(f\"> **@{c.author}**: {c.text[:300]}\" for c in comments)\n    if self._staging_rounds >= MAX_STAGING_ROUNDS:\n        await self._post(repo.issue_number, f\"{quoted}\\n\\nThat's {MAX_STAGING_ROUNDS} adjustments on staging already. \"\n                                            \"Approve or reject the production deployment on GitHub, or open a new issue for more changes.\")\n        for item in comments:\n            self._resolve(item, \"addressed\", \"Too many adjustments; asked for an approval or a new issue\")\n        return False\n    self._staging_rounds += 1\n    async with self._step(\"adjust\"):\n        for item in comments:\n            item.status = \"working\"\n        who = \", \".join(sorted({f\"@{c.author}\" for c in comments}))\n        self._detail(\"adjust\", f\"Adjusting staging for {_count(len(comments), 'comment')} from {who}\")\n        workspace = Workspace(repo=repo.repo, branch=repo.base_branch)\n        coder = await self._start_agent(self._role(\"coder-staging\"), self._request.models.coder, workspace)\n        reply = await self._code_until_green(coder, workspace, plan.summary, Subtask(\n            id=\"staging-feedback\", title=\"Adjust what people saw on staging\",\n            description=\"\\n\".join(f\"- @{c.author}: {c.text}\" for c in comments)), lane=\"adjust\")\n        sha = await workflow.execute_activity_method(GitHubActivities.branch_head, BranchRef(\n            repo=repo.repo, branch=repo.base_branch), **GITHUB)\n        await self._post(repo.issue_number, f\"{quoted}\\n\\n\ud83d\udee0\ufe0f Adjusted: {reply.summary}\\n\\nRedeploying staging.\",\n                         agent=CODER)\n        for item in comments:\n            self._resolve(item, \"addressed\", reply.summary)\n        self._detail(\"adjust\", reply.summary)\n        self._prove(\"D7\", f\"{who}'s comment on staging was made by a coding agent and redeployed, without starting over\")\n    await self._deploy_to_staging(sha)\n    return True",
+        "focus": [
+          5,
+          17,
+          18,
+          21,
+          23,
+          29
+        ],
+        "label": "Adjust"
+      },
+      "canary": {
+        "path": "apps/agentic-sdlc/agentic_sdlc/pipeline/workflow.py",
+        "startLine": 476,
+        "endLine": 493,
+        "code": "async def _canary(self, repo: RunRepo, sha: str) -> bool:\n    \"\"\"Send a slice of production traffic to the new commit, watch it, then promote it or\n    roll it back. The bake is a durable timer: it survives a worker restart.\"\"\"\n    async with self._step(\"canary\"):\n        await self._deploy(DeployRequest(action=\"canary\", sha=sha, weight=CANARY_WEIGHT, run_id=self._request.run_id))\n        self._state.canary_sha = sha\n        every = self._request.canary_check_seconds\n        checks = max(1, self._request.canary_bake_seconds // every)\n        for n in range(1, checks + 1):\n            await workflow.sleep(timedelta(seconds=every))\n            check = await self._check(\"canary\")\n            self._detail(\"canary\", f\"Check {n}/{checks}: {check.detail}\")\n            if not check.healthy:\n                await self._roll_back(repo, sha, check)\n                return False\n        await self._deploy(DeployRequest(action=\"promote\", sha=sha, run_id=self._request.run_id))\n        self._detail(\"canary\", f\"Healthy after {checks} checks; promoted to 100%\")\n        return True",
+        "focus": [
+          4,
+          9,
+          10,
+          13,
+          15
+        ],
+        "label": "Canary"
+      },
+      "rollback": {
+        "path": "apps/agentic-sdlc/agentic_sdlc/pipeline/workflow.py",
+        "startLine": 495,
+        "endLine": 514,
+        "code": "async def _roll_back(self, repo: RunRepo, sha: str, check: CheckResult) -> None:\n    \"\"\"Compensate, in order: stop the canary's traffic, revert the merge in git, and reopen\n    the issue with what went wrong, so the next run starts from the findings.\"\"\"\n    self._mark(\"canary\", \"failed\", note=f\"Canary unhealthy: {check.detail}\")\n    async with self._step(\"rollback\"):\n        await self._deploy(DeployRequest(action=\"rollback\", sha=sha, run_id=self._request.run_id))\n        self._detail(\"rollback\", \"Canary traffic back to the stable version\")\n        revert = await workflow.execute_activity_method(GitHubActivities.revert_merge, RevertInput(\n            repo=repo.repo, base_branch=repo.base_branch, merge_sha=sha, restore_sha=repo.base_sha,\n            revert_branch=f\"{self._branches}/revert\", title=f\"Revert: {self._request.title}\",\n            body=f\"The canary failed its checks ({check.detail}), so this change is reverted.\",\n        ), **GITHUB)\n        await self._post(repo.issue_number, f\"\u23ea Rolled back. The canary failed: {check.detail}. Revert: {revert.url}\",\n                         labels=[\"rolled-back\"], reopen=True)\n        self._state.revert_pr_url = revert.url\n        self._detail(\"rollback\", f\"Reverted in PR #{revert.number}\")\n        self._state.canary_sha = None\n        failed = f\"{check.failed_probes} of {check.probes} probes failed\" if check.failed_probes else (\n            f\"{check.browser_errors} browser errors in {check.browser_requests} page loads\")\n        self._prove(\"D4\", f\"Canary caught a bad release ({failed}); traffic, merge and issue rolled back\")",
+        "focus": [
+          5,
+          7,
+          12
+        ],
+        "label": "Rollback"
+      },
+      "done": {
+        "path": "apps/agentic-sdlc/agentic_sdlc/pipeline/workflow.py",
+        "startLine": 524,
+        "endLine": 536,
+        "code": "async def _finish(self, repo: RunRepo, shipped: bool) -> None:\n    async with self._step(\"done\"):\n        u = self._state.usage\n        summary = (\n            f\"{'\ud83d\ude80 Shipped to production' if shipped else '\u23ea Rolled back'} by the agentic SDLC pipeline \"\n            f\"({self._state.version}).\\n\\n\"\n            f\"- Agent turns: {u.requests} model requests, {u.input_tokens:,} input / {u.output_tokens:,} output tokens\\n\"\n            f\"- Estimated model cost: ${u.cost_usd:.2f}\\n\"\n            f\"- Every model call, tool call, approval and retry is in Temporal Workflow `{self._id}`.\"\n        )\n        await self._post(repo.issue_number, summary, close=shipped)\n        self._state.status = \"completed\" if shipped else \"rolled_back\"\n        self._prove(\"D6\", \"Every agent action of this run is recorded in its Event History\")",
+        "focus": [
+          10
+        ],
+        "label": "Done"
+      },
+      "gate:budget": {
+        "path": "apps/agentic-sdlc/agentic_sdlc/pipeline/base.py",
+        "startLine": 353,
+        "endLine": 368,
+        "code": "async def _ensure_budget(self) -> None:\n    \"\"\"Stop before the next agent turn once the run has spent its budget, and ask on\n    GitHub whether to spend more.\"\"\"\n    async with self._budget_lock:\n        while self._state.usage.cost_usd >= self._state.budget_usd:\n            spent, budget = self._state.usage.cost_usd, self._state.budget_usd\n            if self._home:\n                await self._post(self._home, f\"\ud83d\udcb8 This run has spent an estimated ${spent:.2f} of its ${budget:.2f} \"\n                                             f\"budget. Reply `/continue` to allow ${BUDGET_STEP_USD:.0f} more, or `/stop`.\")\n            outcome = await self._wait_for_people(\n                \"budget\", f\"Spent ${spent:.2f} of ${budget:.2f}. Waiting for /continue or /stop.\",\n                commands=[\"/continue\", \"/stop\"], conversational=False, issue=self._home)\n            if outcome.command is None or outcome.command.name == \"/stop\":\n                raise ApplicationError(\"Stopped at the budget limit.\", non_retryable=True)\n            self._state.budget_usd += BUDGET_STEP_USD\n            self._prove(\"D3\", \"Run paused at its budget and continued when someone replied /continue\")",
+        "focus": [
+          7,
+          9
+        ],
+        "label": "Wait For Budget"
+      },
+      "code": {
+        "path": "apps/agentic-sdlc/agentic_sdlc/pipeline/workflow.py",
+        "startLine": 210,
+        "endLine": 248,
+        "code": "async def _code_subtask(self, repo: RunRepo, plan: Plan, subtask: Subtask, branch: str) -> None:\n    lane = f\"code:{subtask.id}\"\n    workspace = Workspace(repo=repo.repo, branch=branch)\n    coder = await self._start_agent(self._role(f\"coder-{subtask.id}\"), self._request.models.coder, workspace,\n                                    lane=subtask.id)\n\n    async def code(feedback: str | None = None) -> CodeReply:\n        return await self._turn(coder, \"code\", CodeRequest(\n            issue_title=self._request.title, plan_summary=plan.summary, subtask=subtask, feedback=feedback,\n        ), CodeReply, lane=lane)\n\n    async with self._step(lane):\n        reply = await code()\n        test_fixes = 0\n        while True:\n            # A comment on the issue waits for the agent's current turn to end, then becomes\n            # the agent's next turn. Its earlier work stays on the branch.\n            if steering := self._steers.pop(lane, []):\n                for item in steering:\n                    item.status = \"working\"\n                self._publish()\n                reply = await code(feedback=\"A developer watching your work says:\\n\"\n                                   + \"\\n\".join(f\"- {s.text}\" for s in steering))\n                for item in steering:\n                    self._resolve(item, \"addressed\", reply.summary)\n                self._prove(\"D7\", f\"@{steering[0].author} steered the coding agents from the issue; they adjusted without starting over\")\n                continue\n            # Don't take the agent's word for it: run the tests on the pushed branch.\n            tests = await workflow.execute_activity_method(CheckActivities.run_branch_tests, workspace, **QUICK)\n            if tests.passed:\n                if self._steers.get(lane):\n                    continue  # a comment arrived while the tests ran\n                break\n            test_fixes += 1\n            if test_fixes > MAX_TEST_FIX_ROUNDS:\n                raise ApplicationError(f\"Subtask {subtask.id} still fails its tests.\", non_retryable=True)\n            self._detail(lane, \"Tests failed on the branch; sending the failures back to the agent\")\n            reply = await code(feedback=f\"The test suite fails on your branch:\\n{tests.output[-4000:]}\")\n        self._detail(lane, reply.summary)",
+        "focus": [
+          3,
+          7,
+          12,
+          21,
+          28,
+          37
+        ],
+        "label": "Coding agent lane"
+      }
+    },
+    "dependency": {
+      "pr": {
+        "path": "apps/agentic-sdlc/agentic_sdlc/pipeline/dependency.py",
+        "startLine": 77,
+        "endLine": 86,
+        "code": "async def _take_pull_request(self) -> PullRequestInfo:\n    async with self._step(\"pr\"):\n        pr = await workflow.execute_activity_method(GitHubActivities.get_pull_request, PullRequestRef(\n            repo=self._request.repo, number=self._request.pr_number), **GITHUB)\n        self._home = pr.number\n        self._track(pr=pr.number)\n        self._state.pr_url, self._state.title = pr.url, pr.title\n        self._detail(\"pr\", f\"PR #{pr.number} by @{pr.author}: {pr.title}\")\n        await self._set_check(pr.head_branch, \"pending\", \"Agent is checking whether this upgrade breaks anything\")\n        return pr",
+        "focus": [
+          2,
+          8
+        ],
+        "label": "Pr"
+      },
+      "tests": {
+        "path": "apps/agentic-sdlc/agentic_sdlc/pipeline/dependency.py",
+        "startLine": 88,
+        "endLine": 92,
+        "code": "async def _test_the_bump(self, workspace: Workspace, package: str, version: str) -> TestRun:\n    async with self._step(\"tests\"):\n        tests = await workflow.execute_activity_method(CheckActivities.run_branch_tests, workspace, **QUICK)\n        self._detail(\"tests\", f\"Tests {'pass' if tests.passed else 'fail'} with {package} {version}\")\n        return tests",
+        "focus": [
+          2
+        ],
+        "label": "Tests"
+      },
+      "diagnose": {
+        "path": "apps/agentic-sdlc/agentic_sdlc/pipeline/dependency.py",
+        "startLine": 100,
+        "endLine": 113,
+        "code": "async def _diagnose(self, pr: PullRequestInfo, workspace: Workspace, package: str, before: str, after: str,\n                    tests: TestRun) -> Diagnosis:\n    \"\"\"Before changing anything, work out why it breaks: the failures, the dependency's\n    changelog, and the code that uses it.\"\"\"\n    async with self._step(\"diagnose\"):\n        coder = await self._start_agent(\"coder\", self._request.models.coder, workspace)\n        diff = await self._diff(pr.base_branch, pr.head_branch)\n        reply = await self._turn(coder, \"diagnose\", DiagnoseRequest(\n            package=package, from_version=before, to_version=after, test_output=tests.output, diff=diff), DiagnoseReply)\n        diagnosis = reply.diagnosis\n        self._state.diagnosis = diagnosis\n        self._detail(\"diagnose\", diagnosis.root_cause)\n        await self._post(pr.number, _diagnosis_comment(package, after, diagnosis), agent=CODER)\n        return diagnosis",
+        "focus": [
+          5,
+          6,
+          7,
+          12
+        ],
+        "label": "Diagnose"
+      },
+      "fix": {
+        "path": "apps/agentic-sdlc/agentic_sdlc/pipeline/dependency.py",
+        "startLine": 115,
+        "endLine": 122,
+        "code": "async def _fix(self, workspace: Workspace, plan: Plan, diagnosis: Diagnosis) -> CodeReply:\n    \"\"\"Adapt our code to the new version, on the bump branch, until the tests pass.\"\"\"\n    async with self._step(\"fix\"):\n        coder = await self._start_agent(\"coder\", self._request.models.coder, workspace)\n        reply = await self._code_until_green(coder, workspace, plan.summary, Subtask(\n            id=\"upgrade-fix\", title=plan.summary, description=diagnosis.fix_plan))\n        self._detail(\"fix\", reply.summary)\n        return reply",
+        "focus": [
+          3,
+          4
+        ],
+        "label": "Fix"
+      },
+      "explain": {
+        "path": "apps/agentic-sdlc/agentic_sdlc/pipeline/dependency.py",
+        "startLine": 124,
+        "endLine": 130,
+        "code": "async def _explain(self, pr: PullRequestInfo, package: str, before: str, after: str, diagnosis: Diagnosis,\n                   tests: TestRun, fix: CodeReply) -> None:\n    async with self._step(\"explain\"):\n        body = _explanation(pr, package, before, after, diagnosis, tests, fix)\n        await workflow.execute_activity_method(GitHubActivities.update_pull_request, UpdatePrInput(\n            repo=self._request.repo, number=pr.number, body=body, agent=CODER), **GITHUB)\n        self._detail(\"explain\", \"PR description rewritten: the bump, what broke, what changed and why\")",
+        "focus": [
+          4
+        ],
+        "label": "Explain"
+      },
+      "review": {
+        "path": "apps/agentic-sdlc/agentic_sdlc/pipeline/dependency.py",
+        "startLine": 132,
+        "endLine": 138,
+        "code": "async def _review(self, pr: PullRequestInfo, plan: Plan) -> None:\n    async with self._step(\"review\"):\n        result = await self._review_pr(pr, plan)\n        approved = result.review.verdict == \"approve\"\n        self._detail(\"review\", result.review.summary)\n    await self._set_check(pr.head_branch, \"success\" if approved else \"failure\",\n                          \"Upgrade fixed, tested and reviewed: ready to merge\" if approved else result.review.summary)",
+        "focus": [
+          2,
+          5
+        ],
+        "label": "Review"
+      },
+      "gate:conversation": {
+        "path": "apps/agentic-sdlc/agentic_sdlc/pipeline/base.py",
+        "startLine": 420,
+        "endLine": 448,
+        "code": "async def _converse_on_pr(self, pr: PullRequestInfo, plan: Plan) -> None:\n    \"\"\"Listen to the PR until it's closed or goes quiet. Feedback goes to a coding agent on\n    the PR branch, then the tests and the reviewer run again and the agent answers on the\n    PR. A request outside the PR's scope gets an explanation instead of a change.\"\"\"\n    planner = await self._planner(Workspace(repo=self._request.repo, branch=pr.head_branch))\n    idle = timedelta(hours=self._request.idle_close_hours)\n    while True:\n        outcome = await self._wait_for_people(\n            \"conversation\", \"Listening for comments on the PR\", pr=pr.number,\n            closes_after=idle, github_url=pr.url)\n        if outcome.closed:\n            return\n        if outcome.timed_out:\n            await workflow.execute_activity_method(GitHubActivities.close_pull_request, ClosePrInput(\n                repo=self._request.repo, pr_number=pr.number,\n                comment=\"Closing after a quiet day; the agents have stopped listening to this PR.\"), **GITHUB)\n            return\n        for item in outcome.comments:\n            await self._triage(planner, plan, item)\n        in_scope = [c for c in outcome.comments if c.kind == \"feedback\"]\n        for item in outcome.comments:\n            if item.kind == \"scope_change\":\n                await self._post(pr.number, f\"> **@{item.author}**: {item.text[:300]}\\n\\n\"\n                                            f\"That's outside this PR's scope ({item.reason}). Open an issue for it \"\n                                            \"and label it `agent` if you'd like the agents to take it on.\",\n                                 agent=PLANNER)\n                self._resolve(item, \"addressed\", \"Out of scope for this PR; suggested an issue\")\n        if in_scope:\n            await self._address_on_pr(pr, plan, in_scope)",
+        "focus": [
+          4,
+          7,
+          13,
+          18,
+          22,
+          28
+        ],
+        "label": "Wait For Conversation"
+      },
+      "feedback": {
+        "path": "apps/agentic-sdlc/agentic_sdlc/pipeline/base.py",
+        "startLine": 450,
+        "endLine": 477,
+        "code": "async def _address_on_pr(self, pr: PullRequestInfo, plan: Plan, comments: list[Feedback]) -> None:\n    async with self._step(\"feedback\"):\n        for item in comments:\n            item.status = \"working\"\n        who = \", \".join(sorted({f\"@{c.author}\" for c in comments}))\n        if pr.from_fork:\n            await self._post(pr.number, \"This PR comes from a fork, which the agents can't push to. \"\n                                        \"Here's what they'd change:\\n\\n\" + \"\\n\".join(f\"- {c.text}\" for c in comments),\n                             agent=CODER)\n            for item in comments:\n                self._resolve(item, \"addressed\", \"Fork PR: suggested rather than pushed\")\n            return\n        self._detail(\"feedback\", f\"Addressing {_count(len(comments), 'comment')} from {who}\")\n        await self._set_check(pr.head_branch, \"pending\", \"Agent is addressing review comments\")\n        workspace = Workspace(repo=self._request.repo, branch=pr.head_branch)\n        coder = await self._start_agent(\"coder\", self._request.models.coder, workspace)\n        reply = await self._code_until_green(coder, workspace, plan.summary, Subtask(\n            id=\"pr-feedback\", title=\"Address comments on the pull request\",\n            description=\"\\n\".join(f\"- @{c.author}: {c.text}\" for c in comments)))\n        quoted = \"\\n\".join(f\"> **@{c.author}**: {c.text[:300]}\" for c in comments)\n        await self._post(pr.number, f\"{quoted}\\n\\n\ud83d\udee0\ufe0f Addressed: {reply.summary}\\n\\n\"\n                                    \"The reviewer agent is checking the change again.\", agent=CODER)\n        for item in comments:\n            self._resolve(item, \"addressed\", reply.summary)\n        self._prove(\"D7\", f\"{who}'s comment on the PR was addressed by a coding agent and re-reviewed, without starting over\")\n    review = await self._review_pr(pr, plan)\n    await self._set_check(pr.head_branch, \"success\" if review.review.verdict == \"approve\" else \"failure\",\n                          \"Agent review passed\" if review.review.verdict == \"approve\" else review.review.summary)",
+        "focus": [
+          6,
+          13,
+          15,
+          16,
+          20,
+          25,
+          26
+        ],
+        "label": "Feedback"
+      },
+      "gate:budget": {
+        "path": "apps/agentic-sdlc/agentic_sdlc/pipeline/base.py",
+        "startLine": 353,
+        "endLine": 368,
+        "code": "async def _ensure_budget(self) -> None:\n    \"\"\"Stop before the next agent turn once the run has spent its budget, and ask on\n    GitHub whether to spend more.\"\"\"\n    async with self._budget_lock:\n        while self._state.usage.cost_usd >= self._state.budget_usd:\n            spent, budget = self._state.usage.cost_usd, self._state.budget_usd\n            if self._home:\n                await self._post(self._home, f\"\ud83d\udcb8 This run has spent an estimated ${spent:.2f} of its ${budget:.2f} \"\n                                             f\"budget. Reply `/continue` to allow ${BUDGET_STEP_USD:.0f} more, or `/stop`.\")\n            outcome = await self._wait_for_people(\n                \"budget\", f\"Spent ${spent:.2f} of ${budget:.2f}. Waiting for /continue or /stop.\",\n                commands=[\"/continue\", \"/stop\"], conversational=False, issue=self._home)\n            if outcome.command is None or outcome.command.name == \"/stop\":\n                raise ApplicationError(\"Stopped at the budget limit.\", non_retryable=True)\n            self._state.budget_usd += BUDGET_STEP_USD\n            self._prove(\"D3\", \"Run paused at its budget and continued when someone replied /continue\")",
+        "focus": [
+          7,
+          9
+        ],
+        "label": "Wait For Budget"
+      }
+    },
+    "review": {
+      "pr": {
+        "path": "apps/agentic-sdlc/agentic_sdlc/pipeline/review.py",
+        "startLine": 52,
+        "endLine": 61,
+        "code": "async def _take_pull_request(self) -> PullRequestInfo:\n    async with self._step(\"pr\"):\n        pr = await workflow.execute_activity_method(GitHubActivities.get_pull_request, PullRequestRef(\n            repo=self._request.repo, number=self._request.pr_number), **GITHUB)\n        self._home = pr.number\n        self._track(pr=pr.number)\n        self._state.pr_url, self._state.title = pr.url, pr.title\n        self._detail(\"pr\", f\"PR #{pr.number} by @{pr.author}\" + (\" (from a fork: review only)\" if pr.from_fork else \"\"))\n        await self._set_check(pr.head_branch, \"pending\", \"Agent is reviewing this PR\")\n        return pr",
+        "focus": [
+          2,
+          8
+        ],
+        "label": "Pr"
+      },
+      "review": {
+        "path": "apps/agentic-sdlc/agentic_sdlc/pipeline/base.py",
+        "startLine": 405,
+        "endLine": 414,
+        "code": "async def _review_pr(self, pr: PullRequestInfo, plan: Plan, *, reviewer_name: str = \"Code review agent\") -> ReviewReply:\n    reviewer = await self._start_agent(\"reviewer-quality\", self._request.models.reviewer,\n                                       Workspace(repo=self._request.repo, branch=pr.head_branch))\n    diff = await self._diff(pr.base_branch, pr.head_branch)\n    result = await self._turn(reviewer, \"review\", ReviewRequest(\n        issue_title=pr.title, plan=plan, diff=diff), ReviewReply)\n    self._state.review = result.review\n    await workflow.execute_activity_method(GitHubActivities.post_review, ReviewInput(\n        repo=self._request.repo, pr_number=pr.number, reviewer=reviewer_name, review=result.review), **GITHUB)\n    return result",
+        "focus": [
+          1,
+          3,
+          4,
+          7
+        ],
+        "label": "Review"
+      },
+      "gate:conversation": {
+        "path": "apps/agentic-sdlc/agentic_sdlc/pipeline/base.py",
+        "startLine": 420,
+        "endLine": 448,
+        "code": "async def _converse_on_pr(self, pr: PullRequestInfo, plan: Plan) -> None:\n    \"\"\"Listen to the PR until it's closed or goes quiet. Feedback goes to a coding agent on\n    the PR branch, then the tests and the reviewer run again and the agent answers on the\n    PR. A request outside the PR's scope gets an explanation instead of a change.\"\"\"\n    planner = await self._planner(Workspace(repo=self._request.repo, branch=pr.head_branch))\n    idle = timedelta(hours=self._request.idle_close_hours)\n    while True:\n        outcome = await self._wait_for_people(\n            \"conversation\", \"Listening for comments on the PR\", pr=pr.number,\n            closes_after=idle, github_url=pr.url)\n        if outcome.closed:\n            return\n        if outcome.timed_out:\n            await workflow.execute_activity_method(GitHubActivities.close_pull_request, ClosePrInput(\n                repo=self._request.repo, pr_number=pr.number,\n                comment=\"Closing after a quiet day; the agents have stopped listening to this PR.\"), **GITHUB)\n            return\n        for item in outcome.comments:\n            await self._triage(planner, plan, item)\n        in_scope = [c for c in outcome.comments if c.kind == \"feedback\"]\n        for item in outcome.comments:\n            if item.kind == \"scope_change\":\n                await self._post(pr.number, f\"> **@{item.author}**: {item.text[:300]}\\n\\n\"\n                                            f\"That's outside this PR's scope ({item.reason}). Open an issue for it \"\n                                            \"and label it `agent` if you'd like the agents to take it on.\",\n                                 agent=PLANNER)\n                self._resolve(item, \"addressed\", \"Out of scope for this PR; suggested an issue\")\n        if in_scope:\n            await self._address_on_pr(pr, plan, in_scope)",
+        "focus": [
+          4,
+          7,
+          13,
+          18,
+          22,
+          28
+        ],
+        "label": "Wait For Conversation"
+      },
+      "feedback": {
+        "path": "apps/agentic-sdlc/agentic_sdlc/pipeline/base.py",
+        "startLine": 450,
+        "endLine": 477,
+        "code": "async def _address_on_pr(self, pr: PullRequestInfo, plan: Plan, comments: list[Feedback]) -> None:\n    async with self._step(\"feedback\"):\n        for item in comments:\n            item.status = \"working\"\n        who = \", \".join(sorted({f\"@{c.author}\" for c in comments}))\n        if pr.from_fork:\n            await self._post(pr.number, \"This PR comes from a fork, which the agents can't push to. \"\n                                        \"Here's what they'd change:\\n\\n\" + \"\\n\".join(f\"- {c.text}\" for c in comments),\n                             agent=CODER)\n            for item in comments:\n                self._resolve(item, \"addressed\", \"Fork PR: suggested rather than pushed\")\n            return\n        self._detail(\"feedback\", f\"Addressing {_count(len(comments), 'comment')} from {who}\")\n        await self._set_check(pr.head_branch, \"pending\", \"Agent is addressing review comments\")\n        workspace = Workspace(repo=self._request.repo, branch=pr.head_branch)\n        coder = await self._start_agent(\"coder\", self._request.models.coder, workspace)\n        reply = await self._code_until_green(coder, workspace, plan.summary, Subtask(\n            id=\"pr-feedback\", title=\"Address comments on the pull request\",\n            description=\"\\n\".join(f\"- @{c.author}: {c.text}\" for c in comments)))\n        quoted = \"\\n\".join(f\"> **@{c.author}**: {c.text[:300]}\" for c in comments)\n        await self._post(pr.number, f\"{quoted}\\n\\n\ud83d\udee0\ufe0f Addressed: {reply.summary}\\n\\n\"\n                                    \"The reviewer agent is checking the change again.\", agent=CODER)\n        for item in comments:\n            self._resolve(item, \"addressed\", reply.summary)\n        self._prove(\"D7\", f\"{who}'s comment on the PR was addressed by a coding agent and re-reviewed, without starting over\")\n    review = await self._review_pr(pr, plan)\n    await self._set_check(pr.head_branch, \"success\" if review.review.verdict == \"approve\" else \"failure\",\n                          \"Agent review passed\" if review.review.verdict == \"approve\" else review.review.summary)",
+        "focus": [
+          6,
+          13,
+          15,
+          16,
+          20,
+          25,
+          26
+        ],
+        "label": "Feedback"
+      },
+      "gate:budget": {
+        "path": "apps/agentic-sdlc/agentic_sdlc/pipeline/base.py",
+        "startLine": 353,
+        "endLine": 368,
+        "code": "async def _ensure_budget(self) -> None:\n    \"\"\"Stop before the next agent turn once the run has spent its budget, and ask on\n    GitHub whether to spend more.\"\"\"\n    async with self._budget_lock:\n        while self._state.usage.cost_usd >= self._state.budget_usd:\n            spent, budget = self._state.usage.cost_usd, self._state.budget_usd\n            if self._home:\n                await self._post(self._home, f\"\ud83d\udcb8 This run has spent an estimated ${spent:.2f} of its ${budget:.2f} \"\n                                             f\"budget. Reply `/continue` to allow ${BUDGET_STEP_USD:.0f} more, or `/stop`.\")\n            outcome = await self._wait_for_people(\n                \"budget\", f\"Spent ${spent:.2f} of ${budget:.2f}. Waiting for /continue or /stop.\",\n                commands=[\"/continue\", \"/stop\"], conversational=False, issue=self._home)\n            if outcome.command is None or outcome.command.name == \"/stop\":\n                raise ApplicationError(\"Stopped at the budget limit.\", non_retryable=True)\n            self._state.budget_usd += BUDGET_STEP_USD\n            self._prove(\"D3\", \"Run paused at its budget and continued when someone replied /continue\")",
+        "focus": [
+          7,
+          9
+        ],
+        "label": "Wait For Budget"
+      }
+    }
+  }
+}

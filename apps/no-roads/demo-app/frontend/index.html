@@ -395,6 +395,7 @@
       if (!resp.ok) { setSeedMsg('Error: ' + await resp.text(), 'err'); return; }
       const data = await resp.json();
       setSeedMsg(`✓ Burst fired — ${data.started} started` + (data.failed > 0 ? `, ${data.failed} failed` : ''), 'ok');
+      if(data.temporalUiUrl){const link=document.createElement('a');link.href=data.temporalUiUrl;link.textContent='View one workflow from this burst';document.getElementById('seed-msg').append(' ',link)}
       feedItems.unshift({ workflowId: `seed-burst-${data.started}`, name: `⚡ Seed burst (${data.started} workflows)`, status: 'running', time: new Date() });
       if (feedItems.length > MAX_FEED) feedItems.pop();
       renderFeed();

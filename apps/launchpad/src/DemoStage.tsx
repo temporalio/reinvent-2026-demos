@@ -1,6 +1,9 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
 import catalog from './catalog.json'
 import './stage.css'
+import {demoWorkflowList} from './demoWorkflowList'
+import {historyCursor,workflowApi,type LiveCursor,type HistoryEvent} from './workflowHistory'
+import {readDemoExecution} from './demoExecution'
 import { CodeSamples } from './CodeSamples'
 import { readMoneyExecution, type MoneyExecution } from './moneyExecution'
 import { ExecutionProgress } from './ExecutionProgress'
@@ -34,6 +37,45 @@ export function DemoStage({ demo, persona, temporalUi, notice, onPlaybackChange 
   const appFrame = useRef<HTMLIFrameElement>(null)
   const temporalFrame = useRef<HTMLIFrameElement>(null)
   const lastWorkflow = useRef<string|null>(null)
+  // UI startup can redirect a proxy root to its namespace. Scope that list and
+  // later SPA returns to it, while leaving exact-run navigation untouched.
+  useEffect(()=>{
+    const apply=()=>{
+      const frame=temporalFrame.current
+      try{const current=frame?.contentDocument?.location.href;if(!frame||!current||current==='about:blank')return;const scoped=demoWorkflowList(current,demo.id,location.origin);if(scoped!==current)showInTemporalFrame(frame,scoped)}catch{/* UI has not loaded yet. */}
+    }
+    const timer=setInterval(apply,500);apply();return()=>clearInterval(timer)
+  },[demo.id])
+  const [workflowUrl,setWorkflowUrl]=useState<string|null>(null)
+  const [nativeCursor,setNativeCursor]=useState<LiveCursor|null>(null)
+  const [recordedCursor,setRecordedCursor]=useState<LiveCursor|null>(null)
+  const selectedRunId=workflowUrl?.split('/workflows/')[1]?.split('/')[1]
+  const nativeMatches=nativeCursor?.runId===selectedRunId
+  const specialists=demo.id==='loan' && recordedCursor?.status==='running' && ['FraudIdentityAgent','EmploymentVerificationAgent'].includes(recordedCursor.step)
+  const liveCursor=nativeMatches && !specialists?nativeCursor:recordedCursor
+  useEffect(()=>{
+    function progress(event:MessageEvent){
+      if(event.source===appFrame.current?.contentWindow && event.origin===location.origin && event.data?.type==='booth:demo-reset' && event.data.demoId===demo.id){setNativeCursor(null);setRecordedCursor(null);setWorkflowUrl(null);return}
+      const next=readDemoExecution(event,location.origin,appFrame.current?.contentWindow||null,demo.id);if(next)setNativeCursor(next)}
+    window.addEventListener('message',progress);return()=>window.removeEventListener('message',progress)
+  },[demo.id])
+  useEffect(()=>{
+    if(!workflowUrl || ['money-transfer','tacos'].includes(demo.id))return
+    const api=workflowApi(workflowUrl,location.origin)
+    if(!api)return
+    const controller=new AbortController();let timer:ReturnType<typeof setTimeout>;setRecordedCursor(null)
+    async function poll(){
+      try{
+        let next:string|undefined,events:HistoryEvent[]=[]
+        do{const response=await fetch(api+(next?'&nextPageToken='+encodeURIComponent(next):''),{signal:controller.signal});if(!response.ok)throw Error('History unavailable');const data=await response.json();events.push(...(data.history?.events||[]));next=data.nextPageToken}while(next)
+        const cursor=historyCursor(events,new URL(workflowUrl!,location.origin).pathname.split('/workflows/')[1].split('/')[1])
+        if(cursor)setRecordedCursor(cursor)
+        if(cursor?.terminal)return
+      }catch{if(!controller.signal.aborted)setRecordedCursor(previous=>previous?{...previous,stale:true}:null)}
+      if(!controller.signal.aborted)timer=setTimeout(poll,2000)
+    }
+    void poll();return()=>{controller.abort();clearTimeout(timer)}
+  },[workflowUrl,demo.id])
   // Layout effects run in the commit that inserts the iframe, before its document can boot.
   useLayoutEffect(()=>{ if(temporalUi)preferDarkTemporalUi() },[temporalUi])
   useEffect(()=>{
@@ -51,6 +93,7 @@ export function DemoStage({ demo, persona, temporalUi, notice, onPlaybackChange 
       // A repeated background announcement must not pull the panel away from where the visitor browsed.
       if(temporalFrame.current && (activate || url!==lastWorkflow.current))showInTemporalFrame(temporalFrame.current,url)
       lastWorkflow.current=url
+      setWorkflowUrl(url)
       if(activate) {setTab('temporal'); buttons.current[3]?.focus()}
     }
     window.addEventListener('message',focusWorkflow); return ()=>window.removeEventListener('message',focusWorkflow)
@@ -109,9 +152,9 @@ export function DemoStage({ demo, persona, temporalUi, notice, onPlaybackChange 
       {demo.id==='tacos' && (tab==='architecture' || tab==='code') && <ExecutionProgress run={tacoRun} phase={phase} following={following} onSelect={phase=>setPhaseSelection({orderId:tacoRun?.orderId || null,phase})} onFollow={()=>setPhaseSelection(null)} />}
       {tabs.map(t=><div key={t.id} id={`${id}-panel-${t.id}`} role="tabpanel" aria-labelledby={`${id}-${t.id}`} tabIndex={0} hidden={tab!==t.id} className="stage-tab-content">
         {t.id==='business' && <div className="business-story"><h2>{story?.[0]}</h2><p>{story?.[1]}</p><p className="business-detail">{notice || story?.[2]}</p></div>}
-        {t.id==='architecture' && tab==='architecture' && <ArchitecturePanel demoId={demo.id} execution={tacoRun} phase={phase} />}
-        {t.id==='code' && <CodeSamples demoId={demo.id} execution={tacoRun} phase={phase} money={moneyRun} />}
-        {t.id==='temporal' && (temporalUi ? <iframe ref={temporalFrame} title={`${demo.title}: Temporal workflow history`} src={temporalUi} onLoad={event=>styleTemporalFrame(event.currentTarget)} className="stage-temporal" /> : <p>The hosted Temporal UI route has not been enabled for this project. Local preview connects this tab to Temporal OSS.</p>)}
+        {t.id==='architecture' && tab==='architecture' && <ArchitecturePanel demoId={demo.id} execution={tacoRun} phase={phase} cursor={liveCursor} />}
+        {t.id==='code' && <CodeSamples demoId={demo.id} execution={tacoRun} phase={phase} money={moneyRun} cursor={liveCursor} />}
+        {t.id==='temporal' && (temporalUi ? <iframe ref={temporalFrame} title={`${demo.title}: Temporal workflow history`} src={demoWorkflowList(temporalUi,demo.id,location.origin)} onLoad={event=>styleTemporalFrame(event.currentTarget)} className="stage-temporal" /> : <p>The hosted Temporal UI route has not been enabled for this project. Local preview connects this tab to Temporal OSS.</p>)}
       </div>)}
     </section>}
   </div>

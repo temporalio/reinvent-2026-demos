@@ -44,3 +44,10 @@ jobs:
       - run: docker run --rm oncall-api-tests
       - run: docker build --target test -t oncall-agent-tests apps/agentcore-research/agent
       - run: docker run --rm oncall-agent-tests
+
+  data-pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - run: docker build -t reinvent-pipeline apps/data-pipeline
+      - run: docker run --rm --network none --entrypoint python reinvent-pipeline -m unittest discover -s tests -v
