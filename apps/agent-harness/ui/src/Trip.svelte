@@ -145,14 +145,6 @@
   <div class="travel" role="region" aria-label="Route and booking status">
     <RouteMap {rows} {away} />
     <Departures {rows} {board} {away} {still} />
-    {#if agent.pendingApprovals.length > 0}
-      <div class="approvals">
-        <ApprovalQueue
-          calls={agent.pendingApprovals}
-          respond={(call, decision) => agent.respondToApproval(call.part.toolId, decision)}
-        />
-      </div>
-    {/if}
 
     {#if choices.length === 0}
       <Settings
@@ -194,6 +186,15 @@
       <Conversation {messages} />
     {/if}
 
+    {#if agent.pendingApprovals.length > 0}
+      <div class="approvals" role="region" aria-label="Approvals">
+        <ApprovalQueue
+          calls={agent.pendingApprovals}
+          respond={(call, decision) => agent.respondToApproval(call.part.toolId, decision)}
+        />
+      </div>
+    {/if}
+
     {#if choices.length === 0 && (suggestions.length > 0 || opening)}
       <section class="suggestions" class:opening aria-label={opening ? "Trip ideas" : "Suggested replies"}>
         {#each suggestions as text (text)}
@@ -204,7 +205,7 @@
       </section>
     {/if}
 
-    {#if choices.length === 0}
+    {#if choices.length === 0 && agent.pendingApprovals.length === 0}
       <form class="composer" onsubmit={send}>
         <label class="visually-hidden" for="composer">Message Ziggy</label>
         <textarea
@@ -234,8 +235,9 @@
   .side { display: flex; flex-direction: column; gap: .8rem; min-height: 0; }
   .side > * { flex-shrink: 0; }
   .side > :global(.conversation), .side > .choosing { flex: 1 1 0; min-height: 8rem; }
-  /* However many calls wait at once, the conversation keeps its share of the column. */
-  .approvals { max-height: 55%; overflow: auto; flex-shrink: 1; min-height: 0; }
+  /* Approvals sit under the conversation, in the column the traveler taps. However many calls
+     wait at once, they scroll inside this box and the conversation keeps its share. */
+  .side > .approvals { max-height: 65%; overflow: auto; flex-shrink: 1; min-height: 0; }
   .choosing { overflow: auto; display: grid; gap: 1.5rem; align-content: start; border-color: var(--yellow); }
   .recovering { border-color: var(--yellow); display: grid; gap: .5rem; }
   .failure { border-color: var(--red); display: grid; gap: .5rem; justify-items: start; }
