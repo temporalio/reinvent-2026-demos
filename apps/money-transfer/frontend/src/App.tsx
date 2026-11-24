@@ -40,15 +40,28 @@ function App() {
   const [workflowId, setWorkflowId] = useState<string | null>(null)
   const [isTransferring, setIsTransferring] = useState(false)
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS)
+  const [executionScenario, setExecutionScenario] = useState<Settings['scenario']>('happy_path')
   const [temporalUi, setTemporalUi] = useState<TemporalUiInfo | null>(null)
   const [temporalWorkflowUrl, setTemporalWorkflowUrl] = useState<string | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [codeLanguage, setCodeLanguage] = useCodeLanguage()
 
-  const { events, finalStatus, reset: resetEvents } = useLiveEvents<TransferEvent>(
+  const { events, finalStatus, state: streamState, reset: resetEvents } = useLiveEvents<TransferEvent>(
     transferId ? `/banking/api/transfers/${transferId}/events` : null,
     TRANSFER_EVENTS,
   )
+
+  useEffect(() => {
+    if (window.parent === window) return
+    const current = events.filter(event => event.transfer_id === transferId)
+    const approval = current.findLast(event => event.step === 'approval_wait')
+    const latest = approval?.status === 'running' ? approval : current.at(-1)
+    window.parent.postMessage({
+      type: 'booth:money-execution', transferId, scenario: executionScenario,
+      step: latest?.step ?? null, status: latest?.status ?? null, attempt: latest?.attempt ?? 0,
+      finalStatus: latest ? finalStatus : null, streamState,
+    }, window.location.origin)
+  }, [transferId, events, finalStatus, executionScenario, streamState])
 
   useEffect(() => {
     fetch('/banking/api/settings')
@@ -104,6 +117,7 @@ function App() {
         }),
       })
       const data = (await res.json()) as CreateTransferResponse
+      setExecutionScenario(settings.scenario)
       setTransferId(data.transfer_id)
       setWorkflowId(data.workflow_id || null)
       setTemporalWorkflowUrl(data.temporal_ui_url || null)
@@ -111,7 +125,7 @@ function App() {
     } finally {
       setIsTransferring(false)
     }
-  }, [fromAccount, toAccount, amount])
+  }, [fromAccount, toAccount, amount, settings.scenario])
 
   const renderPhoneContent = () => {
     switch (screen) {

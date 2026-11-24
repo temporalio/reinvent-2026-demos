@@ -62,17 +62,20 @@ export function useLiveEvents<T>(
       sourceRef.current = source;
 
       source.onopen = () => {
+        if (closed || sourceRef.current !== source) return;
         failures = 0;
         setState("live");
       };
 
       source.addEventListener(names.update, (event) => {
+        if (closed || sourceRef.current !== source) return;
         setEvents((prev) => [...prev, parse<T>((event as MessageEvent).data)]);
         setState("live");
       });
 
       if (names.done) {
         source.addEventListener(names.done, (event) => {
+          if (closed || sourceRef.current !== source) return;
           const payload = parse<{ final_status?: string; status?: string }>((event as MessageEvent).data);
           setFinalStatus(payload?.final_status ?? payload?.status ?? "completed");
           onDone?.(payload);
@@ -84,8 +87,8 @@ export function useLiveEvents<T>(
       }
 
       source.onerror = () => {
+        if (closed || sourceRef.current !== source) return;
         source.close();
-        if (closed) return;
         failures++;
         setState("stale");
         retry = setTimeout(connect, Math.min(2 ** failures * 1000, MAX_BACKOFF_MS));

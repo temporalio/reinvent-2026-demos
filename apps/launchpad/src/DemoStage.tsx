@@ -2,6 +2,7 @@ import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent
 import catalog from './catalog.json'
 import './stage.css'
 import { CodeSamples } from './CodeSamples'
+import { readMoneyExecution, type MoneyExecution } from './moneyExecution'
 import { ExecutionProgress } from './ExecutionProgress'
 import { readTacoExecution, displayedTacoPhase, type TacoExecution, type PhaseSelection } from './tacoExecution'
 import { ArchitecturePanel } from './ArchitecturePanel'
@@ -54,6 +55,16 @@ export function DemoStage({ demo, persona, temporalUi, notice, onPlaybackChange 
     }
     window.addEventListener('message',focusWorkflow); return ()=>window.removeEventListener('message',focusWorkflow)
   },[temporalUi,holodeck])
+  const [moneyRun,setMoneyRun]=useState<MoneyExecution|null>(null)
+  useEffect(()=>{
+    if(demo.id!=='money-transfer')return
+    function progress(event:MessageEvent) {
+      const next=readMoneyExecution(event,window.location.origin,appFrame.current?.contentWindow || null)
+      if(next)setMoneyRun(next)
+    }
+    window.addEventListener('message',progress)
+    return ()=>window.removeEventListener('message',progress)
+  },[demo.id])
   const [tacoRun,setTacoRun]=useState<TacoExecution|null>(null)
   const [phaseSelection,setPhaseSelection]=useState<PhaseSelection>(null)
   useEffect(()=>{
@@ -99,7 +110,7 @@ export function DemoStage({ demo, persona, temporalUi, notice, onPlaybackChange 
       {tabs.map(t=><div key={t.id} id={`${id}-panel-${t.id}`} role="tabpanel" aria-labelledby={`${id}-${t.id}`} tabIndex={0} hidden={tab!==t.id} className="stage-tab-content">
         {t.id==='business' && <div className="business-story"><h2>{story?.[0]}</h2><p>{story?.[1]}</p><p className="business-detail">{notice || story?.[2]}</p></div>}
         {t.id==='architecture' && tab==='architecture' && <ArchitecturePanel demoId={demo.id} execution={tacoRun} phase={phase} />}
-        {t.id==='code' && <CodeSamples demoId={demo.id} execution={tacoRun} phase={phase} />}
+        {t.id==='code' && <CodeSamples demoId={demo.id} execution={tacoRun} phase={phase} money={moneyRun} />}
         {t.id==='temporal' && (temporalUi ? <iframe ref={temporalFrame} title={`${demo.title}: Temporal workflow history`} src={temporalUi} onLoad={event=>styleTemporalFrame(event.currentTarget)} className="stage-temporal" /> : <p>The hosted Temporal UI route has not been enabled for this project. Local preview connects this tab to Temporal OSS.</p>)}
       </div>)}
     </section>}

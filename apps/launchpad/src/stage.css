@@ -65,3 +65,12 @@
 .holodeck-workflow header button { min-height:44px; }
 .holodeck-workflow header span { font:.75rem var(--font-mono); color:var(--text-muted); }
 .holodeck-workflow iframe { flex:1; min-height:0; width:100%; border:0; }
+
+/* Live events identify a statement, rather than an instruction-level trace. */
+.code-examples pre { position:relative; }
+.code-line { display:inline-block; min-width:100%; vertical-align:top; }
+.code-line[data-current-step] { background:rgba(200,255,0,.13); box-shadow:inset 3px 0 var(--brand-highlight); }
+.code-line[data-status="waiting"],.code-line[data-status="pending"] { background:rgba(255,210,70,.16); box-shadow:inset 3px 0 #ffd246; }
+.code-line[data-status="retrying"] { background:rgba(255,107,255,.16); box-shadow:inset 3px 0 #ff6bff; }
+.code-line[data-status="failed"] { background:rgba(255,110,65,.18); box-shadow:inset 3px 0 #ff6e41; }
+.code-line[data-status="completed"] { background:rgba(18,190,186,.16); box-shadow:inset 3px 0 #12beba; }
