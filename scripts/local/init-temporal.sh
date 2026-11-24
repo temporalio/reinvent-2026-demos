@@ -1,6 +1,6 @@
 #!/bin/sh
 set -eu
-for item in Step:Keyword AgenticSdlcGitHubRefs:KeywordList; do
+for item in Step:Keyword AgenticSdlcGitHubRefs:KeywordList OncallPhase:Keyword; do
   name=${item%:*}
   type=${item#*:}
   if output=$(temporal operator search-attribute create --address temporal:7233 --namespace default --name "$name" --type "$type" 2>&1); then

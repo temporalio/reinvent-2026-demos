@@ -171,3 +171,6 @@ main.station-surface { position:absolute; top:50%; left:50%; max-width:none; mar
 main.station-surface-video { border:0; background:transparent; overflow:hidden; box-shadow:none; }
 .station-surface-video .station-content { position:absolute; inset:0 auto auto 0; display:flex; flex-direction:column; padding:0; overflow:hidden; background:transparent; }
 .launchpad > footer button { min-height:48px; }
+
+/* Keep the lower customer logos legible over the moon terrain. */
+.customer-marquee.bottom { background:rgb(9 10 16 / 72%); box-shadow:0 0 14px 8px rgb(9 10 16 / 35%); }

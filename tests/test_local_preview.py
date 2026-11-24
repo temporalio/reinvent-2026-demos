@@ -30,9 +30,9 @@ class LocalPreviewTests(unittest.TestCase):
                 self.assertTrue(port.startswith('127.0.0.1:'))
         self.assertIn('temporal-data', config['volumes'])
 
-    def test_all_nine_have_explicit_local_modes_and_unknown_apps_fail(self):
+    def test_all_demos_have_explicit_local_modes_and_unknown_apps_fail(self):
         services=local.render(list(local.GROUPS))['services']
-        self.assertEqual(len(local.GROUPS),9)
+        self.assertEqual(len(local.GROUPS),10)
         self.assertIn('no-roads-local-worker',services)
         self.assertIn('loan-web',services)
         self.assertIn('travel-web',services)

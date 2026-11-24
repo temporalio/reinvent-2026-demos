@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>AgentCore On-Call</title>
+  <meta name="theme-color" content="#141414">
+  <link rel="icon" href="assets/brand/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/css/temporal-theme.css">
+  <link rel="stylesheet" href="assets/css/temporal-components.css">
+  <link rel="stylesheet" href="assets/css/cosmic-pop-theme.css">
+  <link rel="stylesheet" href="app.css">
+  <link rel="stylesheet" href="booth.css">
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <img src="assets/brand/temporal-logo.svg" alt="Temporal" width="172" height="44">
+        <span class="brand-divider"></span>
+        <p class="eyebrow">MISSION CONTROL / AGENTCORE ON-CALL</p>
+      </div>
+      <div class="topbar-actions">
+        <span class="freshness" id="freshness" data-state="idle"><i class="dot"></i><span class="freshness-text">Connecting</span></span>
+        <a class="button secondary green small" id="temporal-link" target="_blank" rel="noopener" hidden>Temporal UI ↗</a>
+      </div>
+    </header>
+
+    <main class="columns">
+      <section class="card incident" aria-labelledby="incident-title">
+        <p class="eyebrow">Incident</p>
+        <h1 class="heading" id="incident-title">Page the agent</h1>
+
+        <div id="start-panel">
+          <p class="lede">Pick an alert. The agent investigates with tools, proposes a fix, and waits for you before it changes anything.</p>
+          <div class="chips" role="group" aria-label="Alerts" id="scenarios"></div>
+          <button class="button primary ultraviolet" id="start" disabled>Start incident</button>
+          <p class="muted" id="start-error" role="alert"></p>
+        </div>
+
+        <div id="incident-panel" hidden>
+          <p class="alert-line"><span class="status-badge" id="phase-badge" data-status="active">Diagnosing</span> <span id="alert-text"></span></p>
+          <p class="muted" id="model-line"></p>
+          <div class="proposal" id="proposal" hidden>
+            <p class="eyebrow">Proposed fix · needs your approval</p>
+            <dl class="facts" id="proposal-facts"></dl>
+            <p class="rationale" id="proposal-rationale"></p>
+            <label class="field"><span>Note (optional)</span><input id="note" maxlength="200" autocomplete="off"></label>
+            <div class="decide">
+              <button class="button primary green" id="approve">Approve fix</button>
+              <button class="button secondary ultraviolet" id="reject">Reject</button>
+            </div>
+            <p class="muted" id="decide-help">Approving sends a Signal. Temporal records it at once, even with no Worker running, and then starts one to continue.</p>
+          </div>
+
+          <ol class="steps" id="agent-steps" aria-live="polite"></ol>
+
+          <div class="outcome" id="outcome" hidden></div>
+          <button class="button secondary ultraviolet small" id="new-incident" hidden>New incident</button>
+        </div>
+      </section>
+
+      <div class="side">
+        <section class="card" aria-labelledby="worker-title">
+          <p class="eyebrow">Compute</p>
+          <h2 class="heading" id="worker-title">Worker on AgentCore</h2>
+          <div class="worker" id="worker" data-status="pending">
+            <i class="status-dot"></i>
+            <div>
+              <strong id="worker-headline">Checking</strong>
+              <p class="muted" id="worker-detail"></p>
+            </div>
+          </div>
+          <div class="state-banner" id="waking" hidden><strong id="waking-title">Starting a Worker</strong><span id="waking-text"></span></div>
+        </section>
+
+        <section class="card proof" aria-labelledby="proof-title">
+          <p class="eyebrow">From the Event History</p>
+          <h2 class="heading" id="proof-title">Every call ran once</h2>
+          <div class="tiles" id="proof-tiles">
+            <div><span class="tile-label">Model calls</span><span class="tile-value" id="tile-model">0</span></div>
+            <div><span class="tile-label">Tool calls</span><span class="tile-value" id="tile-tool">0</span></div>
+            <div><span class="tile-label">Repeated</span><span class="tile-value" id="tile-repeat">0</span></div>
+            <div><span class="tile-label">Workers</span><span class="tile-value" id="tile-workers">0</span></div>
+          </div>
+          <ol class="steps proof-rows" id="proof-rows"></ol>
+          <p class="muted">Read with DescribeWorkflowExecution and GetWorkflowHistory, which need no Worker. The screen never sends a Query.</p>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script src="assets/js/status.js"></script>
+  <script src="assets/js/steps.js"></script>
+  <script src="assets/js/live.js"></script>
+  <script src="app.js"></script>
+  <script src="note-keyboard.js" defer></script>
+</body>
+</html>
