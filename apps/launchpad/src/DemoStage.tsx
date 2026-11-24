@@ -26,6 +26,8 @@ const stories: Record<string, [string,string,string]> = {
 }
 
 export function DemoStage({ demo, persona, temporalUi, notice, onPlaybackChange }: {demo:(typeof catalog)[number];persona:string;temporalUi:string|null;notice?:string;onPlaybackChange?:(playing:boolean)=>void}) {
+  const holodeck = demo.id==='photo-booth' || demo.id==='flight-simulator'
+  const [workflowOverlay,setWorkflowOverlay]=useState<string|null>(null)
   const initialTab: Tab = persona.toLowerCase() === 'mech' ? 'code' : persona.toLowerCase() === 'envoy' ? 'architecture' : 'business'
   const [tab,setTab] = useState<Tab>(initialTab)
   const appFrame = useRef<HTMLIFrameElement>(null)
@@ -39,13 +41,19 @@ export function DemoStage({ demo, persona, temporalUi, notice, onPlaybackChange 
       const url=workflowTarget(event.data.url,temporalUi,window.location.origin)
       if(!url)return
       const activate=event.data.activate===true
+      if(holodeck) {
+        // Holodeck has no lower information panel. Keep the app mounted beneath
+        // a bounded workflow view so returning preserves the visitor's strip.
+        if(activate)setWorkflowOverlay(url)
+        return
+      }
       // A repeated background announcement must not pull the panel away from where the visitor browsed.
       if(temporalFrame.current && (activate || url!==lastWorkflow.current))showInTemporalFrame(temporalFrame.current,url)
       lastWorkflow.current=url
       if(activate) {setTab('temporal'); buttons.current[3]?.focus()}
     }
     window.addEventListener('message',focusWorkflow); return ()=>window.removeEventListener('message',focusWorkflow)
-  },[temporalUi])
+  },[temporalUi,holodeck])
   const [tacoRun,setTacoRun]=useState<TacoExecution|null>(null)
   const [phaseSelection,setPhaseSelection]=useState<PhaseSelection>(null)
   useEffect(()=>{
@@ -76,11 +84,14 @@ export function DemoStage({ demo, persona, temporalUi, notice, onPlaybackChange 
       Your browser cannot play this video.
     </video>
   </section>
-  const holodeck = demo.id==='photo-booth' || demo.id==='flight-simulator'
   return <div className={`demo-stage${holodeck?' demo-stage-holodeck':''}`}>
-    <section className="stage-application" aria-label="Live demo interaction and controls">
+    <section className="stage-application" aria-label="Live demo interaction and controls" inert={!!workflowOverlay} aria-hidden={workflowOverlay?true:undefined}>
       <div className="app-viewport"><iframe ref={appFrame} title={`${demo.title}: live interaction and controls`} src={`${demo.path}?persona=${persona.toLowerCase()}&booth=1&sharedStage=1`} allow="camera; fullscreen" /></div>
     </section>
+    {holodeck && workflowOverlay && <section className="holodeck-workflow" aria-label={`${demo.title} workflow`}>
+      <header><button autoFocus onClick={()=>setWorkflowOverlay(null)}>← Back to {demo.id==='photo-booth'?'Photo Booth':'Flight Simulator'}</button><span>Temporal workflow</span></header>
+      <iframe title={`${demo.title}: Temporal workflow history`} src={workflowOverlay} onLoad={event=>styleTemporalFrame(event.currentTarget)} />
+    </section>}
     {!holodeck && <section className="stage-information" aria-label="Under the hood">
       <div className="stage-heading"><span>UNDER THE HOOD</span><span>{persona.toUpperCase()}</span></div>
       <div role="tablist" aria-label="Demo information" className="stage-tabs" onKeyDown={navigate}>{tabs.map((t,index)=><button key={t.id} ref={element=>{buttons.current[index]=element}} id={`${id}-${t.id}`} role="tab" aria-selected={tab===t.id} aria-controls={`${id}-panel-${t.id}`} tabIndex={tab===t.id?0:-1} onClick={()=>setTab(t.id)}>{t.label}</button>)}</div>

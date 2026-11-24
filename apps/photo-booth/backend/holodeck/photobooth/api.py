@@ -149,7 +149,8 @@ async def get_session(session_id: str) -> dict:
     except Exception as e:  # noqa: BLE001 - network or worker trouble: the UI shows "we'll email it"
         return {**base, "stage": "unreachable", "steps": [], "error": type(e).__name__}
 
-    out = {**base, **dataclasses.asdict(status), "workflow_status": desc.status.name if desc.status else None}
+    out = {**base, **dataclasses.asdict(status), "workflow_status": desc.status.name if desc.status else None,
+           "temporal_ui_url": workflow_ui_url(row.workflow_id, desc.run_id)}
     # Overlay live retry info from pending activities (attempt counts, last error).
     steps = {s["key"]: s for s in out["steps"]}
     for pa in desc.raw_description.pending_activities:
