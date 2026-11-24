@@ -41,11 +41,23 @@ export function preferDarkTemporalUi() {
 /** Hide Temporal UI's navigation chrome. Call on every iframe load. */
 export function styleTemporalFrame(frame: HTMLIFrameElement) {
   const doc = loadedDocument(frame)
-  if (!doc || doc.getElementById(CHROME_STYLE_ID)) return
-  const style = doc.createElement('style')
-  style.id = CHROME_STYLE_ID
-  style.textContent = CHROME_CSS
-  doc.head.append(style)
+  if (!doc) return
+  if (!doc.getElementById(CHROME_STYLE_ID)) {
+    const style = doc.createElement('style')
+    style.id = CHROME_STYLE_ID
+    style.textContent = CHROME_CSS
+    doc.head.append(style)
+  }
+  // Input assistance belongs to the booth; Temporal UI keeps its own layout/theme.
+  if (!doc.getElementById('booth-temporal-keyboard')) {
+    const style = doc.createElement('link')
+    style.rel = 'stylesheet'
+    style.href = '/booth/keyboard.css'
+    const script = doc.createElement('script')
+    script.id = 'booth-temporal-keyboard'
+    script.src = '/booth/touch-keyboard.js'
+    doc.head.append(style, script)
+  }
 }
 
 /**

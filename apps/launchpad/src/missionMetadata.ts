@@ -3,7 +3,7 @@ type MissionMetadata = {title:string;icon:string;description:string;tags:string[
 /** Capability labels follow each demo's README; hosted services need their deployed runtime. */
 export const missionMetadata:Record<string,MissionMetadata> = {
   tacos: {
-    title:'Ziggy Space Taqueria',icon:'taco',
+    title:'Ziggy Space Taqueria',icon:'folded-taco',
     description:'Order tacos in orbit. Cut the kitchen uplink, restore it, and watch the order recover.',
     tags:['Temporal basics','Retries','Signals','Saga compensation'],
   },
@@ -18,7 +18,7 @@ export const missionMetadata:Record<string,MissionMetadata> = {
     tags:['Temporal basics','Signals','Updates','Heartbeats'],
   },
   loan: {
-    title:'Loan Underwriting',icon:'humans-in-the-loop',
+    title:'Loan Underwriting',icon:'loan-document',
     previewImage:'/assets/missions/loan.png',previewAlt:'Loan Underwriting demo interface',
     description:'Let specialist agents assess an application, then make the final lending decision yourself.',
     tags:['Strands','Bedrock','Lambda · hosted','Human approval'],
