@@ -479,6 +479,7 @@ spec:
     - flightsim-web
     - loan-worker
     - oncall-agent
+    - oncall-api
     - control-hub
     dynamodb:
       tables:
@@ -509,6 +510,10 @@ spec:
         travel-suggestions:
           id: us.anthropic.claude-haiku-5-5
           env: SUGGEST_MODEL_ID
+        # Starship engineering demo: writes each visit's alarms (apps/agentcore-research/api).
+        oncall-incidents:
+          id: us.anthropic.claude-haiku-5-5
+          env: INCIDENT_MODEL_ID
   # Kiosks and staff need no Fieldkit session. The control hub authenticates
   # writes with its daily PIN/session cookie and enforces same-origin requests.
   ingress:

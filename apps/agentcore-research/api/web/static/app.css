@@ -6,6 +6,11 @@ body { background: var(--space-black); }
 .card { display: flex; flex-direction: column; gap: .8rem; }
 .lede { margin: 0; color: var(--indigo-100); max-width: 40rem; }
 .chips { margin: .2rem 0; }
+/* Alarm cards: a headline and the alarm text, two to a row. */
+.scenario-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr)); gap: .5rem; }
+.chip.scenario { display: grid; gap: .3rem; text-align: left; white-space: normal; line-height: 1.3; height: auto; }
+.chip.scenario strong { font-weight: 600; }
+.chip.scenario span { font-size: .85em; color: var(--text-muted, var(--slate-300)); }
 #start { align-self: flex-start; }
 .alert-line { margin: 0; display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; }
 .proposal { border: 1px solid var(--uv-light); background: rgba(68, 76, 231, .1); padding: 1rem; display: grid; gap: .7rem; }

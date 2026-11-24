@@ -48,9 +48,9 @@ export const missionMetadata:Record<string,MissionMetadata> = {
     previewImage:'/agentcore-video/poster.jpg',previewAlt:'Cornelia Davis’s AgentCore demo video',
   },
   'agentcore-research': {
-    title:'AgentCore On-Call',icon:'humans-in-the-loop',
+    title:'AgentCore Starship Engineer',icon:'humans-in-the-loop',
     previewImage:'/assets/missions/agentcore-oncall.png',previewAlt:'On-call agent waiting for approval with its worker stopped',
-    description:'Investigate an incident with an AI on-call agent. Approve its proposed fix, then watch it resume without repeating completed work.',
+    description:'An alarm sounds on Ziggy\'s starship. An AI engineer diagnoses it and waits for you, the captain, to approve the repair, then resumes without repeating completed work.',
     tags:['AgentCore','Strands','Human approval','Serverless'],
   },
   'flight-simulator': {

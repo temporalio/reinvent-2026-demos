@@ -144,7 +144,7 @@ export function DemoStage({ demo, persona, temporalUi, notice, onPlaybackChange 
       <div className="app-viewport"><iframe ref={appFrame} title={`${demo.title}: live interaction and controls`} src={`${demo.path}?persona=${persona.toLowerCase()}&booth=1&sharedStage=1`} allow="camera; fullscreen" /></div>
     </section>
     {holodeck && workflowOverlay && <section className="holodeck-workflow" aria-label={`${demo.title} workflow`}>
-      <header><button autoFocus onClick={()=>setWorkflowOverlay(null)}>← Back to {demo.id==='photo-booth'?'Photo Booth':demo.id==='agentcore-research'?'AgentCore On-Call':'Flight Simulator'}</button><span>Temporal workflow</span></header>
+      <header><button autoFocus onClick={()=>setWorkflowOverlay(null)}>← Back to {demo.id==='photo-booth'?'Photo Booth':demo.id==='agentcore-research'?'AgentCore Starship Engineer':'Flight Simulator'}</button><span>Temporal workflow</span></header>
       <iframe title={`${demo.title}: Temporal workflow history`} src={workflowOverlay} onLoad={event=>styleTemporalFrame(event.currentTarget)} />
     </section>}
     {!holodeck && <section className="stage-information" aria-label="Under the hood">

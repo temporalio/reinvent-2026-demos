@@ -12,6 +12,8 @@ import (
 	"net/http"
 	"time"
 
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime"
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/contrib/envconfig"
 	"go.temporal.io/sdk/log"
@@ -28,16 +30,20 @@ type Config struct {
 	// WorkerLocation words the "starting a Worker" banner: "agentcore" on the
 	// platform, "local" under Compose, where a stand-in does the invoking.
 	WorkerLocation string
+	// IncidentModelID is the Bedrock model (Claude Haiku) that writes each
+	// visit's emergencies. Unset, the start screen uses the built-in library.
+	IncidentModelID string
 }
 
 // LoadConfig reads Config, failing on what the demo can't run without.
 func LoadConfig(getenv func(string) string) (Config, error) {
 	cfg := Config{
-		Addr:           getenv("LISTEN_ADDR"),
-		TaskQueue:      getenv("TEMPORAL_TASK_QUEUE"),
-		UIURL:          getenv("TEMPORAL_UI_URL"),
-		UINamespace:    getenv("TEMPORAL_UI_NAMESPACE"),
-		WorkerLocation: getenv("WORKER_LOCATION"),
+		Addr:            getenv("LISTEN_ADDR"),
+		TaskQueue:       getenv("TEMPORAL_TASK_QUEUE"),
+		UIURL:           getenv("TEMPORAL_UI_URL"),
+		UINamespace:     getenv("TEMPORAL_UI_NAMESPACE"),
+		WorkerLocation:  getenv("WORKER_LOCATION"),
+		IncidentModelID: getenv("INCIDENT_MODEL_ID"),
 	}
 	if cfg.Addr == "" {
 		cfg.Addr = ":8080"
@@ -84,9 +90,24 @@ func Run(ctx context.Context, getenv func(string) string, stdout io.Writer) erro
 	}
 	defer tc.Close()
 
+	var writer IncidentWriter
+	if cfg.IncidentModelID != "" {
+		// Region and credentials from the environment: on the platform, the
+		// component's IAM role, which may invoke only the models it lists.
+		awsCfg, err := awsconfig.LoadDefaultConfig(ctx)
+		if err != nil {
+			return fmt.Errorf("aws config: %w", err)
+		}
+		writer = &BedrockWriter{Client: bedrockruntime.NewFromConfig(awsCfg), ModelID: cfg.IncidentModelID}
+	} else {
+		logger.Info("INCIDENT_MODEL_ID is not set; offering the built-in emergencies")
+	}
+	incidents := NewIncidents(writer, logger)
+	go incidents.Run(ctx)
+
 	srv := &http.Server{
 		Addr:              cfg.Addr,
-		Handler:           NewServer(cfg, opts.Namespace, tc, logger),
+		Handler:           NewServer(cfg, opts.Namespace, tc, incidents, logger),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      30 * time.Second,

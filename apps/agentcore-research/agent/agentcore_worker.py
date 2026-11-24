@@ -1,4 +1,4 @@
-"""The on-call agent's Temporal Worker, served as an Amazon Bedrock AgentCore Runtime.
+"""The starship engineering agent's Temporal Worker, served as an Amazon Bedrock AgentCore Runtime.
 
 This follows Temporal's documented pattern for AgentCore
 (https://docs.temporal.io/develop/python/workers/serverless-workers/agentcore):
@@ -149,7 +149,7 @@ async def run_worker() -> None:
         task_queue=TASK_QUEUE,
         identity=identity,
         workflows=[workflows.IncidentWorkflow],
-        activities=activities.TOOLS,
+        activities=activities.ACTIVITIES,
         interceptors=[tracker],
         deployment_config=WorkerDeploymentConfig(
             version=WorkerDeploymentVersion(deployment_name=DEPLOYMENT_NAME, build_id=BUILD_ID),

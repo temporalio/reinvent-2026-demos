@@ -79,6 +79,13 @@ services:
       TEMPORAL_UI_URL: http://localhost:8233
       TEMPORAL_UI_NAMESPACE: default
       WORKER_LOCATION: local
+      # Optional: Claude Haiku on Bedrock writes each visit's alarms. Without it
+      # the start screen offers the built-in library.
+      INCIDENT_MODEL_ID: ${INCIDENT_MODEL_ID:-}
+      AWS_REGION: ${AWS_REGION:-us-west-2}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
     ports:
       - "127.0.0.1:8080:8080"
     depends_on:

@@ -1,4 +1,4 @@
-// The on-call demo's screen. One poll (/api/view) reads everything; each button
+// The starship engineering demo's screen. One poll (/api/view) reads everything; each button
 // is one request whose response is applied at once (guide 21).
 (function () {
   "use strict";
@@ -6,17 +6,17 @@
   const $ = (id) => document.getElementById(id);
   const PHASES = {
     diagnosing: { label: "Diagnosing", status: "active" },
-    awaiting_approval: { label: "Waiting for approval", status: "waiting" },
-    remediating: { label: "Applying the fix", status: "active" },
-    closing: { label: "Closing", status: "active" },
-    resolved: { label: "Resolved", status: "completed" },
-    closed: { label: "Closed, not changed", status: "skipped" },
+    awaiting_approval: { label: "Waiting for the captain", status: "waiting" },
+    remediating: { label: "Repairing", status: "active" },
+    closing: { label: "Standing down", status: "active" },
+    resolved: { label: "Repaired", status: "completed" },
+    closed: { label: "Closed, ship unchanged", status: "skipped" },
   };
   const TOOL_LABELS = {
-    get_service_metrics: "Read service metrics",
-    search_logs: "Search logs",
-    list_recent_deploys: "List recent deploys",
-    apply_remediation: "Apply the fix",
+    read_telemetry: "Read telemetry",
+    search_ship_logs: "Search ship logs",
+    list_recent_maintenance: "Check the maintenance log",
+    apply_repair: "Apply the repair",
     invoke_model: "Model call",
   };
 
@@ -61,11 +61,11 @@
 
   function render(view) {
     last = view;
-    renderScenarios(view.scenarios);
     const inc = view.incident;
+    if (!inc && !scenariosLoaded) loadScenarios();
     $("start-panel").hidden = !!inc;
     $("incident-panel").hidden = !inc;
-    $("incident-title").textContent = inc ? inc.scenario.title : "Page the agent";
+    $("incident-title").textContent = inc ? inc.scenario.title : "Alarms on Ziggy's starship";
     $("worker-title").textContent = view.workerLocation === "local" ? "On-demand worker" : "Worker on AgentCore";
     renderWorker(view, inc);
     if (!inc) {
@@ -80,14 +80,45 @@
     renderProof(inc.proof);
   }
 
+  // A new set of alarms for each visit to the start screen. With Claude Haiku
+  // configured the API writes them fresh; otherwise they come from the ship's
+  // built-in library, and the screen says which.
+  let scenariosLoaded = false;
+  async function loadScenarios() {
+    scenariosLoaded = true;
+    scenario = null;
+    $("start").disabled = true;
+    const box = $("scenarios");
+    box.setAttribute("aria-busy", "true");
+    box.replaceChildren(Object.assign(document.createElement("p"), { className: "muted", textContent: "Scanning the ship for faults…" }));
+    $("scenario-source").textContent = "";
+    try {
+      const res = await fetch("api/scenarios");
+      if (!res.ok) throw await problem(res);
+      const { scenarios, source } = await res.json();
+      renderScenarios(scenarios);
+      $("scenario-source").textContent = source === "haiku"
+        ? "Fresh alarms, written for this visit by Claude Haiku on Amazon Bedrock."
+        : "Alarms from the ship's built-in training library.";
+    } catch (e) {
+      box.replaceChildren();
+      $("start-error").textContent = `Couldn't scan the ship: ${e.message}`;
+      scenariosLoaded = false;
+    } finally {
+      box.removeAttribute("aria-busy");
+    }
+  }
+
   function renderScenarios(list) {
     const box = $("scenarios");
-    if (box.childElementCount) return;
+    box.replaceChildren();
     for (const s of list) {
       const b = document.createElement("button");
       b.type = "button";
-      b.className = "chip";
-      b.textContent = `${s.service} · ${s.title}`;
+      b.className = "chip scenario";
+      const title = Object.assign(document.createElement("strong"), { textContent: s.title });
+      const alert = Object.assign(document.createElement("span"), { textContent: s.alert });
+      b.append(title, alert);
       b.setAttribute("aria-pressed", "false");
       b.addEventListener("click", () => {
         scenario = s.key;
@@ -137,7 +168,7 @@
 
   function renderProposal(p) {
     const facts = $("proposal-facts");
-    facts.replaceChildren(...[["Service", p.service], ["Action", p.action], ["Target", p.target]].map(([k, v]) => {
+    facts.replaceChildren(...[["System", p.system], ["Repair", p.action], ["Target", p.target]].map(([k, v]) => {
       const row = document.createElement("div");
       const dt = document.createElement("dt");
       const dd = document.createElement("dd");
@@ -213,6 +244,11 @@
     const id = crypto.getRandomValues(new Uint32Array(1))[0].toString(16).padStart(8, "0");
     await act($("start"), "Starting…", $("start-error"), async () => {
       const res = await fetch("api/incidents", post({ id, scenario }));
+      if (res.status === 410) {
+        // The API restarted and forgot this set of alarms: offer a fresh one.
+        loadScenarios();
+        throw new Error("Those alarms have cleared. Here is a fresh set.");
+      }
       // 409 is this browser's own earlier attempt at the same ID.
       if (res.status !== 201 && res.status !== 409) throw await problem(res);
       setIncident(id);
@@ -232,6 +268,8 @@
 
   $("new-incident").addEventListener("click", () => {
     setIncident(null);
+    scenariosLoaded = false;
+    $("start-error").textContent = "";
     feed.refresh();
   });
 

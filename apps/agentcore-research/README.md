@@ -1,19 +1,19 @@
-# Booth integration: AgentCore On-Call
+# Booth integration: AgentCore Starship Engineer
 
-The research placeholder is replaced by this on-call agent. See [UPSTREAM.md](UPSTREAM.md) for the import commit and booth changes.
+The research placeholder is replaced by this agent. See [UPSTREAM.md](UPSTREAM.md) for the import commit and booth changes.
 
 From the monorepo root, run `scripts/local.sh up --apps agentcore-research --port 15101`, then open `http://localhost:15101/?demo=agentcore-research`. The retained station key preserves existing booth configuration. The app route is `/agentcore-oncall/`.
 
-Local mode runs real Temporal Workflows with the upstream offline scripted model. The local invoker starts and drains the worker; it is not AWS AgentCore or Bedrock. Pick an incident, wait for its proposal, then approve or reject. Tap the optional note field for the booth's QWERTY keyboard.
+Local mode runs real Temporal Workflows with the upstream offline scripted model. The local invoker starts and drains the worker; it is not AWS AgentCore or Bedrock. Pick an alarm, wait for the proposed repair, then approve it or hold off. Locally the alarms come from the built-in library; set `INCIDENT_MODEL_ID` and AWS credentials for the API to have Claude Haiku write a fresh set each visit. Tap the optional note field for the booth's QWERTY keyboard.
 
 Hosted starts remain disabled in both launchpad and API until the pinned Fieldkit platform can provision AgentCore and its Bedrock grant. The API lives in the single root deployment. The upstream resource below is retained as a reference, not a separate deployment.
 
 ---
 
-# On-call agent on AgentCore
+# Ziggy's starship engineer on AgentCore
 
-An AI on-call agent diagnoses an incident, proposes a fix and waits as long as it takes for a person
-to approve it, with no compute running while it waits. Then it picks up exactly where it stopped.
+An alarm sounds on Ziggy's starship. An AI engineering agent diagnoses the fault, proposes a repair
+and waits as long as it takes for the captain to approve it, with no compute running while it waits. Then it picks up exactly where it stopped.
 Your Strands agent, made durable with Temporal, running on Amazon Bedrock AgentCore.
 
 ![The incident waiting for approval, with no Worker running](docs/waiting.png)
@@ -60,7 +60,7 @@ Your Strands agent, made durable with Temporal, running on Amazon Bedrock AgentC
 }}}%%
 sequenceDiagram
   rect rgb(20, 20, 20)
-  participant eng as On-call engineer
+  participant eng as Captain
   participant api as API (Go)
   participant t as Temporal
   box rgb(26, 24, 48) YOUR AWS ACCOUNT
@@ -68,42 +68,43 @@ sequenceDiagram
   participant br as Bedrock
   end
 
-  eng->>api: ① Report an incident
+  eng->>api: ① Pick an alarm
   api->>t: Start IncidentWorkflow
   t->>w: ② Invoke: work on the Task Queue, no Worker
   w->>t: Poll, run the Workflow
   loop Every model call and tool call is an Activity
     w->>br: ③ Model call
-    w->>w: Tool: metrics, logs, deploys
+    w->>w: Tool: telemetry, logs, maintenance
   end
-  w->>t: ④ Agent proposes apply_remediation:<br/>hook interrupt, wait for a Signal
+  w->>t: ④ Agent proposes apply_repair:<br/>hook interrupt, wait for a Signal
   Note over w: ⑤ Idle: the Worker drains,<br/>AgentCore ends the session
   Note over t: Waits up to 24 h,<br/>no compute running
   eng->>api: ⑥ Approve
   api->>t: Signal decide
   t->>w: ⑦ Invoke a new Worker
   w->>t: Poll, replay history,<br/>resume from the proposal
-  w->>w: ⑧ Apply the fix (Activity)
+  w->>w: ⑧ Apply the repair (Activity)
   w->>t: Workflow completes
   end
 ```
 
-1. The on-call engineer reports an incident, and the API starts an `IncidentWorkflow`.
+1. The captain picks one of six alarms Claude Haiku wrote for this visit, and the API starts an
+   `IncidentWorkflow` with that alarm as its input.
 2. The Task Queue has work and no Worker polling it, so Temporal invokes the Worker on AgentCore.
-3. The Strands agent reads metrics, logs and recent deploys. Each model call and each tool call
+3. The Strands agent reads the system's telemetry, logs and maintenance record. Each model call and each tool call
    runs as an Activity.
-4. The agent proposes `apply_remediation`. A hook interrupt stops it there, and the Workflow waits
+4. The agent proposes `apply_repair`. A hook interrupt stops it there, and the Workflow waits
    for a Signal.
 5. With nothing to run, the Worker drains and AgentCore ends the idle session. Nothing runs while
    the Workflow waits, for up to 24 hours.
-6. The engineer approves, and the API sends the `decide` Signal.
+6. The captain approves, and the API sends the `decide` Signal.
 7. Temporal invokes a new Worker, which replays the history and resumes the agent at the proposal.
    No model call is repeated.
-8. The fix runs as an Activity and the Workflow completes.
+8. The repair runs as an Activity and the Workflow completes.
 
 **From Strands Agents:** the agent itself. The system prompt, the tool definitions (built from the
 tool functions' docstrings), the model loop that decides which tool to call next, the Bedrock model
-provider, and the hook interrupt that stops the agent before `apply_remediation`.
+provider, and the hook interrupt that stops the agent before `apply_repair`.
 
 **From Temporal:** what makes it durable. The
 [`temporalio-strands-agents`](https://pypi.org/project/temporalio-strands-agents/) plugin runs the
@@ -117,7 +118,8 @@ ended after 60 idle seconds.
 | Path | What |
 |---|---|
 | `agent/oncall/workflows.py` | The incident Workflow, the approval gate and the progress hooks |
-| `agent/oncall/activities.py` | The tools: metrics, logs, deploys, apply the fix (simulated) |
+| `agent/oncall/activities.py` | The tools: telemetry, ship logs, maintenance, apply the repair (simulated) |
+| `api/internal/oncall/incidents.go` | Claude Haiku writes each visit's alarms; the built-in library is the fallback |
 | `agent/oncall/models.py` | Bedrock, or a scripted stub for offline runs |
 | `agent/agentcore_worker.py` | The AgentCore entrypoint that starts and drains the Worker |
 | `api/internal/oncall` | The HTTP API: start, decide, and one read for the whole screen |

@@ -1,7 +1,7 @@
-"""The on-call incident Workflow: a Strands agent made durable by Temporal.
+"""The starship incident Workflow: a Strands agent made durable by Temporal.
 
-The agent investigates with tools, proposes a remediation, and stops until a
-person approves it. Everything the agent has done lives in this Workflow's
+Ziggy's engineering agent investigates a ship alert with tools, proposes a
+repair, and stops until the captain approves it. Everything the agent has done lives in this Workflow's
 Event History, so the wait can last hours with no Worker running, and the
 Worker that picks up the approval can be a different process on different
 compute. It replays the history (no model call repeats) and carries on.
@@ -25,30 +25,38 @@ from temporalio.common import RetryPolicy, SearchAttributeKey
 with workflow.unsafe.imports_passed_through():
     from strands.hooks import HookProvider, HookRegistry
     from strands.hooks.events import AfterModelCallEvent, AfterToolCallEvent, BeforeToolCallEvent
+    from strands import tool
     from temporalio.strands_agents import TemporalAgent
-    from temporalio.strands_agents.workflow import activity_as_tool
 
-    from . import activities, services
+    from . import activities
     from .models import MODEL_NAME
+    from .services import Scenario
 
 ONCALL_PHASE = SearchAttributeKey.for_keyword("OncallPhase")
 
-# A demo bound on an abandoned incident. A production agent would page the
-# next person on the rota here instead of closing it.
+# A demo bound on an abandoned incident. A real ship would page the
+# next officer on watch here instead of closing it.
 APPROVAL_TIMEOUT = timedelta(hours=24)
 
-SYSTEM_PROMPT = """You are an on-call SRE agent. Investigate the alert with your tools before
-you conclude anything: read the service's metrics, search its logs, and check recent deploys.
-Then call apply_remediation once with the single change most likely to fix the incident
-(rollback, restart or scale_out), with a short rationale. A human must approve that call.
-After it runs, say in two sentences what you changed and whether the service recovered.
+SYSTEM_PROMPT = """You are the engineering agent aboard Ziggy's starship, a calm, capable ship's
+engineer. A ship system has raised an alert. Investigate with your tools before you conclude
+anything: read the system's telemetry, search its logs, and check its recent maintenance.
+Then call apply_repair once with the single repair most likely to fix it (rollback,
+power_cycle or reroute_power), with a short rationale. The captain must approve that call.
+After it runs, say in two sentences what you changed and whether the system recovered.
 Keep every message under 40 words."""
+
+# Each tool call is an Activity. Telemetry and logs answer in milliseconds; 20
+# seconds leaves room for a slow Worker start without hiding a stuck call.
+TOOL_TIMEOUT = timedelta(seconds=20)
+TOOL_RETRIES = RetryPolicy(maximum_attempts=5)
 
 
 @dataclass
 class IncidentInput:
     incident_id: str
-    scenario: str
+    # The whole incident, as the API generated it: there is no fixed list to look it up in.
+    scenario: Scenario
 
 
 @dataclass
@@ -68,7 +76,7 @@ class IncidentReport:
 class IncidentWorkflow:
     @workflow.init
     def __init__(self, incident: IncidentInput) -> None:
-        self._scenario = services.SCENARIOS[incident.scenario]
+        self._scenario = incident.scenario
         self._decision: Decision | None = None
         self._awaiting = False
         self._memo: dict[str, Any] = {"phase": "diagnosing", "steps": [], "proposal": None, "decision": None, "summary": None}
@@ -82,10 +90,7 @@ class IncidentWorkflow:
             start_to_close_timeout=timedelta(seconds=60),
             retry_policy=RetryPolicy(maximum_attempts=5),
             system_prompt=SYSTEM_PROMPT,
-            tools=[
-                activity_as_tool(tool, start_to_close_timeout=timedelta(seconds=20), retry_policy=RetryPolicy(maximum_attempts=5))
-                for tool in activities.TOOLS
-            ],
+            tools=ship_tools(incident.scenario),
             hooks=[ApprovalGate(), Progress(self)],
             # Strands prints the stream to stdout by default, on every replay too.
             callback_handler=None,
@@ -94,11 +99,11 @@ class IncidentWorkflow:
     @workflow.run
     async def run(self, incident: IncidentInput) -> IncidentReport:
         s = self._scenario
-        prompt = f"Incident {incident.incident_id}: {s.alert}. Service: {s.service}. Find the cause and propose a fix."
+        prompt = f"Ship alert {incident.incident_id}: {s.alert}. System: {s.system}. Find the cause and propose a repair."
         result = await self._agent.invoke_async(prompt)
         self._publish(model=self._agent.model.get_config().get("model_id"))
 
-        # The agent stops with an interrupt when it calls apply_remediation (see
+        # The agent stops with an interrupt when it calls apply_repair (see
         # ApprovalGate). Waiting here is a durable wait: the Worker can drain and
         # go away, and the approval Signal brings a new one back to this line.
         while result.stop_reason == "interrupt":
@@ -125,14 +130,14 @@ class IncidentWorkflow:
 
     @workflow.signal
     def decide(self, decision: Decision) -> None:
-        """Approve or reject the proposed remediation.
+        """Approve or reject the proposed repair.
 
         A Signal, not an Update: the server records it at once, with no Worker
         running, and that is what wakes one. A decision sent when nothing is
         waiting for one is ignored.
         """
         if not self._awaiting or self._decision is not None:
-            workflow.logger.warning("decision ignored; no remediation is waiting for approval")
+            workflow.logger.warning("decision ignored; no repair is waiting for approval")
             return
         self._decision = decision
 
@@ -151,10 +156,64 @@ class IncidentWorkflow:
         self._publish(steps=steps)
 
 
-class ApprovalGate(HookProvider):
-    """Stops the agent before any production change, until a person answers.
+def ship_tools(incident: Scenario) -> list[Any]:
+    """The agent's tools. The model picks the system, the query and the repair;
+    the Workflow adds the incident it was started with, so each Activity reads
+    this incident's ship and nothing the model could make up."""
 
-    Strands' hook interrupt: the first time the agent calls apply_remediation,
+    async def run(activity_fn: Any, *args: Any) -> str:
+        result = await workflow.execute_activity(
+            activity_fn, args=[incident, *args], start_to_close_timeout=TOOL_TIMEOUT, retry_policy=TOOL_RETRIES
+        )
+        return json.dumps(result)
+
+    @tool
+    async def read_telemetry(system: str) -> str:
+        """Read a ship system's live telemetry: output, fault rate, core temperature and load against its rating.
+
+        Args:
+            system: The system named in the alert, for example port-ion-drive.
+        """
+        return await run(activities.read_telemetry, system)
+
+    @tool
+    async def search_ship_logs(system: str, query: str) -> str:
+        """Search the last 30 minutes of a ship system's logs.
+
+        Args:
+            system: The system name.
+            query: A word to look for, such as fault, firmware or overheat.
+        """
+        return await run(activities.search_ship_logs, system, query)
+
+    @tool
+    async def list_recent_maintenance(system: str) -> str:
+        """List a ship system's firmware updates and maintenance, newest first.
+
+        Args:
+            system: The system name.
+        """
+        return await run(activities.list_recent_maintenance, system)
+
+    @tool
+    async def apply_repair(system: str, action: str, target: str, rationale: str) -> str:
+        """Repair a ship system. The captain must approve every call.
+
+        Args:
+            system: The system to repair.
+            action: One of rollback (return to an earlier firmware version), power_cycle (restart the system) or reroute_power (move load to spare capacity).
+            target: For rollback the firmware version to return to; for power_cycle the system; for reroute_power where the load goes.
+            rationale: One or two sentences on why this fixes the alert, shown to the captain.
+        """
+        return await run(activities.apply_repair, system, action, target, rationale)
+
+    return [read_telemetry, search_ship_logs, list_recent_maintenance, apply_repair]
+
+
+class ApprovalGate(HookProvider):
+    """Stops the agent before any repair, until the captain answers.
+
+    Strands' hook interrupt: the first time the agent calls apply_repair,
     `interrupt` raises and invoke_async returns stop_reason "interrupt". When
     the Workflow resumes the agent with a response, `interrupt` returns it.
     """
@@ -163,9 +222,9 @@ class ApprovalGate(HookProvider):
         registry.add_callback(BeforeToolCallEvent, self._gate)
 
     def _gate(self, event: BeforeToolCallEvent) -> None:
-        if event.tool_use["name"] != activities.apply_remediation.__name__:
+        if event.tool_use["name"] != activities.apply_repair.__name__:
             return
-        response = event.interrupt("remediation-approval", reason=event.tool_use["input"])
+        response = event.interrupt("repair-approval", reason=event.tool_use["input"])
         if response != "approve":
             event.cancel_tool = f"Not applied: the change was {response}."
 
