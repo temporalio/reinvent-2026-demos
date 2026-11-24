@@ -62,10 +62,6 @@
   function render(view) {
     last = view;
     renderScenarios(view.scenarios);
-    if (view.executionAvailable === false) {
-      $("start").disabled = true;
-      $("start-error").textContent = "AgentCore runtime awaits Fieldkit support.";
-    }
     const inc = view.incident;
     $("start-panel").hidden = !!inc;
     $("incident-panel").hidden = !inc;
@@ -96,7 +92,7 @@
       b.addEventListener("click", () => {
         scenario = s.key;
         for (const c of box.children) c.setAttribute("aria-pressed", String(c === b));
-        $("start").disabled = last?.executionAvailable === false;
+        $("start").disabled = false;
       });
       box.append(b);
     }

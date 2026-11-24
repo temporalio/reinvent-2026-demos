@@ -8,6 +8,8 @@ Resolved in temporal-fieldkit-platform #151 (main 77037f86, November 21, 2026): 
 
 The loan model is Claude Sonnet 5.5 through its US inference profile, us.anthropic.claude-sonnet-5-5. AWS's model card lists us-west-1 (live's region) as a source Region for that profile, routing to us-east-1, us-east-2, us-west-1 and us-west-2; the model has no in-Region endpoint in us-west-1, so the profile ID is required (https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-anthropic-claude-sonnet-5-5.md). Model access in the live account was checked on November 21, 2026 (`aws bedrock get-foundation-model-availability --region us-west-1 --model-id anthropic.claude-sonnet-5-5`): authorization AUTHORIZED, agreement, entitlement and region AVAILABLE. Nothing to enable.
 
+AgentCore: since platform a1e2bf3b, spec.aws also accepts aws-agentcore components. The on-call agent (`oncall-agent`) runs on Bedrock AgentCore Runtime with the same Claude Sonnet 5.5 inference profile, granted through spec.aws without a perimeter.
+
 Run scripts/validate-fieldkit.sh with access to the pinned platform checkout. scripts/validate.py checks repository structure and credential patterns only; a passing structural check is not deployment readiness.
 
 ## Other required gates

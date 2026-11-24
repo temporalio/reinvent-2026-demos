@@ -19,9 +19,8 @@ import (
 
 // Config is everything the API reads from its environment.
 type Config struct {
-	ExecutionDisabled bool
-	Addr              string
-	TaskQueue         string
+	Addr      string
+	TaskQueue string
 	// UIURL and UINamespace build links into the Temporal UI. The platform sets
 	// both on every Kubernetes component.
 	UIURL       string
@@ -34,12 +33,11 @@ type Config struct {
 // LoadConfig reads Config, failing on what the demo can't run without.
 func LoadConfig(getenv func(string) string) (Config, error) {
 	cfg := Config{
-		ExecutionDisabled: getenv("ONCALL_EXECUTION_ENABLED") == "false",
-		Addr:              getenv("LISTEN_ADDR"),
-		TaskQueue:         getenv("TEMPORAL_TASK_QUEUE"),
-		UIURL:             getenv("TEMPORAL_UI_URL"),
-		UINamespace:       getenv("TEMPORAL_UI_NAMESPACE"),
-		WorkerLocation:    getenv("WORKER_LOCATION"),
+		Addr:           getenv("LISTEN_ADDR"),
+		TaskQueue:      getenv("TEMPORAL_TASK_QUEUE"),
+		UIURL:          getenv("TEMPORAL_UI_URL"),
+		UINamespace:    getenv("TEMPORAL_UI_NAMESPACE"),
+		WorkerLocation: getenv("WORKER_LOCATION"),
 	}
 	if cfg.Addr == "" {
 		cfg.Addr = ":8080"

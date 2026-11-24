@@ -1,6 +1,6 @@
 # Single Fieldkit project. NOT deployment-ready: see docs/DEPLOYMENT.md.
-# Pinned platform validation: 77037f86 (temporal-fieldkit-platform main with #151:
-# spec.aws for aws-lambda components; live needs the promotion that includes it).
+# Pinned platform validation: a1e2bf3b (temporal-fieldkit-platform main: spec.aws for
+# aws-lambda and aws-agentcore components).
 apiVersion: registry.tmprl-demo.cloud/v1alpha1
 kind: DemoProject
 metadata:
@@ -92,6 +92,8 @@ spec:
         type: keyword
       AgenticSdlcGitHubRefs:
         type: keywordList
+      OncallPhase:
+        type: keyword
   secrets:
     # The platform's shared provider keys (fieldkit/platform/shared/<name>):
     # nothing to create; the booth is torn down after re:Invent.
@@ -115,8 +117,8 @@ spec:
         - name: REDIS_PASSWORD
         - name: GITHUB_WEBHOOK_SECRET
   components:
-    # The launchpad gates hosted starts until Fieldkit supports aws-agentcore.
-    # Keep the API ready; do not substitute an always-on/stub production worker.
+    # On-call API and web UI. Starts incidents, sends approvals, reads state with
+    # Describe, the Event History and Worker heartbeats (never a Query).
     oncall-api:
       build: oncall-api
       ports:
@@ -129,9 +131,24 @@ spec:
         value: ri26-oncall
       - name: WORKER_LOCATION
         value: agentcore
-      - name: ONCALL_EXECUTION_ENABLED
-        value: 'false'
       replicas: 1
+    # The Strands agent's Temporal Worker on Bedrock AgentCore Runtime. It polls
+    # only while invoked, drains after AGENTCORE_DEBOUNCE_SECONDS without an
+    # Activity, and AgentCore ends the idle session after idleSessionTimeoutSeconds.
+    # Build ID: one per commit (unset). BEDROCK_MODEL_ID comes from spec.aws.
+    oncall-agent:
+      build: oncall-agent
+      serverless:
+        provider: aws-agentcore
+        agentcore:
+          idleSessionTimeoutSeconds: 60
+      env:
+      - name: TEMPORAL_TASK_QUEUE
+        value: ri26-oncall
+      - name: AGENT_MODEL
+        value: bedrock
+      - name: AGENTCORE_DEBOUNCE_SECONDS
+        value: '30'
     launchpad:
       build: launchpad
       ports:
@@ -461,6 +478,7 @@ spec:
     - photobooth-web
     - flightsim-web
     - loan-worker
+    - oncall-agent
     - control-hub
     dynamodb:
       tables:
