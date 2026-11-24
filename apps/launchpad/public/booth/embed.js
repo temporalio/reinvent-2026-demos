@@ -89,7 +89,7 @@ if (boothParams.get('booth') === '1' || parentBoothFrame) {
   }
   // Give legacy dashboards a measured, bounded canvas rather than nested scrolling.
   // Banking/Tacos have compact native layouts; the remaining apps use a virtual canvas.
-  const virtualFit = sharedStage && !['banking','dejavutacos','flightsim','photobooth'].includes(document.documentElement.dataset.demo)
+  const virtualFit = sharedStage && !['banking','dejavutacos','flightsim','photobooth','agentcore-oncall'].includes(document.documentElement.dataset.demo)
   let fitPending = false
   function fitNativeCanvas() {
     fitPending = false

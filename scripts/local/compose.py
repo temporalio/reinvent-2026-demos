@@ -24,8 +24,9 @@ def load_adapter(name):
 
 SERVERLESS = load_adapter('serverless')
 AGENTS = load_adapter('agents')
+ONCALL = load_adapter('oncall')
 GROUPS.update(SERVERLESS.GROUPS)
-GROUPS.update({'agent-harness': [], 'agentic-sdlc': []})
+GROUPS.update({'agent-harness': [], 'agentic-sdlc': [], 'agentcore-research': []})
 NOTICES = {
     'no-roads': 'Local native worker: backlog and concurrency are real; AWS Lambda scaling is not emulated.',
     'loan': 'Presentation preview: Bedrock inference and loan decisions are unavailable until a provider is configured.',
@@ -144,6 +145,7 @@ def render(apps, port=15101, bind_address='127.0.0.1', hub_url=DEFAULT_CONTROL_H
         if web in services: services[web]['depends_on'] = {api: {'condition': 'service_started'}}
     SERVERLESS.apply(services, spec, ROOT, apps, port)
     AGENTS.apply(services, spec, ROOT, apps, port)
+    ONCALL.apply(services, spec, ROOT, apps, port)
     volumes = {'temporal-data': {}, 'control-data': {}}
     volumes.update({name+'-data': {} for name in ['flightsim-web','photobooth-web'] if name in services})
     return {'name': 'reinvent-2026-local', 'services': services, 'volumes': volumes}

@@ -23,6 +23,12 @@ spec:
     repo: https://github.com/temporalio/reinvent-2026-demos
     branch: main
   builds:
+    oncall-api:
+      context: apps/agentcore-research/api
+      dockerfile: apps/agentcore-research/api/Dockerfile
+    oncall-agent:
+      context: apps/agentcore-research/agent
+      dockerfile: apps/agentcore-research/agent/Dockerfile
     launchpad:
       context: apps/launchpad
       dockerfile: apps/launchpad/Dockerfile
@@ -109,6 +115,23 @@ spec:
         - name: REDIS_PASSWORD
         - name: GITHUB_WEBHOOK_SECRET
   components:
+    # The launchpad gates hosted starts until Fieldkit supports aws-agentcore.
+    # Keep the API ready; do not substitute an always-on/stub production worker.
+    oncall-api:
+      build: oncall-api
+      ports:
+      - name: http
+        containerPort: 8080
+        servicePort: 8080
+      temporalAccess: true
+      env:
+      - name: TEMPORAL_TASK_QUEUE
+        value: ri26-oncall
+      - name: WORKER_LOCATION
+        value: agentcore
+      - name: ONCALL_EXECUTION_ENABLED
+        value: 'false'
+      replicas: 1
     launchpad:
       build: launchpad
       ports:

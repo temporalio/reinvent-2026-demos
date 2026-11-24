@@ -48,9 +48,10 @@ export const missionMetadata:Record<string,MissionMetadata> = {
     previewImage:'/agentcore-video/poster.jpg',previewAlt:'Cornelia Davis’s AgentCore demo video',
   },
   'agentcore-research': {
-    title:'AgentCore Research Agent',icon:'agents-mcp-ai',
-    description:'Shubham’s upcoming AgentCore demo. Research topics with an AI agent. Coming soon.',
-    tags:['AgentCore','Research agent','Coming soon'],
+    title:'AgentCore On-Call',icon:'humans-in-the-loop',
+    previewImage:'/assets/missions/agentcore-oncall.png',previewAlt:'On-call agent waiting for approval with its worker stopped',
+    description:'Investigate an incident with an AI on-call agent. Approve its proposed fix, then watch it resume without repeating completed work.',
+    tags:['AgentCore','Strands','Human approval','Serverless'],
   },
   'flight-simulator': {
     title:'Flight Simulator',icon:'long-running',

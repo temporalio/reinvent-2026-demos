@@ -1,0 +1,93 @@
+# The whole stack, with the same process boundaries and env vars as the hosted
+# deployment (guide 00, guide 12).
+#
+# What stands in for what, locally:
+#   temporal        the Temporal dev server stands in for Temporal Cloud.
+#   agent           the Worker image AgentCore runs, as a plain container. It serves
+#                   /invocations and /ping and starts no Worker until invoked.
+#   local-invoker   stands in for Temporal Cloud's Worker Controller Instance, which
+#                   invokes the AgentCore endpoint when the Task Queue has work and no
+#                   Worker. It does not exist on the platform.
+#   api             the Go API and UI.
+x-temporal-env: &temporal-env
+  TEMPORAL_ADDRESS: temporal:7233
+  TEMPORAL_NAMESPACE: default
+  TEMPORAL_TASK_QUEUE: ${TEMPORAL_TASK_QUEUE:-agentcore-oncall}
+  TEMPORAL_DEPLOYMENT_NAME: agentcore-oncall
+  TEMPORAL_WORKER_BUILD_ID: ${TEMPORAL_WORKER_BUILD_ID:-local-1}
+
+services:
+  temporal:
+    # temporalio/temporal 1.10.1 (Temporal CLI), checked on Docker Hub and GitHub releases 2026-11-23.
+    image: temporalio/temporal:1.10.1@sha256:b228dadf9cdb6c7c02a1394b89dd76f827aac9760e458fce42f0899a10141225
+    command:
+      - server
+      - start-dev
+      - --disable-config-file
+      - --ip=0.0.0.0
+      - --ui-port=8233
+      - --ui-ip=0.0.0.0
+      - --log-level=warn
+      # The platform creates this on the demo's namespace (spec.temporal.searchAttributes).
+      - --search-attribute=OncallPhase=Keyword
+    ports:
+      - "127.0.0.1:7233:7233"
+      - "127.0.0.1:8233:8233"
+    healthcheck:
+      test: ["CMD", "temporal", "--disable-config-file", "operator", "cluster", "health", "--address", "127.0.0.1:7233"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  agent:
+    build: { context: agent, target: runtime }
+    environment:
+      <<: *temporal-env
+      # stub runs offline. bedrock needs BEDROCK_MODEL_ID and AWS credentials in the
+      # environment (see RUNBOOK.md, "Run it locally").
+      AGENT_MODEL: ${AGENT_MODEL:-stub}
+      BEDROCK_MODEL_ID: ${BEDROCK_MODEL_ID:-}
+      AWS_REGION: ${AWS_REGION:-}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
+      # Shorter than the documented 60 s so the Worker visibly drains during a demo.
+      AGENTCORE_DEBOUNCE_SECONDS: ${AGENTCORE_DEBOUNCE_SECONDS:-20}
+    ports:
+      - "127.0.0.1:8081:8080"
+    # Not restarted on its own: the e2e kills it and starts it again, the way a
+    # new AgentCore session is a fresh process.
+    restart: "no"
+    depends_on:
+      temporal: { condition: service_healthy }
+
+  local-invoker:
+    build: { context: api, target: local-invoker }
+    environment:
+      <<: *temporal-env
+      AGENT_INVOKE_URL: http://agent:8080/invocations
+    depends_on:
+      temporal: { condition: service_healthy }
+      agent: { condition: service_started }
+
+  api:
+    build: { context: api, target: api }
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+      TEMPORAL_NAMESPACE: default
+      TEMPORAL_TASK_QUEUE: ${TEMPORAL_TASK_QUEUE:-agentcore-oncall}
+      TEMPORAL_UI_URL: http://localhost:8233
+      TEMPORAL_UI_NAMESPACE: default
+      WORKER_LOCATION: local
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      temporal: { condition: service_healthy }
+
+  test-agent:
+    build: { context: agent, target: test }
+    profiles: [test]
+
+  test-api:
+    build: { context: api, target: test }
+    profiles: [test]

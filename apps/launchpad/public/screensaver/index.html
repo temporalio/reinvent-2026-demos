@@ -140,7 +140,7 @@
     /* Logo marquees: 40 Figma pixels in from the window's top and bottom, edge to edge across it. */
     .marquee { position: fixed; left: 0; right: 0; overflow: hidden; height: calc(32px * var(--s, 1)); }
     .marquee.top { top: calc(40px * var(--s, 1)); }
-    .marquee.bottom { bottom: calc(40px * var(--s, 1)); }
+    .marquee.bottom { bottom: calc(40px * var(--s, 1)); background:rgb(9 10 16 / 72%); box-shadow:0 0 14px 8px rgb(9 10 16 / 35%); }
     .marquee-track { display: flex; width: max-content; height: 100%; }
     .marquee-track.is-running { animation: marquee-left var(--marquee-duration, 30s) linear infinite; }
     .marquee.bottom .marquee-track.is-running { animation-name: marquee-right; }
@@ -492,16 +492,16 @@
       {
             "id": "agentcore-research",
             "badge": "orbit_11",
-            "deck": "AgentCore Research Agent · Shubham",
-            "title": "AgentCore Research Agent · Shubham",
+            "deck": "AgentCore On-Call",
+            "title": "AgentCore On-Call",
             "color": "--persona-captain",
             "orbit": 1,
             "angle": 75,
             "r": 28,
             "pace": 1.6,
-            "lead": "Shubham’s AgentCore research demo.",
-            "mark": "Coming soon",
-            "rest": " — a new AI research mission is on its way.",
+            "lead": "An on-call agent investigates an incident and waits for your approval.",
+            "mark": "Human approval",
+            "rest": " — resume the agent without repeating its work.",
             "url": "/?demo=agentcore-research"
       }
 ];

@@ -1,0 +1,90 @@
+# DemoProject for the tmprl-demo.cloud catalog (the fieldkit platform), a draft: it is not in
+# temporal-sa/temporal-fieldkit-platform yet. Its copies will be projects/test/demo/agentcore-oncall.yaml
+# and projects/live/demo/agentcore-oncall.yaml there; keep them in step, and validate from that
+# checkout as its projects/README.md says (guide 20). Field rules: its docs/crd-reference.md.
+#
+# Not deployable as is: the platform refuses `aws.components` naming an aws-agentcore component
+# until tdo-8lak.15 lands (InvalidSpec), and without that grant the agent can't call Bedrock.
+# docs/catalog.md says what to do until then.
+apiVersion: registry.tmprl-demo.cloud/v1alpha1
+kind: DemoProject
+metadata:
+  name: agentcore-oncall
+  annotations:
+    registry.tmprl-demo.cloud/operator: v2
+spec:
+  registry:
+    title: On-call Agent on AgentCore
+    summary: >-
+      Built with Python, AWS Strands Agents and Amazon Bedrock on a Temporal Serverless Worker in
+      Bedrock AgentCore, plus a Go API. Demonstrates Durable Execution of an agent, a
+      human-in-the-loop Signal and Worker Versioning. Use case: an on-call agent waits for
+      approval with no compute running.
+    tags: [AI Agents, Serverless, Human-in-the-Loop, Durable Execution, Signals, Worker Versioning]
+    temporalSdks: [Python, Go]
+    aiSdks: [Strands Agents]
+    # A project with a serverless component is never crashable; said here so nobody turns it on.
+    # Incidents are kept apart by session-scoped Workflow IDs instead (README.md, "Notes").
+    crashable:
+      enabled: false
+    links:
+      runbook:
+        label: Runbook
+        url: https://github.com/temporal-sa/temporal-demo-agentcore-oncall/blob/main/RUNBOOK.md
+  source:
+    repo: https://github.com/temporal-sa/temporal-demo-agentcore-oncall
+  temporal:
+    auth:
+      mode: apiKey
+    searchAttributes:
+      OncallPhase: {type: keyword}
+  aws:
+    components: [agent]
+    bedrock:
+      models:
+        # US cross-Region inference profile for Claude Sonnet 5.5, ACTIVE in us-west-2 and
+        # us-west-1 (aws bedrock list-inference-profiles, 2026-11-23). Model access is per account.
+        agent: {id: us.anthropic.claude-sonnet-5-5, env: BEDROCK_MODEL_ID}
+  builds:
+    api:
+      context: api
+      dockerfile: api/Dockerfile  # relative to the repo root, not the context
+    agent:
+      context: agent
+      dockerfile: agent/Dockerfile
+  components:
+    # Go API and the web UI. Starts incidents, sends approvals, reads state with
+    # Describe, the Event History and Worker heartbeats (never a Query).
+    api:
+      build: api
+      ports:
+        - name: http
+          containerPort: 8080
+          servicePort: 80
+      temporalAccess: true
+      env:
+        - {name: TEMPORAL_TASK_QUEUE, value: agentcore-oncall}
+        - {name: WORKER_LOCATION, value: agentcore}
+    # The Strands agent's Temporal Worker on Bedrock AgentCore Runtime. It polls only while
+    # invoked, drains after AGENTCORE_DEBOUNCE_SECONDS without an Activity, and AgentCore ends
+    # the idle session after idleSessionTimeoutSeconds. Build ID: one per commit (unset).
+    agent:
+      build: agent
+      serverless:
+        provider: aws-agentcore
+        agentcore:
+          idleSessionTimeoutSeconds: 60
+      env:
+        - {name: TEMPORAL_TASK_QUEUE, value: agentcore-oncall}
+        - {name: AGENT_MODEL, value: bedrock}
+        - {name: AGENTCORE_DEBOUNCE_SECONDS, value: "30"}
+  ingress:
+    subdomain: agentcore-oncall
+    temporalAuthRequired: true
+    routes:
+      - pathPrefix: /
+        component: api
+        port: http
+  smokeCheck:
+    expectedStatus: 200
+    path: /healthz

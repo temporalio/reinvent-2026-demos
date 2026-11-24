@@ -72,10 +72,10 @@
   },
   {
     "id": "agentcore-research",
-    "title": "AgentCore Research Agent \u00b7 Shubham",
-    "path": "/agentcore-research/",
+    "title": "AgentCore On-Call",
+    "path": "/agentcore-oncall/",
     "internet": "required",
     "tentative": false,
-    "kind": "coming-soon"
+    "kind": "agentcore"
   }
 ]

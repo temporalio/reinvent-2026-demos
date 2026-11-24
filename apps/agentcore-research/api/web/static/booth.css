@@ -1,0 +1,42 @@
+/* Re:Invent Cosmic Pop, using the same token sheet and fonts as the booth. */
+:root { --space-black:var(--surface-page); --off-white:var(--text-primary); --border:var(--border-default); --control-edge:var(--border-default); --font-mono:'Space Mono',monospace; --font-sans:'Inter',sans-serif; --slate-300:var(--text-muted); --green:var(--status-completed); --uv-light:var(--brand-accent); }
+html,body { height:100%; margin:0; overflow:hidden; }
+body { font-family:var(--font-sans); background:var(--surface-page); }
+.app { box-sizing:border-box; width:100%; max-width:none; height:100dvh; min-height:0; padding:clamp(.5rem,1.5vw,1.25rem); gap:.7rem; background:radial-gradient(ellipse at top right,#434ce721,transparent 65%); }
+.topbar { flex:none; min-width:0; gap:.5rem; padding-bottom:.5rem; }
+.topbar .brand img { width:clamp(85px,12vw,172px); }
+.brand .eyebrow { color:var(--brand-accent); font-size:clamp(.6rem,1.2vw,.9rem); }
+.columns { flex:1; min-height:0; grid-template-columns:minmax(0,1.15fr) minmax(0,1fr); align-items:stretch; gap:.7rem; }
+.card { box-sizing:border-box; min-height:0; padding:clamp(.65rem,1.5vw,1.2rem); gap:.6rem; border:1px solid var(--border-default); border-radius:0; background:#0b0c12c9; box-shadow:none; }
+.incident { overflow:auto; }
+.side { min-height:0; grid-template-rows:auto minmax(0,1fr); gap:.7rem; }
+.proof { overflow:hidden; }
+.proof-rows { overflow:auto; min-height:0; }
+.heading { font-family:var(--font-mono); color:var(--brand-highlight); font-size:clamp(1.1rem,2.4vw,2rem); }
+p { line-height:1.45; }
+.lede { color:var(--text-primary); font-size:clamp(.85rem,1.3vw,1.1rem); }
+.button,.chip,input { border-radius:0; box-shadow:none; min-height:48px; font-family:var(--font-mono); }
+.button.primary.ultraviolet,.button.primary.green { background:var(--brand-highlight); background-image:none; color:var(--surface-page); border:1px solid var(--brand-highlight); box-shadow:none; }
+.button.secondary { color:var(--brand-accent); background:var(--surface-overlay); background-image:none; border:1px solid var(--border-default); box-shadow:none; }
+.chip { padding:.6rem; border:1px solid var(--border-default); font-size:.8rem; }
+.chip[aria-pressed=true] { background:var(--surface-hero); border-color:var(--brand-highlight); color:var(--brand-highlight); }
+.proposal { padding:.7rem; border-color:var(--brand-accent); background:var(--surface-hero); }
+.tiles { gap:.3rem; }
+.tile-value { font-family:var(--font-mono); font-size:clamp(1.2rem,3vw,2.1rem); color:var(--brand-accent); }
+.muted { font-size:clamp(.65rem,1.1vw,.8rem); color:var(--text-muted); }
+.note-keyboard { grid-column:1/-1; border:1px solid var(--border-default); padding:.3rem; background:var(--surface-page); }
+.note-keyboard [role=group] { display:flex; gap:.2rem; margin-bottom:.2rem; }
+.note-keyboard button { flex:1; min-width:0; min-height:44px; padding:.2rem; font:.8rem var(--font-mono); color:var(--text-primary); background:var(--surface-overlay); border:1px solid var(--border-default); }
+.note-keyboard button:active { color:var(--surface-page); background:var(--brand-highlight); }
+.note-keyboard[hidden] { display:none; }
+@media(max-width:650px) { .columns { grid-template-columns:1fr; grid-template-rows:minmax(0,1.2fr) minmax(0,1fr); } .side { grid-template-columns:.7fr 1fr; grid-template-rows:minmax(0,1fr); } .topbar .brand-divider,.topbar .brand img { display:none; } .tiles { grid-template-columns:repeat(4,minmax(0,1fr)); } .proof .heading { font-size:1rem; } }
+
+/* A touch drawer keeps Done visible without pushing approval controls offscreen. */
+.note-keyboard { position:fixed; z-index:20; bottom:.75rem; inset-inline:.75rem; width:calc(100% - 1.5rem); max-width:45rem; margin-inline:auto; box-shadow:0 0 0 100vmax #0006; }
+
+/* Use the booth's vertical split: incident above compute and execution history. */
+.columns { grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(0,1fr) minmax(0,1fr); }
+.side { grid-template-columns:minmax(0,1fr); grid-template-rows:auto minmax(0,1fr); }
+.side > .card:first-child { gap:.3rem; }
+.side > .card:first-child .heading { font-size:clamp(1rem,1.8vw,1.4rem); }
+@media(max-width:650px) { .columns { grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(0,1fr) minmax(0,1fr); } .side { grid-template-columns:minmax(0,1fr); grid-template-rows:auto minmax(0,1fr); } }
