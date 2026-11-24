@@ -38,7 +38,7 @@ A station On setting overrides global Off. Inherit removes that station override
 
 Select **All stations** to set the default demo-area width, height, horizontal and vertical position, content zoom, and Temporal UI zoom. Save once to update every station that inherits those fields.
 
-The Demo area section includes a live red outline of the draft panel beside the controls. Moving or resizing it updates the drawing immediately without saving or running a demo; portrait and landscape reference canvases are available. The drawing uses the same edge-clamping calculations as the station, but each station applies them to its own available screen area.
+Size or position adjustments briefly show a red outline on the current screen at the draft panel’s actual coordinates. It disappears 1.5 seconds after the last adjustment; another adjustment restarts the timer. This works for global defaults and station overrides, stays fixed while the controls scroll, and lets clicks pass through. No settings are sent until Save. A remote station applies the same settings within its own viewport.
 
 On a station tab, changing a field creates an override for that field. **Use global** removes it and resumes following the global value. **Use global geometry** clears width, height, position, and content-zoom overrides together; it keeps that station's Temporal UI zoom choice. An explicit station override stays fixed even if it currently equals the global value.
 
