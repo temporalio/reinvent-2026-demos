@@ -30,12 +30,14 @@ if (boothParams.get('booth') === '1' || parentBoothFrame) {
   }).catch(()=>{})
   function isTemporalLink(url) {
     if(url.username || url.password || !['http:','https:'].includes(url.protocol))return false
-    return (url.origin===location.origin && url.pathname.startsWith('/_temporal/')) ||
+    const loopback = host => ['localhost','127.0.0.1','[::1]','::1'].includes(host)
+    const localUi = loopback(location.hostname) && loopback(url.hostname) && /\/namespaces\/[^/]+\/workflows(?:\/|$)/.test(url.pathname)
+    return localUi || (url.origin===location.origin && url.pathname.startsWith('/_temporal/')) ||
       (url.origin==='https://cloud.temporal.io' && /^\/namespaces\/[^/]+\/workflows(?:\/|$)/.test(url.pathname))
   }
   function embeddedTemporalUrl(url) {
     if(!isTemporalLink(url))return null
-    if(url.origin===location.origin)return url.href
+    if(url.origin===location.origin && url.pathname.startsWith('/_temporal/'))return url.href
     if(!uiBase)return null
     const route=url.pathname.match(/\/workflows(\/.*)?$/)
     if(!route || !/\/workflows\/?$/.test(uiBase.pathname))return null

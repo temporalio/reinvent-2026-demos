@@ -317,3 +317,7 @@ html[data-shared-stage=true][data-demo=dejavutacos] .mobile-device { flex:1; min
 html[data-shared-stage=true][data-demo=dejavutacos] .mobile-device .customer-app { overflow:hidden; }
 html[data-shared-stage=true][data-demo=dejavutacos] .mobile-device .taqueria-menu-items { overflow-y:auto; }
 html[data-shared-stage=true][data-demo=dejavutacos] .mobile-device .taqueria-cart-items { min-height:0; overflow-y:auto; }
+
+/* Banking actions use the same solid lime fill as the rest of the booth. */
+html[data-booth=true][data-demo=banking] .button.primary:is(.ultraviolet,.green) { background:var(--brand-highlight); color:var(--surface-page); border:1px solid var(--brand-highlight); box-shadow:none; font-family:var(--font-mono); }
+html[data-booth=true][data-demo=banking] .button.primary:disabled { opacity:.45; }

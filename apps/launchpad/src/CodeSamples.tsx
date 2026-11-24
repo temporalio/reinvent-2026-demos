@@ -1,4 +1,6 @@
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import moneyExcerpts from './moneyExcerpts.json'
+import { activeCodeLines, moneyLineStatus, moneyStepLabels, type MoneyExecution } from './moneyExecution'
 import tacoExcerpts from './tacoExcerpts.json'
 import { tacoPhase, type TacoExecution, type TacoPhase } from './tacoExecution'
 import { SDK_LOGOS } from './ship-ui/components/SdkLogos'
@@ -20,7 +22,7 @@ function highlight(code:string, sdk:SdkId):Tok[][] {
 }
 
 /** Curated equivalents explain orchestration; changing SDK never changes the running app. */
-export function CodeSamples({demoId,execution,phase}:{demoId:string;execution?:TacoExecution|null;phase?:TacoPhase}) {
+export function CodeSamples({demoId,execution,phase,money}:{demoId:string;execution?:TacoExecution|null;phase?:TacoPhase;money?:MoneyExecution|null}) {
   const [catalog,setCatalog] = useState<ExampleCatalog|null>(null)
   const [selected,setSelected] = useState<SdkId|null>(null)
   const [failed,setFailed] = useState(false)
@@ -28,7 +30,27 @@ export function CodeSamples({demoId,execution,phase}:{demoId:string;execution?:T
   const sdk=selected || demo?.nativeLanguage
   const excerptKey=execution && phase===tacoPhase(execution) && execution.step && Object.hasOwn(tacoExcerpts,execution.step)?execution.step as keyof typeof tacoExcerpts:phase || 'order'
   const liveExcerpt=demoId==='tacos' && execution?.mode==='temporal' && execution.language==='python' && sdk==='python'?tacoExcerpts[excerptKey]:null
-  const code=liveExcerpt?.code || (sdk ? demo?.examples[sdk]?.code : undefined)
+  const profile=money?.scenario==='happy_path'?moneyExcerpts.simple:moneyExcerpts.scenario
+  const moneyExcerpt=demoId==='money-transfer' && sdk==='python'?profile[(money?.step || 'validate') as keyof typeof profile]:null
+  const code=moneyExcerpt?.code || liveExcerpt?.code || (sdk ? demo?.examples[sdk]?.code : undefined)
+  const tacoLive=!!liveExcerpt && !!execution?.orderId && phase===tacoPhase(execution)
+  const moneyLive=!!moneyExcerpt && !!money?.transferId
+  const activeStep=moneyLive?money?.step:tacoLive?execution?.step:null
+  const lineStatus=moneyLive?moneyLineStatus(money):tacoLive?execution?.status:undefined
+  const activeLines=useMemo(()=>activeStep && code?activeCodeLines(code,activeStep):[],[code,activeStep])
+  const preRef=useRef<HTMLPreElement>(null)
+  useLayoutEffect(()=>{
+    const pre=preRef.current
+    if(!pre)return
+    const focus=()=>{
+      const row=pre.querySelector<HTMLElement>('[data-current-step]')
+      pre.scrollTop=row?Math.max(0,row.offsetTop-pre.clientHeight*.35):0
+    }
+    focus()
+    const observer=typeof ResizeObserver==='undefined'?null:new ResizeObserver(focus)
+    observer?.observe(pre)
+    return ()=>observer?.disconnect()
+  },[code,activeStep,money?.transferId,execution?.orderId])
   const lines=useMemo(()=>sdk && code!==undefined ? highlight(code,sdk) : [],[code,sdk])
   useEffect(()=>{
     const controller=new AbortController()
@@ -47,8 +69,8 @@ export function CodeSamples({demoId,execution,phase}:{demoId:string;execution?:T
       const Logo=SDK_LOGOS[item.id]
       return <button key={item.id} data-sdk={item.id} type="button" aria-label={`Show ${item.label} example`} title={item.label} aria-pressed={sdk===item.id} onClick={()=>setSelected(item.id)}><span className="sdk-logo"><Logo /></span><span>{item.label}</span></button>
     })}</div>
-    <p className="code-source"><strong>{demo.concept}</strong> · Running demo: {native?.label || demo.nativeLanguage}<br />{demo.source.path} · {demo.source.symbol}{liveExcerpt?` · lines ${liveExcerpt.startLine}–${liveExcerpt.endLine}`:''}</p>
-    <p className="code-note" role="status">{liveExcerpt?'Python worker · excerpt for this phase.':`${language?.label}: ${example.note}`}</p>
-    <pre data-testid="workflow-code" tabIndex={0} aria-label={`${language?.label} workflow example`}><code className={`language-${language?.language}`}>{lines.map((tokens,index)=><Fragment key={index}>{index>0 && '\n'}{tokens.map((token,position)=>token.k==='plain' ? token.t : <span key={position} className={`tok-${token.k}`}>{token.t}</span>)}</Fragment>)}</code></pre>
+    <p className="code-source"><strong>{demo.concept}</strong> · Running demo: {native?.label || demo.nativeLanguage}</p>
+    <p className="code-note" role="status">{moneyLive?`${money?.streamState==='stale'?'Updates interrupted. Last reported step':'Reported step'}: ${moneyStepLabels[money?.step || ''] || 'Starting transfer'} · ${lineStatus || 'pending'}.`:moneyExcerpt?'Start a transfer to follow its Python workflow.':liveExcerpt?'Python worker · excerpt for this phase.':`${language?.label}: ${example.note}`}</p>
+    <pre ref={preRef} data-testid="workflow-code" tabIndex={0} aria-label={`${language?.label} workflow example`}><code className={`language-${language?.language}`}>{lines.map((tokens,index)=><Fragment key={index}>{index>0 && '\n'}<span className="code-line" data-current-step={activeLines.includes(index)?'true':undefined} data-status={activeLines.includes(index)?lineStatus:undefined}>{tokens.length?tokens.map((token,position)=>token.k==='plain' ? token.t : <span key={position} className={`tok-${token.k}`}>{token.t}</span>):' '}</span></Fragment>)}</code></pre>
   </div>
 }
