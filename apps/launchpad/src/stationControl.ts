@@ -5,19 +5,19 @@ export type StationId = '1' | '2' | '3' | '4'
 export type NetworkMode = 'online' | 'offline'
 export type DisplaySettings = {width:number;height:number;x:number;y:number;zoom:number;temporal_ui_zoom:number}
 export type StationOverrides = {demo_enabled:Record<string,boolean>;network_mode?:NetworkMode}
-export type StationRecord = {label:string;overrides:StationOverrides;display:DisplaySettings;last_seen:string|null}
+export type StationRecord = {label:string;overrides:StationOverrides;display:DisplaySettings;display_overrides:Partial<DisplaySettings>;last_seen:string|null}
 export type ControlState = {
   revision:number
-  global:{demo_enabled:Record<string,boolean>;network_mode:NetworkMode}
+  global:{demo_enabled:Record<string,boolean>;network_mode:NetworkMode;display:DisplaySettings}
   stations:Record<StationId,StationRecord>
   authenticated:boolean
   server_time:string
 }
-export type GlobalPatch = {demo_enabled?:Record<string,boolean|null>;network_mode?:NetworkMode}
+export type GlobalPatch = {demo_enabled?:Record<string,boolean|null>;network_mode?:NetworkMode;display?:Partial<DisplaySettings>}
 export type StationPatch = {
   label?:string
   overrides?:{demo_enabled?:Record<string,boolean|null>;network_mode?:NetworkMode|null}
-  display?:DisplaySettings
+  display?:{[K in keyof DisplaySettings]?:number|null}
 }
 export type EffectiveStationSettings = {label:string;demo_enabled:Record<string,boolean>;network_mode:NetworkMode;display:DisplaySettings}
 export const STATION_IDS: StationId[] = ['1','2','3','4']
@@ -39,23 +39,36 @@ function mode(value:unknown):value is NetworkMode {return value==='online'||valu
 function display(value:unknown):value is DisplaySettings {
   return isRecord(value) && Object.entries(DISPLAY_LIMITS).every(([key,[min,max]])=>(key==='temporal_ui_zoom'&&value[key]===undefined)||(typeof value[key]==='number' && Number.isFinite(value[key]) && value[key]>=min && value[key]<=max))
 }
+function partialDisplay(value:unknown):value is Partial<DisplaySettings> {
+  return isRecord(value)&&Object.entries(value).every(([key,v])=>{
+    const bounds=DISPLAY_LIMITS[key as keyof DisplaySettings]
+    return bounds&&typeof v==='number'&&Number.isFinite(v)&&v>=bounds[0]&&v<=bounds[1]
+  })
+}
+function legacyDisplayOverrides(value:DisplaySettings):Partial<DisplaySettings> {
+  return Object.fromEntries(Object.entries(value).filter(([key,v])=>key in DEFAULT_DISPLAY&&v!==DEFAULT_DISPLAY[key as keyof DisplaySettings]))
+}
 function flags(value:unknown):Record<string,boolean> {
   if(!isRecord(value))throw new Error('Invalid demo settings')
   return Object.fromEntries(Object.entries(value).filter(([key,v])=>demoIds.has(key) && typeof v==='boolean')) as Record<string,boolean>
 }
 function decodeState(value:unknown):ControlState {
   if(!isRecord(value)||!Number.isInteger(value.revision)||Number(value.revision)<0||!isRecord(value.global)||!mode(value.global.network_mode)||!isRecord(value.stations))throw new Error('Invalid control hub state')
+  const globalDisplay={...DEFAULT_DISPLAY,...(isRecord(value.global.display)?value.global.display:{})}
+  if(value.global.display!==undefined&&!display(value.global.display))throw new Error('Invalid global display settings')
   const stations={} as Record<StationId,StationRecord>
   for(const id of STATION_IDS){
     const row=value.stations[id]
     if(!isRecord(row)||typeof row.label!=='string'||!row.label.trim()||row.label.length>64||!isRecord(row.overrides)||!display(row.display))throw new Error('Invalid station settings')
     if(row.overrides.network_mode!==undefined&&!mode(row.overrides.network_mode))throw new Error('Invalid network mode')
-    stations[id]={label:row.label,display:{...DEFAULT_DISPLAY,...row.display},overrides:{demo_enabled:flags(row.overrides.demo_enabled),...(mode(row.overrides.network_mode)?{network_mode:row.overrides.network_mode}:{})},last_seen:typeof row.last_seen==='string'&&Number.isFinite(Date.parse(row.last_seen))?row.last_seen:null}
+    const inherited=row.display_overrides===undefined?legacyDisplayOverrides(row.display):row.display_overrides
+    if(!partialDisplay(inherited))throw new Error('Invalid display overrides')
+    stations[id]={label:row.label,display:{...globalDisplay,...inherited},display_overrides:{...inherited},overrides:{demo_enabled:flags(row.overrides.demo_enabled),...(mode(row.overrides.network_mode)?{network_mode:row.overrides.network_mode}:{})},last_seen:typeof row.last_seen==='string'&&Number.isFinite(Date.parse(row.last_seen))?row.last_seen:null}
   }
-  return {revision:Number(value.revision),global:{demo_enabled:flags(value.global.demo_enabled),network_mode:value.global.network_mode},stations,authenticated:value.authenticated===true,server_time:typeof value.server_time==='string'?value.server_time:new Date().toISOString()}
+  return {revision:Number(value.revision),global:{demo_enabled:flags(value.global.demo_enabled),network_mode:value.global.network_mode,display:globalDisplay},stations,authenticated:value.authenticated===true,server_time:typeof value.server_time==='string'?value.server_time:new Date().toISOString()}
 }
 function defaultState():ControlState {
-  return {revision:0,global:{demo_enabled:{},network_mode:'online'},stations:Object.fromEntries(STATION_IDS.map(id=>[id,{label:`Mac Mini ${id}`,display:{...DEFAULT_DISPLAY},overrides:{demo_enabled:{}},last_seen:null}])) as Record<StationId,StationRecord>,authenticated:false,server_time:new Date().toISOString()}
+  return {revision:0,global:{demo_enabled:{},network_mode:'online',display:{...DEFAULT_DISPLAY}},stations:Object.fromEntries(STATION_IDS.map(id=>[id,{label:`Mac Mini ${id}`,display:{...DEFAULT_DISPLAY},display_overrides:{},overrides:{demo_enabled:{}},last_seen:null}])) as Record<StationId,StationRecord>,authenticated:false,server_time:new Date().toISOString()}
 }
 function readStorage(key:string):unknown {try{return browser?JSON.parse(window.localStorage.getItem(key)||'null'):null}catch{return null}}
 function storeStorage(key:string,value:unknown){try{if(browser)window.localStorage.setItem(key,JSON.stringify(value))}catch{/* Hub settings still work if browser storage is unavailable. */}}
@@ -71,24 +84,29 @@ function storedStation():StationId {
 let baseState=defaultState()
 let hasCache=false
 try {const cached=readStorage(CACHE_KEY);if(cached){baseState=decodeState(cached);baseState.authenticated=false;hasCache=true}}catch{/* Ignore incomplete or obsolete browser caches. */}
-type DeviceStation = {label:string;display:DisplaySettings;overrides:StationOverrides}
+type DeviceStation = {label:string;display:DisplaySettings;display_overrides:Partial<DisplaySettings>;overrides:StationOverrides}
 let devicePatches:Partial<Record<StationId,DeviceStation>>={}
 const storedPatches=readStorage(FALLBACK_KEY)
 if(isRecord(storedPatches))for(const id of STATION_IDS){
   const patch=storedPatches[id]
   if(isRecord(patch)&&display(patch.display)&&isRecord(patch.overrides)){
-    try{devicePatches[id]={display:{...DEFAULT_DISPLAY,...patch.display},label:typeof patch.label==='string'&&patch.label.trim()&&patch.label.length<=64?patch.label:baseState.stations[id].label,overrides:{demo_enabled:flags(patch.overrides.demo_enabled),...(mode(patch.overrides.network_mode)?{network_mode:patch.overrides.network_mode}:{})}}}catch{/* Ignore invalid device-only recovery data. */}
+    try{const inherited=patch.display_overrides===undefined?legacyDisplayOverrides(patch.display):patch.display_overrides;if(!partialDisplay(inherited))continue;devicePatches[id]={display:{...baseState.global.display,...inherited},display_overrides:{...inherited},label:typeof patch.label==='string'&&patch.label.trim()&&patch.label.length<=64?patch.label:baseState.stations[id].label,overrides:{demo_enabled:flags(patch.overrides.demo_enabled),...(mode(patch.overrides.network_mode)?{network_mode:patch.overrides.network_mode}:{})}}}catch{/* Ignore invalid device-only recovery data. */}
   }
 }
 function patchStation(row:StationRecord,patch:StationPatch):StationRecord {
-  const next={...row,label:patch.label??row.label,display:patch.display?{...row.display,...patch.display}:row.display,overrides:{...row.overrides,demo_enabled:{...row.overrides.demo_enabled}}}
+  const inherited={...row.display_overrides}
+  for(const [key,value] of Object.entries(patch.display??{})){
+    if(value===null)delete inherited[key as keyof DisplaySettings]
+    else inherited[key as keyof DisplaySettings]=value
+  }
+  const next={...row,label:patch.label??row.label,display:{...baseState.global.display,...inherited},display_overrides:inherited,overrides:{...row.overrides,demo_enabled:{...row.overrides.demo_enabled}}}
   for(const [key,value] of Object.entries(patch.overrides?.demo_enabled??{})){if(value===null)delete next.overrides.demo_enabled[key];else next.overrides.demo_enabled[key]=value}
   if(patch.overrides && 'network_mode' in patch.overrides){if(patch.overrides.network_mode===null)delete next.overrides.network_mode;else next.overrides.network_mode=patch.overrides.network_mode}
   return next
 }
 function viewState(source:ControlSource):ControlState {
   if(source==='hub')return baseState
-  return {...baseState,authenticated:false,stations:Object.fromEntries(STATION_IDS.map(id=>{const device=devicePatches[id];return [id,device?{...baseState.stations[id],label:device.label,display:{...device.display},overrides:{...device.overrides,demo_enabled:{...device.overrides.demo_enabled}}}:baseState.stations[id]]})) as Record<StationId,StationRecord>}
+  return {...baseState,authenticated:false,stations:Object.fromEntries(STATION_IDS.map(id=>{const device=devicePatches[id];return [id,device?{...baseState.stations[id],label:device.label,display:{...device.display},display_overrides:{...device.display_overrides},overrides:{...device.overrides,demo_enabled:{...device.overrides.demo_enabled}}}:baseState.stations[id]]})) as Record<StationId,StationRecord>}
 }
 let snapshot:Snapshot={state:viewState(hasCache?'cache':'defaults'),stationId:storedStation(),source:hasCache?'cache':'defaults',ready:false,error:null,hasDeviceFallback:false}
 snapshot.hasDeviceFallback=Boolean(devicePatches[snapshot.stationId])
@@ -196,14 +214,14 @@ function saveDeviceFallback(id:StationId,patch:StationPatch){
   if(id!==snapshot.stationId)throw new Error('Device-only changes can affect this browser’s station only.')
   const next=patchStation(snapshot.state.stations[id],patch)
   if(!display(next.display)||!next.label.trim()||next.label.length>64)throw new Error('Check the station label and display values.')
-  devicePatches[id]={label:next.label,display:next.display,overrides:next.overrides}
+  devicePatches[id]={label:next.label,display:next.display,display_overrides:next.display_overrides,overrides:next.overrides}
   storeStorage(FALLBACK_KEY,devicePatches)
   publish()
 }
 function clearDeviceFallback(id:StationId){delete devicePatches[id];storeStorage(FALLBACK_KEY,devicePatches);publish()}
 export function resolveStationSettings(state:ControlState,id:StationId):EffectiveStationSettings {
   const row=state.stations[id]
-  return {label:row.label,display:row.display,network_mode:row.overrides.network_mode??state.global.network_mode,demo_enabled:Object.fromEntries(catalog.map(demo=>[demo.id,row.overrides.demo_enabled[demo.id]??state.global.demo_enabled[demo.id]??true]))}
+  return {label:row.label,display:{...DEFAULT_DISPLAY,...state.global.display,...(row.display_overrides??legacyDisplayOverrides(row.display))},network_mode:row.overrides.network_mode??state.global.network_mode,demo_enabled:Object.fromEntries(catalog.map(demo=>[demo.id,row.overrides.demo_enabled[demo.id]??state.global.demo_enabled[demo.id]??true]))}
 }
 export function useStationControl(){
   const current=useSyncExternalStore(subscribe,()=>snapshot,()=>serverSnapshot)

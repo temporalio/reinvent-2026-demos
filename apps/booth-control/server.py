@@ -51,19 +51,31 @@ def timestamp(now):
 
 def default_config():
     return {
-        'global': {'demo_enabled': {}, 'network_mode': 'online'},
+        'global': {'demo_enabled': {}, 'network_mode': 'online', 'display': dict(DEFAULT_DISPLAY)},
         'stations': {
             station: {'label': f'Mac Mini {station}', 'overrides': {'demo_enabled': {}},
-                      'display': dict(DEFAULT_DISPLAY), 'last_seen': None}
+                      'display': {}, 'last_seen': None}
             for station in STATION_IDS
         },
     }
 
 
-def config_with_display_defaults(config):
-    """Read saved pre-zoom station records without resetting their geometry."""
+def normalized_config(config):
+    """Migrate old full station geometry into overrides, preserving custom values."""
+    legacy = 'display' not in config['global']
+    config['global']['display'] = {**DEFAULT_DISPLAY, **config['global'].get('display', {})}
+    if legacy:
+        for row in config['stations'].values():
+            row['display'] = {key: value for key, value in row['display'].items()
+                              if value != DEFAULT_DISPLAY.get(key)}
+    return config
+
+
+def public_config(config):
+    config = normalized_config(config)
     for row in config['stations'].values():
-        row['display'] = {**DEFAULT_DISPLAY, **row['display']}
+        row['display_overrides'] = dict(row['display'])
+        row['display'] = {**config['global']['display'], **row['display']}
     return config
 
 
@@ -110,7 +122,7 @@ class Store:
 
     def _snapshot(self, db, token, now):
         revision, payload = db.execute('SELECT revision,payload FROM config WHERE id=1').fetchone()
-        result = config_with_display_defaults(json.loads(payload))
+        result = public_config(json.loads(payload))
         for station, seen in db.execute('SELECT station,last_seen FROM presence'):
             if station in result['stations']:
                 result['stations'][station]['last_seen'] = seen
@@ -146,7 +158,7 @@ class Store:
             current_revision, payload = db.execute('SELECT revision,payload FROM config WHERE id=1').fetchone()
             if revision != current_revision:
                 raise ApiError(409, 'stale_revision', 'Settings changed elsewhere. Review the current settings before saving.', state=self._snapshot(db, token, now))
-            config = json.loads(payload)
+            config = normalized_config(json.loads(payload))
             updated = deepcopy(config)
             mutate(updated)
             if config != updated:
@@ -210,7 +222,7 @@ class DynamoStore:
 
     def _snapshot(self, token, now):
         revision, payload = self._config()
-        result = config_with_display_defaults(json.loads(payload))
+        result = public_config(json.loads(payload))
         keys = [{'pk': {'S': 'presence#' + station}} for station in STATION_IDS]
         try:
             response = self.client.batch_get_item(RequestItems={self.table: {'Keys': keys, 'ConsistentRead': True}})
@@ -247,7 +259,7 @@ class DynamoStore:
         if revision != current_revision:
             stale.state = self._snapshot(token, now)
             raise stale
-        config = json.loads(payload)
+        config = normalized_config(json.loads(payload))
         updated = deepcopy(config)
         mutate(updated)
         if config != updated:
@@ -315,17 +327,30 @@ def apply_demos(target, patch):
             target[name] = value
 
 
+def validate_display(display, *, inherit=False):
+    object_fields(display, DISPLAY_BOUNDS, 'Display settings')
+    for key, value in display.items():
+        if inherit and value is None:
+            continue
+        low, high = DISPLAY_BOUNDS[key]
+        if type(value) not in (int, float) or not low <= value <= high or not math.isfinite(value):
+            raise ApiError(422, 'invalid_settings', f'{key} must be a finite number between {low} and {high}.')
+
+
 def global_mutation(body):
     object_fields(body, {'revision', 'settings'}, 'Request')
     revision = revision_of(body)
     settings = body.get('settings')
-    object_fields(settings, {'demo_enabled', 'network_mode'}, 'Global settings')
+    object_fields(settings, {'demo_enabled', 'network_mode', 'display'}, 'Global settings')
     if 'demo_enabled' in settings:
         validate_demos(settings['demo_enabled'])
     if 'network_mode' in settings and settings['network_mode'] not in ('online', 'offline'):
         raise ApiError(422, 'invalid_settings', 'Global network mode must be online or offline.')
+    if 'display' in settings:
+        validate_display(settings['display'])
     def mutate(config):
         target = config['global']
+        target['display'].update(settings.get('display', {}))
         if 'demo_enabled' in settings:
             apply_demos(target['demo_enabled'], settings['demo_enabled'])
         if 'network_mode' in settings:
@@ -347,11 +372,7 @@ def station_mutation(body, station):
     if 'network_mode' in overrides and overrides['network_mode'] not in (None, 'online', 'offline'):
         raise ApiError(422, 'invalid_settings', 'Station network mode must be online, offline, or null to inherit.')
     display = body.get('display', {})
-    object_fields(display, DISPLAY_BOUNDS, 'Display settings')
-    for key, value in display.items():
-        low, high = DISPLAY_BOUNDS[key]
-        if type(value) not in (int, float) or not low <= value <= high or not math.isfinite(value):
-            raise ApiError(422, 'invalid_settings', f'{key} must be a finite number between {low} and {high}.')
+    validate_display(display, inherit=True)
     def mutate(config):
         target = config['stations'][station]
         if 'label' in body:
@@ -363,7 +384,11 @@ def station_mutation(body, station):
                 target['overrides'].pop('network_mode', None)
             else:
                 target['overrides']['network_mode'] = overrides['network_mode']
-        target['display'].update(display)
+        for key, value in display.items():
+            if value is None:
+                target['display'].pop(key, None)
+            else:
+                target['display'][key] = value
     return revision, mutate
 
 

@@ -104,7 +104,9 @@ class ControlHttpTests(unittest.TestCase):
         store = self.server.store
         store.login('zoom-test', None, self.clock())
         def legacy(config):
+            config['global'].pop('display')
             for row in config['stations'].values():
+                row['display'] = dict(DEFAULT_DISPLAY)
                 row['display'].pop('temporal_ui_zoom')
             config['stations']['3']['display']['width'] = 82
         store.patch(0, legacy, 'zoom-test', self.clock())
@@ -116,12 +118,80 @@ class ControlHttpTests(unittest.TestCase):
         self.assertEqual(state['stations']['3']['display']['width'], 82)
         self.assertEqual(state['stations']['3']['display']['temporal_ui_zoom'], 100)
 
+    def test_global_display_defaults_station_override_and_inherit(self):
+        cookie = self.login()
+        defaults = {'width': 94, 'height': 72, 'x': 25, 'y': -30, 'zoom': 110, 'temporal_ui_zoom': 90}
+        status, state, _ = self.request('PATCH', '/control-api/global', {
+            'revision': 0, 'settings': {'display': defaults},
+        }, cookie=cookie)
+        self.assertEqual(status, 200)
+        for row in state['stations'].values():
+            self.assertEqual(row['display'], defaults)
+            self.assertEqual(row['display_overrides'], {})
+        status, state, _ = self.request('PATCH', '/control-api/stations/2', {
+            'revision': 1, 'display': {'width': 80, 'temporal_ui_zoom': 70},
+        }, cookie=cookie)
+        self.assertEqual(status, 200)
+        status, state, _ = self.request('PATCH', '/control-api/global', {
+            'revision': 2, 'settings': {'display': {'width': 96, 'height': 74, 'temporal_ui_zoom': 80}},
+        }, cookie=cookie)
+        self.assertEqual(status, 200)
+        self.assertEqual(state['stations']['1']['display']['width'], 96)
+        self.assertEqual(state['stations']['2']['display']['width'], 80)
+        self.assertEqual(state['stations']['2']['display']['height'], 74)
+        self.assertEqual(state['stations']['2']['display']['temporal_ui_zoom'], 70)
+        status, state, _ = self.request('PATCH', '/control-api/stations/2', {
+            'revision': 3, 'display': {'width': None, 'temporal_ui_zoom': None},
+        }, cookie=cookie)
+        self.assertEqual(status, 200)
+        self.assertEqual(state['stations']['2']['display_overrides'], {})
+        self.stop_server()
+        self.start_server()
+        restored = self.request('GET', '/control-api/state')[1]
+        self.assertEqual(restored['stations']['2']['display'], restored['global']['display'])
+
+    def test_explicit_override_equal_to_global_stays_pinned(self):
+        cookie = self.login()
+        self.request('PATCH', '/control-api/global', {'revision': 0, 'settings': {'display': {'width': 88}}}, cookie=cookie)
+        self.request('PATCH', '/control-api/stations/1', {'revision': 1, 'display': {'width': 88}}, cookie=cookie)
+        status, state, _ = self.request('PATCH', '/control-api/global', {'revision': 2, 'settings': {'display': {'width': 94}}}, cookie=cookie)
+        self.assertEqual(status, 200)
+        self.assertEqual(state['stations']['1']['display']['width'], 88)
+        self.assertEqual(state['stations']['2']['display']['width'], 94)
+
+    def test_global_display_rejects_inherit_and_invalid_values(self):
+        cookie = self.login()
+        for display in ({'width': None}, {'height': 101}, {'zoom': True}, {'temporal_ui_zoom': 69}, {'x': 9000}):
+            with self.subTest(display=display):
+                self.assertEqual(self.request('PATCH', '/control-api/global', {
+                    'revision': 0, 'settings': {'display': display},
+                }, cookie=cookie)[0], 422)
+
+    def test_legacy_custom_geometry_remains_an_override(self):
+        store = self.server.store
+        store.login('legacy-test', None, self.clock())
+        def legacy(config):
+            config['global'].pop('display')
+            for row in config['stations'].values():
+                row['display'] = dict(DEFAULT_DISPLAY)
+            config['stations']['1']['display'].update(width=82, x=20)
+        store.patch(0, legacy, 'legacy-test', self.clock())
+        cookie = self.login()
+        status, state, _ = self.request('PATCH', '/control-api/global', {
+            'revision': 1, 'settings': {'display': {'width': 95, 'zoom': 110}},
+        }, cookie=cookie)
+        self.assertEqual(status, 200)
+        self.assertEqual(state['stations']['1']['display_overrides'], {'width': 82, 'x': 20})
+        self.assertEqual(state['stations']['1']['display']['width'], 82)
+        self.assertEqual(state['stations']['1']['display']['zoom'], 110)
+        self.assertEqual(state['stations']['2']['display']['width'], 95)
+
     def test_defaults_presence_and_no_cors(self):
         status, state, headers = self.request('GET', '/control-api/state?station=1')
         self.assertEqual(status, 200)
         self.assertEqual(state['revision'], 0)
         self.assertFalse(state['authenticated'])
-        self.assertEqual(state['global'], {'demo_enabled': {}, 'network_mode': 'online'})
+        self.assertEqual(state['global'], {'demo_enabled': {}, 'network_mode': 'online', 'display': DEFAULT_DISPLAY})
         self.assertEqual(set(state['stations']), {'1', '2', '3', '4'})
         self.assertEqual(state['stations']['1']['display'], DEFAULT_DISPLAY)
         self.assertEqual(state['stations']['1']['last_seen'], state['server_time'])

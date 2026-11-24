@@ -30,15 +30,27 @@ The local stack always includes `control-hub` and a named `control-data` Docker 
 
 The proxy preserves the full `/control-api/...` URI, browser Host and Origin, and original HTTP/HTTPS scheme across the station-to-laptop hop. This lets the backend enforce same-origin writes while the browser uses an HttpOnly, SameSite session cookie. There is no browser bearer token or provider key in this setup.
 
-When the selected hub is unavailable, the launchpad retains its cached configuration and current demo. Device-only fallback edits are explicitly local to that browser; reconnecting restores the saved hub configuration. There is no automatic leader election, database replication, or silent switch to an independent station hub.
+When the selected hub is unavailable, the launchpad catches connection failures, retains its cached configuration and current demo, and retries in the background. A fresh browser without a cache uses built-in defaults. A control-hub outage does not automatically change network policy or disable cloud demos; those demos still require their own backend and internet connections. Device-only fallback edits are explicitly local to that browser; reconnecting restores the saved hub configuration. There is no automatic leader election, database replication, or silent switch to an independent station hub.
 
 A station On setting overrides global Off. Inherit removes that station override. Policy changes affect the next launch and do not stop the current demo. Offline policy is limited by the local runtime's reported demo capabilities. It does not switch Temporal Cloud clients to OSS, emulate unavailable AI providers, or provision AWS replacements. Hosted-only apps remain unavailable offline.
+
+## Global display defaults and station overrides
+
+Select **All stations** to set the default demo-area width, height, horizontal and vertical position, content zoom, and Temporal UI zoom. Save once to update every station that inherits those fields.
+
+The Demo area section includes a live red outline of the draft panel beside the controls. Moving or resizing it updates the drawing immediately without saving or running a demo; portrait and landscape reference canvases are available. The drawing uses the same edge-clamping calculations as the station, but each station applies them to its own available screen area.
+
+On a station tab, changing a field creates an override for that field. **Use global** removes it and resumes following the global value. **Use global geometry** clears width, height, position, and content-zoom overrides together; it keeps that station's Temporal UI zoom choice. An explicit station override stays fixed even if it currently equals the global value.
+
+Saved configurations from before global display settings retain non-default station values as overrides. Values that matched the original defaults now inherit. Existing demo availability and network overrides keep their current behavior.
+
+The laptop writes settings to the shared control hub over HTTP. Each station polls that hub every two seconds and applies its effective settings; this control path does not use Temporal Workflows or Activities.
 
 ## Temporal UI zoom
 
 On the laptop, open `/config`, unlock the controls, and select a specific Mac Mini. Under **Temporal UI zoom**, use the slider or − / percentage reset / + buttons, then **Save settings**. The range is 70–130%; reset is 100%.
 
-Only that station's lower workflow panel changes. Its demo and workflow stay open while the setting updates through the existing two-second control-hub polling. This is separate from **Content zoom**, which scales the whole demo area. The attendee screen has no zoom controls.
+On a station tab, only that station's lower workflow panel changes. The All stations tab sets the inherited default. Its demo and workflow stay open while the setting updates through the existing two-second control-hub polling. This is separate from **Content zoom**, which scales the whole demo area. The attendee screen has no zoom controls.
 
 The setting persists with each station's configuration, including browser cache during a hub outage. Older saved configurations default to 100% without changing their geometry. Each station must already have its own station ID and use the same control hub as the laptop.
 

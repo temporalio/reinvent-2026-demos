@@ -144,3 +144,54 @@ test('remote workflow zoom applies only to the selected station and survives cac
  reloaded.get().saveDeviceFallback('2',{display:{...display,width:75}})
  assert.equal(reloaded.get().effective.display.temporal_ui_zoom,80)
 })
+
+test('global display changes flow through while per-station fields stay overridden',async()=>{
+ const first=state();first.global.display={...display,temporal_ui_zoom:90,width:94}
+ for(const row of Object.values(first.stations))row.display_overrides={}
+ first.stations['2'].display_overrides={width:82,temporal_ui_zoom:70}
+ const next=JSON.parse(JSON.stringify(first));next.revision++;next.global.display.width=96;next.global.display.temporal_ui_zoom=80
+ const storage=new Map();let saved=first
+ const client=load({url:'http://booth.invalid/?station=2',storage,fetch:async()=>response(saved)})
+ await client.get().refresh()
+ assert.equal(client.get().effective.display.width,82)
+ assert.equal(client.get().state.stations['1'].display.width,94)
+ saved=next;await client.get().refresh()
+ assert.equal(client.get().effective.display.width,82)
+ assert.equal(client.get().effective.display.temporal_ui_zoom,70)
+ assert.equal(client.get().state.stations['1'].display.width,96)
+ const offline=load({url:'http://booth.invalid/?station=2',storage})
+ offline.get().saveDeviceFallback('2',{display:{width:null,temporal_ui_zoom:null}})
+ assert.equal(offline.get().effective.display.width,96)
+ assert.equal(offline.get().effective.display.temporal_ui_zoom,80)
+ const reloaded=load({url:'http://booth.invalid/?station=2',storage})
+ assert.equal(reloaded.get().effective.display.width,96)
+ assert.equal(reloaded.get().effective.display.temporal_ui_zoom,80)
+})
+test('hub loss retains inherited settings and overrides, then reconnects without a reload',async()=>{
+ const saved=state();saved.global.display={...display,temporal_ui_zoom:90,width:94}
+ for(const row of Object.values(saved.stations))row.display_overrides={}
+ saved.stations['1'].display_overrides={width:82}
+ let online=true
+ const storage=new Map()
+ const client=load({storage,fetch:async()=>{if(!online)throw Error('Laptop disconnected');return response(saved)}})
+ await client.get().refresh()
+ online=false;await client.get().refresh()
+ assert.equal(client.get().source,'cache')
+ assert.equal(client.get().ready,true)
+ assert.equal(client.get().effective.display.width,82)
+ assert.equal(client.get().effective.display.temporal_ui_zoom,90)
+ const reloaded=load({storage});await reloaded.get().refresh()
+ assert.equal(reloaded.get().effective.display.width,82)
+ assert.equal(reloaded.get().effective.display.temporal_ui_zoom,90)
+ saved.global.display.temporal_ui_zoom=80;online=true;await client.get().refresh()
+ assert.equal(client.get().source,'hub')
+ assert.equal(client.get().effective.display.width,82)
+ assert.equal(client.get().effective.display.temporal_ui_zoom,80)
+})
+test('first startup without laptop or cache becomes ready with built-in defaults',async()=>{
+ const client=load();await client.get().refresh()
+ assert.equal(client.get().ready,true)
+ assert.equal(client.get().source,'defaults')
+ assert.equal(client.get().effective.display.width,90)
+ assert.equal(client.get().effective.display.temporal_ui_zoom,100)
+})

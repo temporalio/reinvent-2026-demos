@@ -35,7 +35,7 @@ export function StationPreview({display,label,onBack}:{display:DisplaySettings;l
     <LogoMarquee side="top"/><LogoMarquee side="bottom"/>
     <header><img src="/assets/brand/temporal-logo.svg" alt="Temporal"/><h1 className="demo-title">{tacos.title}</h1></header>
     <DisplayArea display={display} mode="demo">
-      {failed?<p className="preview-unavailable" role="alert">Runtime settings could not be loaded. Return to controls and try the preview again.</p>:!runtime?<p className="preview-unavailable" role="status">Loading Tacos preview…</p>:runtime.unavailable?<p className="preview-unavailable" role="status">Tacos is not running in this environment. Start the demo before previewing its position.</p>:<DemoStage demo={tacos} persona="Captain" temporalUi={runtime.temporalUi} notice={runtime.notice}/>}
+      {failed?<p className="preview-unavailable" role="alert">Runtime settings could not be loaded. Return to controls and try the preview again.</p>:!runtime?<p className="preview-unavailable" role="status">Loading Tacos preview…</p>:runtime.unavailable?<p className="preview-unavailable" role="status">Tacos is not running in this environment. Start the demo before previewing its position.</p>:<DemoStage demo={tacos} persona="Captain" temporalUi={runtime.temporalUi} temporalZoom={display.temporal_ui_zoom} notice={runtime.notice}/>}
     </DisplayArea>
     {navigation}
   </div>
