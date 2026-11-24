@@ -257,7 +257,10 @@ html[data-shared-stage=true][data-demo=dejavutacos] .scenario-list { gap:.35rem;
 html[data-shared-stage=true][data-demo=dejavutacos] .scenario { padding:.45rem; min-height:44px; }
 html[data-shared-stage=true][data-demo=dejavutacos] .scenario-note { display:none; }
 html[data-shared-stage=true] [data-booth-scrollfit=true] { overflow:visible !important; max-height:none !important; }
-html[data-shared-stage=true]:is([data-demo=no-roads],[data-demo=loans],[data-demo=travel-agent],[data-demo=agentic-sdlc],[data-demo=data-pipeline]) { font-size:16px; }
+html[data-shared-stage=true]:is([data-demo=no-roads],[data-demo=loans],[data-demo=agentic-sdlc],[data-demo=data-pipeline]) { font-size:16px; }
+/* Travel Agent isn't zoomed to fit, so its type scales with the frame instead: 16px in a
+   frame about 1040px wide, and proportionally larger on a bigger kiosk. */
+html[data-shared-stage=true][data-demo=travel-agent] { font-size:clamp(16px,min(1.55vw,3.4vh),48px); }
 html[data-shared-stage=true][data-demo=no-roads] body { height:auto; min-height:var(--booth-canvas-height); padding:.5rem; }
 html[data-shared-stage=true][data-demo=no-roads] .no-roads-booth-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:.5rem; }
 html[data-shared-stage=true][data-demo=no-roads] :is(.no-roads-interaction,.no-roads-controls) { padding:.5rem; }
@@ -275,6 +278,8 @@ html[data-shared-stage=true][data-demo=travel-agent] .app { height:100dvh; min-h
 html[data-shared-stage=true][data-demo=travel-agent] .workspace { grid-template-columns:repeat(2,minmax(0,1fr)); gap:.5rem; }
 html[data-shared-stage=true][data-demo=travel-agent] .workspace > .travel { grid-column:2; grid-row:1; }
 html[data-shared-stage=true][data-demo=travel-agent] .travel > :is(.map,.route-map,.departures) { min-height:7rem; }
+/* The route map takes whatever height the board and settings leave, rather than a thin strip. */
+html[data-shared-stage=true][data-demo=travel-agent] .travel > .map { flex-grow:1; }
 html[data-shared-stage=true][data-demo=agentic-sdlc] .shell { height:auto; min-height:var(--booth-canvas-height); padding:.5rem; grid-template-columns:minmax(0,1fr) minmax(14rem,.6fr); grid-template-rows:auto minmax(0,1fr); }
 html[data-shared-stage=true][data-demo=agentic-sdlc] .presenter-bar { grid-column:2; max-height:none; padding:.5rem; }
 /* Holodeck overlays fit their actual upper iframe; live canvases keep native coordinates. */
