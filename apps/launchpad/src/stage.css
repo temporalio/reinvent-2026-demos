@@ -99,3 +99,12 @@
 .travel-architecture .travel-node-detail {font:12px var(--font-mono);fill:var(--text-muted);}
 .travel-architecture .travel-edge-label,.travel-architecture .travel-edge-label text {font:12px var(--font-mono);fill:var(--text-muted);}
 .travel-architecture [data-status=waiting] rect {stroke:var(--status-waiting);stroke-width:3px;}
+
+.sdlc-architecture .sdlc-node-title {font:16px var(--font-mono);}
+.sdlc-architecture .sdlc-node-detail {font:11px var(--font-mono);fill:var(--text-muted);}
+.sdlc-architecture .sdlc-edge-label,.sdlc-architecture .sdlc-edge-label text {font:11px var(--font-mono);fill:var(--text-muted);}
+
+.agentcore-architecture .agentcore-node-title {font:16px var(--font-mono);}
+.agentcore-architecture .agentcore-node-detail {font:11px var(--font-mono);fill:var(--text-muted);}
+.agentcore-architecture .agentcore-edge-label,.agentcore-architecture .agentcore-edge-label text {font:11px var(--font-mono);fill:var(--text-muted);}
+.agentcore-talking-points {font-size:.9rem;line-height:1.6;color:var(--text-muted);padding-left:1.4rem;}

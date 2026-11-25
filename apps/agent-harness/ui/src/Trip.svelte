@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import { AgentSession } from "@temporalio/agent-harness-svelte";
   import type { ZiggyChatAgent, TripBoard as Board } from "./generated/ZiggyChatAgent.ts";
   import ApprovalQueue from "./ApprovalQueue.svelte";
@@ -12,12 +13,16 @@
   import RouteMap from "./RouteMap.svelte";
   import { departures } from "./travel.ts";
 
-  let { sessionId, runId }: { sessionId: string; runId: string | null } = $props();
+  let { sessionId, runId, initialPrompt=null, onInitialSent=()=>{}, readOnly=false }: { sessionId: string; runId: string | null;initialPrompt?:string|null;onInitialSent?:()=>void;readOnly?:boolean } = $props();
 
   const agent = new AgentSession<ZiggyChatAgent>({
     get sessionId() {
       return sessionId;
     },
+  });
+
+  onMount(()=>{
+    if(initialPrompt&&!readOnly){const prompt=initialPrompt;onInitialSent();void agent.sendMessage("ask",{text:prompt});}
   });
 
   // The board lives on whichever agent in the tree runs the scripts: the root for Ziggy
@@ -146,7 +151,7 @@
     <RouteMap {rows} {away} />
     <Departures {rows} {board} {away} {still} />
 
-    {#if choices.length === 0}
+    {#if !readOnly && choices.length === 0}
       <Settings
         {model}
         {policy}
@@ -176,7 +181,7 @@
       </div>
     {/if}
 
-    {#if choices.length > 0}
+    {#if !readOnly && choices.length > 0}
       <section class="card choosing" aria-label="Choose an option">
         {#each choices as call (call.part.toolId)}
           <ChoiceCards part={call.part} answer={(choice) => agent.provideToolOutput(call.part.toolId, choice)} />
@@ -186,7 +191,7 @@
       <Conversation {messages} />
     {/if}
 
-    {#if agent.pendingApprovals.length > 0}
+    {#if !readOnly && agent.pendingApprovals.length > 0}
       <div class="approvals" role="region" aria-label="Approvals">
         <ApprovalQueue
           calls={agent.pendingApprovals}
@@ -195,7 +200,7 @@
       </div>
     {/if}
 
-    {#if choices.length === 0 && (suggestions.length > 0 || opening)}
+    {#if !readOnly && choices.length === 0 && (suggestions.length > 0 || opening)}
       <section class="suggestions" class:opening aria-label={opening ? "Trip ideas" : "Suggested replies"}>
         {#each suggestions as text (text)}
           <button type="button" class="button small secondary ultraviolet" onclick={() => ask(text)}>{text}</button>
@@ -205,7 +210,7 @@
       </section>
     {/if}
 
-    {#if choices.length === 0 && agent.pendingApprovals.length === 0}
+    {#if !readOnly && choices.length === 0 && agent.pendingApprovals.length === 0}
       <form class="composer" onsubmit={send}>
         <label class="visually-hidden" for="composer">Message Ziggy</label>
         <textarea

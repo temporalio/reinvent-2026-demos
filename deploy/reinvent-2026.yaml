@@ -258,6 +258,8 @@ spec:
         value: ri26-travel
       - name: TRUST_AUTH_HEADERS
         value: 'false'
+      - name: BOOTH_STATION_SCOPING
+        value: 'true'
       args:
       - web
       temporalAccess: true

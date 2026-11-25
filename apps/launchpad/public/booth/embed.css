@@ -331,3 +331,39 @@ html[data-shared-stage=true][data-demo=dejavutacos] .mobile-device .taqueria-car
 /* Banking actions use the same solid lime fill as the rest of the booth. */
 html[data-booth=true][data-demo=banking] .button.primary:is(.ultraviolet,.green) { background:var(--brand-highlight); color:var(--surface-page); border:1px solid var(--brand-highlight); box-shadow:none; font-family:var(--font-mono); }
 html[data-booth=true][data-demo=banking] .button.primary:disabled { opacity:.45; }
+
+/* SDLC keeps readable type and real panel boundaries instead of zooming a whole page. */
+html[data-shared-stage=true][data-demo=agentic-sdlc] {font-size:clamp(16px,min(1.55vw,3.4vh),40px);}
+html[data-shared-stage=true][data-demo=agentic-sdlc] body {height:100dvh;overflow:hidden;}
+html[data-shared-stage=true][data-demo=agentic-sdlc] .shell {height:100dvh;min-height:0;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);padding:.5rem;gap:.6rem;}
+html[data-shared-stage=true][data-demo=agentic-sdlc] .acts {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%;gap:.3rem;}
+html[data-shared-stage=true][data-demo=agentic-sdlc] .acts button {font-size:.85rem;min-height:48px;white-space:normal;}
+html[data-shared-stage=true][data-demo=agentic-sdlc] .stage {display:flex;flex-direction:column;gap:.7rem;min-width:0;}
+html[data-shared-stage=true][data-demo=agentic-sdlc] .stage>.act {min-height:0;}
+html[data-shared-stage=true][data-demo=agentic-sdlc] .presenter-bar {gap:.7rem;padding:.75rem;}
+html[data-shared-stage=true][data-demo=agentic-sdlc] .presenter-controls-group {min-width:0;display:flex;flex-direction:column;gap:.8rem;padding:0;border:0;}
+html[data-shared-stage=true][data-demo=agentic-sdlc] .presenter-title {font:700 1.2rem var(--font-mono);margin:0;}
+html[data-shared-stage=true][data-demo=agentic-sdlc] .failure-options {border:1px solid var(--border-default);padding:.6rem;}
+html[data-shared-stage=true][data-demo=agentic-sdlc] .failure-options summary {cursor:pointer;min-height:48px;display:flex;align-items:center;font:1rem var(--font-mono);}
+html[data-shared-stage=true][data-demo=agentic-sdlc] .failure-options summary::before {content:'＋';margin-right:.5rem;}
+html[data-shared-stage=true][data-demo=agentic-sdlc] .failure-options[open] summary::before {content:'−';}
+html[data-shared-stage=true][data-demo=agentic-sdlc] :is(.button,button,select) {font-size:.9rem;min-height:48px;border-radius:0;box-shadow:none;}
+html[data-shared-stage=true][data-demo=agentic-sdlc] .button.primary {background:var(--brand-highlight);border:1px solid var(--brand-highlight);color:var(--surface-page);}
+html[data-shared-stage=true][data-demo=agentic-sdlc] .button.secondary {background:var(--surface-page);border:1px solid var(--border-default);color:var(--text-primary);}
+html[data-shared-stage=true][data-demo=agentic-sdlc] .button::before,html[data-shared-stage=true][data-demo=agentic-sdlc] .button::after {display:none;}
+
+/* AgentCore uses the same bounded upper-left / upper-right application layout. */
+html[data-shared-stage=true][data-demo=agentcore-oncall] {font-size:clamp(16px,min(1.4vw,3vh),36px);}
+html[data-shared-stage=true][data-demo=agentcore-oncall] body {height:100dvh;overflow:hidden;}
+html[data-shared-stage=true][data-demo=agentcore-oncall] .app {height:100dvh;min-height:0;padding:.5rem;gap:.5rem;max-width:none;}
+html[data-shared-stage=true][data-demo=agentcore-oncall] .topbar .brand {display:none;}
+html[data-shared-stage=true][data-demo=agentcore-oncall] .columns {flex:1;min-height:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:minmax(0,1fr);gap:.6rem;align-items:stretch;}
+html[data-shared-stage=true][data-demo=agentcore-oncall] .incident {grid-column:1;grid-row:1;min-width:0;min-height:0;overflow:auto;}
+html[data-shared-stage=true][data-demo=agentcore-oncall] .side {grid-column:2;grid-row:1;min-width:0;min-height:0;grid-template-rows:auto minmax(0,1fr);gap:.6rem;}
+html[data-shared-stage=true][data-demo=agentcore-oncall] .side>.card {min-height:0;overflow:auto;}
+html[data-shared-stage=true][data-demo=agentcore-oncall] .card {padding:.65rem;gap:.5rem;}
+html[data-shared-stage=true][data-demo=agentcore-oncall] .tiles {grid-template-columns:repeat(2,minmax(0,1fr));}
+html[data-shared-stage=true][data-demo=agentcore-oncall] .scenario-grid {grid-template-columns:minmax(0,1fr);}
+html[data-shared-stage=true][data-demo=agentcore-oncall] .button {border-radius:0;box-shadow:none;min-height:48px;white-space:normal;}
+html[data-shared-stage=true][data-demo=agentcore-oncall] .button.primary {background:var(--brand-highlight);border:1px solid var(--brand-highlight);color:var(--surface-page);}
+html[data-shared-stage=true][data-demo=agentcore-oncall] .button.secondary {background:var(--surface-page);border:1px solid var(--border-default);color:var(--text-primary);}

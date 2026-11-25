@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 class ExecutionExcerptTests(unittest.TestCase):
     def test_literal_source_and_focus(self):
         data = json.loads((ROOT / 'apps/launchpad/src/executionExcerpts.json').read_text())
-        self.assertEqual(set(data), {'data-pipeline', 'loan', 'no-roads', 'agent-harness', 'agentic-sdlc'})
+        self.assertEqual(set(data), {'data-pipeline', 'loan', 'no-roads', 'agent-harness', 'agentic-sdlc', 'agentcore-research'})
         for demo, variants in data.items():
             for variant, steps in variants.items():
                 for step, excerpt in steps.items():

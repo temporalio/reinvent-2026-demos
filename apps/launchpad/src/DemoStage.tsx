@@ -26,11 +26,12 @@ const stories: Record<string, [string,string,string]> = {
   'agent-harness': ['Keep an agent’s journey durable.', 'Temporal coordinates agent execution and tool calls.', 'Review the trip plan, approve tool calls, and follow the agent’s progress.'],
   'agentic-sdlc': ['Carry a change through the delivery process.', 'Durable orchestration coordinates the coding and review pipeline.', 'Follow planning, code review, and the human decisions that gate delivery.'],
   'flight-simulator': ['Take the controls. Follow the mission.', 'The simulator combines interactive flight with backend Workflow execution.', 'The live flight display and Workflow history show different parts of the experience.'],
+  'agentcore-research': ['Let the worker stop while the agent waits.', 'AgentCore supplies on-demand compute; Temporal retains the agent’s state and completed model/tool results.', 'Investigate an alarm, wait for the worker to drain, then approve the repair. A new worker resumes the same Workflow from its recorded history.'],
   'photo-booth': ['Turn a booth visit into a keepsake.', 'A Workflow coordinates photo processing and delivery.', 'Follow the steps from portrait capture to the finished photo strip and delivery.'],
 }
 
-export function DemoStage({ demo, persona, temporalUi, temporalZoom=100, notice, onPlaybackChange }: {demo:(typeof catalog)[number];persona:string;temporalUi:string|null;temporalZoom?:number;notice?:string;onPlaybackChange?:(playing:boolean)=>void}) {
-  const holodeck = demo.id==='photo-booth' || demo.id==='flight-simulator' || demo.id==='agentcore-research'
+export function DemoStage({ demo, persona, temporalUi, temporalZoom=100, stationId, notice, onPlaybackChange }: {demo:(typeof catalog)[number];persona:string;temporalUi:string|null;temporalZoom?:number;stationId?:string;notice?:string;onPlaybackChange?:(playing:boolean)=>void}) {
+  const holodeck = demo.id==='photo-booth' || demo.id==='flight-simulator'
   const [workflowOverlay,setWorkflowOverlay]=useState<string|null>(null)
   const initialTab: Tab = persona.toLowerCase() === 'mech' ? 'code' : persona.toLowerCase() === 'envoy' ? 'architecture' : 'business'
   const [tab,setTab] = useState<Tab>(initialTab)
@@ -141,7 +142,7 @@ export function DemoStage({ demo, persona, temporalUi, temporalZoom=100, notice,
   </section>
   return <div className={`demo-stage${holodeck?' demo-stage-holodeck':''}`}>
     <section className="stage-application" aria-label="Live demo interaction and controls" inert={!!workflowOverlay} aria-hidden={workflowOverlay?true:undefined}>
-      <div className="app-viewport"><iframe ref={appFrame} title={`${demo.title}: live interaction and controls`} src={`${demo.path}?persona=${persona.toLowerCase()}&booth=1&sharedStage=1`} allow="camera; fullscreen" /></div>
+      <div className="app-viewport"><iframe ref={appFrame} title={`${demo.title}: live interaction and controls`} src={`${demo.path}?persona=${persona.toLowerCase()}&booth=1&sharedStage=1${stationId?`&station=${encodeURIComponent(stationId)}`:""}`} allow="camera; fullscreen" /></div>
     </section>
     {holodeck && workflowOverlay && <section className="holodeck-workflow" aria-label={`${demo.title} workflow`}>
       <header><button autoFocus onClick={()=>setWorkflowOverlay(null)}>← Back to {demo.id==='photo-booth'?'Photo Booth':demo.id==='agentcore-research'?'AgentCore Starship Engineer':'Flight Simulator'}</button><span>Temporal workflow</span></header>
@@ -152,7 +153,7 @@ export function DemoStage({ demo, persona, temporalUi, temporalZoom=100, notice,
       <div role="tablist" aria-label="Demo information" className="stage-tabs" onKeyDown={navigate}>{tabs.map((t,index)=><button key={t.id} ref={element=>{buttons.current[index]=element}} id={`${id}-${t.id}`} role="tab" aria-selected={tab===t.id} aria-controls={`${id}-panel-${t.id}`} tabIndex={tab===t.id?0:-1} onClick={()=>setTab(t.id)}>{t.label}</button>)}</div>
       {demo.id==='tacos' && (tab==='architecture' || tab==='code') && <ExecutionProgress run={tacoRun} phase={phase} following={following} onSelect={phase=>setPhaseSelection({orderId:tacoRun?.orderId || null,phase})} onFollow={()=>setPhaseSelection(null)} />}
       {tabs.map(t=><div key={t.id} id={`${id}-panel-${t.id}`} role="tabpanel" aria-labelledby={`${id}-${t.id}`} tabIndex={0} hidden={tab!==t.id} className="stage-tab-content">
-        {t.id==='business' && <div className="business-story"><h2>{story?.[0]}</h2><p>{story?.[1]}</p><p className="business-detail">{notice || story?.[2]}</p></div>}
+        {t.id==='business' && <div className="business-story"><h2>{story?.[0]}</h2><p>{story?.[1]}</p><p className="business-detail">{notice || story?.[2]}</p>{demo.id==='agentcore-research'&&<ul className="agentcore-talking-points"><li>Each model and tool call is a recorded Activity.</li><li>The approval Signal is durable even when no worker is polling.</li><li>Describe, memo, and history reads show progress without waking compute.</li></ul>}</div>}
         {t.id==='architecture' && tab==='architecture' && <ArchitecturePanel demoId={demo.id} execution={tacoRun} phase={phase} cursor={liveCursor} />}
         {t.id==='code' && <CodeSamples demoId={demo.id} execution={tacoRun} phase={phase} money={moneyRun} cursor={liveCursor} />}
         {t.id==='temporal' && (temporalUi ? <div className="temporal-viewport"><iframe ref={temporalFrame} title={`${demo.title}: Temporal workflow history`} src={demoWorkflowList(temporalUi,demo.id,location.origin)} onLoad={event=>styleTemporalFrame(event.currentTarget)} className="stage-temporal" style={{zoom:temporalZoom/100}} /></div> : <p>The hosted Temporal UI route has not been enabled for this project. Local preview connects this tab to Temporal OSS.</p>)}

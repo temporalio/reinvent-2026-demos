@@ -66,6 +66,8 @@ Staff can tap Ziggy and use the date PIN, stylus, and on-screen controls without
 
 ### 4. Optional local demo stack and laptop LAN hub
 
+`local.sh` starts services; it does not launch Chrome or inject browser settings. The Mini's gateway proxies `/control-api/` to `CONTROL_HUB_URL`. The browser polls that same-origin endpoint every two seconds, selects its station's effective settings, and applies the frame layout and zoom directly. Global defaults and station overrides are cached in the browser profile. The kiosk launcher below starts Chrome with the station URL and can start the prepared local stack at login.
+
 For local rehearsal, prepare the stack once while online. On the laptop:
 
 ```bash
@@ -99,7 +101,7 @@ launchctl bootstrap "gui/$(id -u)" \
   "$HOME/Library/LaunchAgents/io.temporal.reinvent-kiosk.plist"
 ```
 
-Logs are in `~/Library/Logs/TemporalReinventKiosk/`. Kiosk mode is a presentation mode, not a macOS security boundary; keep a staff keyboard available for OS login, permission dialogs, or maintenance.
+Logs are in `~/Library/Logs/TemporalReinventKiosk/`. Kiosk mode is a presentation mode, not a macOS security boundary. Normal demo navigation and Ziggy controls work by stylus, but keep one staff keyboard/trackpad available for OS login, permission dialogs, or maintenance. The launcher restarts Chrome when it exits; it does not detect a frozen browser or operating system.
 
 Before the show, test each physical Mini: save a distinct station setting, disconnect the laptop from the LAN, reboot, and confirm the correct station opens without browser chrome and retains its cached layout. Reconnect the laptop and verify a saved change arrives without reloading the demo. Also test camera permissions, stylus taps/drags, the on-screen keyboard, and the power-recovery path. **These physical-machine checks have not been performed by the installer or by repository tests.**
 

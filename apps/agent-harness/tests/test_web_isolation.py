@@ -154,3 +154,67 @@ async def test_a_session_starts_with_the_travelers_date_or_is_refused(api):
         bad = {"today": "December 1st"}
         refused = await alice.post("/api/sessions", json={"agent_workflow_type": CHAT_AGENT, "data": bad})
         assert refused.status_code == 422
+
+
+async def test_booth_stations_cannot_list_stream_or_approve_each_others_trips(api, monkeypatch):
+    monkeypatch.setattr(web, "BOOTH_STATION_SCOPING", True)
+    as_user = api(f"booth-travel-{uuid.uuid4().hex[:8]}")
+    async with as_user("booth-staff") as one, as_user("booth-staff") as two:
+        one.headers["X-Booth-Station"] = "1"
+        two.headers["X-Booth-Station"] = "2"
+        created = await one.post("/api/sessions", json={"agent_workflow_type": CHAT_AGENT,
+            "data": {"today": "2026-12-01", "traveler_name": "Alex Morgan",
+                     "origin_city": "Las Vegas (LAS)", "destination_city": "Seattle (SEA)"}})
+        created.raise_for_status()
+        session_id = created.json()["workflow_id"]
+        await eventually_listed(one, session_id)
+        assert session_id not in await listed_ids(two)
+        assert (await two.get("/api/attach", params={"session_id": session_id})).status_code == 404
+        assert (await two.post("/api/approve", json={"session_id": session_id, "tool_id": "t", "approved": True})).status_code == 404
+        listing = await one.get("/api/sessions")
+        item = next(row for row in listing.json() if row["workflow_id"] == session_id)
+        assert item["plan"]["traveler_name"] == "Alex Morgan"
+
+
+async def test_booth_requires_a_valid_station_and_console_remembers_it(api, monkeypatch):
+    monkeypatch.setattr(web, "BOOTH_STATION_SCOPING", True)
+    as_user = api(f"booth-travel-{uuid.uuid4().hex[:8]}")
+    async with as_user("booth-staff") as client:
+        assert (await client.get("/api/view")).status_code == 400
+        assert (await client.get("/api/view?station=5")).status_code == 400
+        response = await client.get("/api/view?station=3")
+        assert response.status_code == 200
+        assert "reinvent_travel_station=3" in response.headers["set-cookie"]
+        # httpx's test base path is /, whereas production is /travel-agent/.
+        client.cookies.set(web.STATION_COOKIE, "3", path="/")
+        assert (await client.get("/console/api/sessions")).status_code == 200
+
+
+async def test_ended_trips_remain_in_the_station_history(api, temporal, monkeypatch):
+    monkeypatch.setattr(web, "BOOTH_STATION_SCOPING", True)
+    as_user = api(f"booth-history-{uuid.uuid4().hex[:8]}")
+    async with as_user("booth-staff") as client:
+        client.headers["X-Booth-Station"] = "4"
+        response = await client.post("/api/sessions", json={"agent_workflow_type": CHAT_AGENT})
+        response.raise_for_status()
+        workflow_id = response.json()["workflow_id"]
+        await temporal.get_workflow_handle(workflow_id).terminate(reason="Station history test")
+        for _ in range(50):
+            rows = (await client.get("/api/sessions")).json()
+            if any(row["workflow_id"] == workflow_id and row["closed"] for row in rows):
+                break
+            await asyncio.sleep(.1)
+        else:
+            raise AssertionError("The ended trip disappeared from its station history")
+
+
+async def test_all_four_station_prefixes_are_distinct(api, monkeypatch):
+    monkeypatch.setattr(web, "BOOTH_STATION_SCOPING", True)
+    as_user = api(f"booth-four-{uuid.uuid4().hex[:8]}")
+    prefixes = set()
+    async with as_user("booth-staff") as client:
+        for station in ("1", "2", "3", "4"):
+            response = await client.get("/api/view", headers={"X-Booth-Station": station})
+            response.raise_for_status()
+            prefixes.add(response.json()["session_prefix"])
+    assert len(prefixes) == 4

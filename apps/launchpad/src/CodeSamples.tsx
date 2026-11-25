@@ -57,7 +57,7 @@ export function CodeSamples({demoId,execution,phase,money,cursor}:{demoId:string
   const lines=useMemo(()=>sdk && code!==undefined ? highlight(code,sdk) : [],[code,sdk])
   useEffect(()=>{
     const controller=new AbortController()
-    fetch('/booth/code-examples.json',{signal:controller.signal})
+    fetch('/booth/code-examples.json',{signal:controller.signal,cache:'no-cache'})
       .then(response=>{if(!response.ok)throw Error('Code unavailable');return response.json()})
       .then(setCatalog)
       .catch(error=>{if(error.name!=='AbortError')setFailed(true)})

@@ -35,6 +35,10 @@ class TravelerContext(BaseModel):
         description="The traveler's IANA time zone, such as America/New_York.",
     )
 
+    traveler_name: str | None = Field(default=None, min_length=1, max_length=80)
+    origin_city: str | None = Field(default=None, min_length=1, max_length=80)
+    destination_city: str | None = Field(default=None, min_length=1, max_length=80)
+
     def prompt_line(self) -> str:
         where = f" in {self.timezone}" if self.timezone else ""
         return (

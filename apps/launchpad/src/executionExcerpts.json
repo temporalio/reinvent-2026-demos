@@ -783,5 +783,88 @@
         "label": "Wait For Budget"
       }
     }
+  },
+  "agentcore-research": {
+    "default": {
+      "diagnosing": {
+        "path": "apps/agentcore-research/agent/oncall/workflows.py",
+        "startLine": 98,
+        "endLine": 104,
+        "code": "\n@workflow.run\nasync def run(self, incident: IncidentInput) -> IncidentReport:\n    s = self._scenario\n    prompt = f\"Ship alert {incident.incident_id}: {s.alert}. System: {s.system}. Find the cause and propose a repair.\"\n    result = await self._agent.invoke_async(prompt)\n    self._publish(model=self._agent.model.get_config().get(\"model_id\"))",
+        "focus": [
+          3,
+          4
+        ],
+        "label": "Investigate with Activity-backed model and tools"
+      },
+      "approval": {
+        "path": "apps/agentcore-research/agent/oncall/workflows.py",
+        "startLine": 106,
+        "endLine": 124,
+        "code": "# The agent stops with an interrupt when it calls apply_repair (see\n# ApprovalGate). Waiting here is a durable wait: the Worker can drain and\n# go away, and the approval Signal brings a new one back to this line.\nwhile result.stop_reason == \"interrupt\":\n    interrupt = result.interrupts[0]\n    self._decision = None\n    self._awaiting = True\n    # A None memo value removes the key, which clears an earlier decision.\n    self._set_phase(\"awaiting_approval\", proposal=interrupt.reason, decision=None)\n    try:\n        await workflow.wait_condition(lambda: self._decision is not None, timeout=APPROVAL_TIMEOUT)\n        decision = self._decision or Decision(approved=False, approver=\"nobody\")\n    except asyncio.TimeoutError:\n        decision = Decision(approved=False, approver=\"nobody\", note=\"no decision within 24 hours\")\n        self._decision = decision\n    self._awaiting = False\n    self._set_phase(\"remediating\" if decision.approved else \"closing\", decision={**asdict(decision), \"at\": workflow.now().isoformat()})\n    response = \"approve\" if decision.approved else f\"rejected by {decision.approver}: {decision.note or 'no reason given'}\"\n    result = await self._agent.invoke_async([{\"interruptResponse\": {\"interruptId\": interrupt.id, \"response\": response}}])",
+        "focus": [
+          10
+        ],
+        "label": "Wait for the captain\u2019s decide Signal"
+      },
+      "remediating": {
+        "path": "apps/agentcore-research/agent/oncall/workflows.py",
+        "startLine": 114,
+        "endLine": 129,
+        "code": "    self._set_phase(\"awaiting_approval\", proposal=interrupt.reason, decision=None)\n    try:\n        await workflow.wait_condition(lambda: self._decision is not None, timeout=APPROVAL_TIMEOUT)\n        decision = self._decision or Decision(approved=False, approver=\"nobody\")\n    except asyncio.TimeoutError:\n        decision = Decision(approved=False, approver=\"nobody\", note=\"no decision within 24 hours\")\n        self._decision = decision\n    self._awaiting = False\n    self._set_phase(\"remediating\" if decision.approved else \"closing\", decision={**asdict(decision), \"at\": workflow.now().isoformat()})\n    response = \"approve\" if decision.approved else f\"rejected by {decision.approver}: {decision.note or 'no reason given'}\"\n    result = await self._agent.invoke_async([{\"interruptResponse\": {\"interruptId\": interrupt.id, \"response\": response}}])\n\nsummary = str(result).strip()\nfinal = \"resolved\" if self._decision and self._decision.approved else \"closed\"\nself._set_phase(final, summary=summary)\nreturn IncidentReport(phase=final, summary=summary)",
+        "focus": [
+          8,
+          10
+        ],
+        "label": "Resume the recorded agent and finish the incident"
+      },
+      "closing": {
+        "path": "apps/agentcore-research/agent/oncall/workflows.py",
+        "startLine": 114,
+        "endLine": 129,
+        "code": "    self._set_phase(\"awaiting_approval\", proposal=interrupt.reason, decision=None)\n    try:\n        await workflow.wait_condition(lambda: self._decision is not None, timeout=APPROVAL_TIMEOUT)\n        decision = self._decision or Decision(approved=False, approver=\"nobody\")\n    except asyncio.TimeoutError:\n        decision = Decision(approved=False, approver=\"nobody\", note=\"no decision within 24 hours\")\n        self._decision = decision\n    self._awaiting = False\n    self._set_phase(\"remediating\" if decision.approved else \"closing\", decision={**asdict(decision), \"at\": workflow.now().isoformat()})\n    response = \"approve\" if decision.approved else f\"rejected by {decision.approver}: {decision.note or 'no reason given'}\"\n    result = await self._agent.invoke_async([{\"interruptResponse\": {\"interruptId\": interrupt.id, \"response\": response}}])\n\nsummary = str(result).strip()\nfinal = \"resolved\" if self._decision and self._decision.approved else \"closed\"\nself._set_phase(final, summary=summary)\nreturn IncidentReport(phase=final, summary=summary)",
+        "focus": [
+          8,
+          9
+        ],
+        "label": "Resume the recorded agent and finish the incident"
+      },
+      "resolved": {
+        "path": "apps/agentcore-research/agent/oncall/workflows.py",
+        "startLine": 122,
+        "endLine": 129,
+        "code": "    self._set_phase(\"remediating\" if decision.approved else \"closing\", decision={**asdict(decision), \"at\": workflow.now().isoformat()})\n    response = \"approve\" if decision.approved else f\"rejected by {decision.approver}: {decision.note or 'no reason given'}\"\n    result = await self._agent.invoke_async([{\"interruptResponse\": {\"interruptId\": interrupt.id, \"response\": response}}])\n\nsummary = str(result).strip()\nfinal = \"resolved\" if self._decision and self._decision.approved else \"closed\"\nself._set_phase(final, summary=summary)\nreturn IncidentReport(phase=final, summary=summary)",
+        "focus": [
+          4,
+          5,
+          6,
+          7
+        ],
+        "label": "Resume the recorded agent and finish the incident"
+      },
+      "closed": {
+        "path": "apps/agentcore-research/agent/oncall/workflows.py",
+        "startLine": 122,
+        "endLine": 129,
+        "code": "    self._set_phase(\"remediating\" if decision.approved else \"closing\", decision={**asdict(decision), \"at\": workflow.now().isoformat()})\n    response = \"approve\" if decision.approved else f\"rejected by {decision.approver}: {decision.note or 'no reason given'}\"\n    result = await self._agent.invoke_async([{\"interruptResponse\": {\"interruptId\": interrupt.id, \"response\": response}}])\n\nsummary = str(result).strip()\nfinal = \"resolved\" if self._decision and self._decision.approved else \"closed\"\nself._set_phase(final, summary=summary)\nreturn IncidentReport(phase=final, summary=summary)",
+        "focus": [
+          4,
+          5,
+          6,
+          7
+        ],
+        "label": "Resume the recorded agent and finish the incident"
+      },
+      "timer": {
+        "path": "apps/agentcore-research/agent/oncall/workflows.py",
+        "startLine": 106,
+        "endLine": 124,
+        "code": "# The agent stops with an interrupt when it calls apply_repair (see\n# ApprovalGate). Waiting here is a durable wait: the Worker can drain and\n# go away, and the approval Signal brings a new one back to this line.\nwhile result.stop_reason == \"interrupt\":\n    interrupt = result.interrupts[0]\n    self._decision = None\n    self._awaiting = True\n    # A None memo value removes the key, which clears an earlier decision.\n    self._set_phase(\"awaiting_approval\", proposal=interrupt.reason, decision=None)\n    try:\n        await workflow.wait_condition(lambda: self._decision is not None, timeout=APPROVAL_TIMEOUT)\n        decision = self._decision or Decision(approved=False, approver=\"nobody\")\n    except asyncio.TimeoutError:\n        decision = Decision(approved=False, approver=\"nobody\", note=\"no decision within 24 hours\")\n        self._decision = decision\n    self._awaiting = False\n    self._set_phase(\"remediating\" if decision.approved else \"closing\", decision={**asdict(decision), \"at\": workflow.now().isoformat()})\n    response = \"approve\" if decision.approved else f\"rejected by {decision.approver}: {decision.note or 'no reason given'}\"\n    result = await self._agent.invoke_async([{\"interruptResponse\": {\"interruptId\": interrupt.id, \"response\": response}}])",
+        "focus": [
+          10
+        ],
+        "label": "Wait for the captain\u2019s decide Signal"
+      }
+    }
   }
 }

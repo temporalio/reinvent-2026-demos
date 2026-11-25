@@ -40,3 +40,10 @@ test('pipeline recovery highlight follows its recorded Signal then load',()=>{
  assert.equal(historyCursor([...events,scheduled(6,'load')],'same-run').step,'load')
  assert.equal(historyCursor([...events.slice(0,-1),event(5,'workflowExecutionSignaledEventAttributes',{signalName:'unrelated'})],'same-run').step,'bug')
 })
+
+test('AgentCore approval highlights only metadata from its owning iframe',()=>{
+ const owner={},origin='https://booth.example',data={type:'booth:demo-execution',demoId:'agentcore-research',runId:'run-agent',step:'approval',status:'waiting',variant:'default',stale:false}
+ const cursor=readDemoExecution({data,source:owner,origin},origin,owner,'agentcore-research')
+ assert.match(liveExcerpt('agentcore-research',cursor).code,/workflow.wait_condition/)
+ assert.equal(readDemoExecution({data,source:{},origin},origin,owner,'agentcore-research'),null)
+})

@@ -138,6 +138,7 @@ export function App() {
       </div>
 
       <aside className="presenter-bar" aria-label="Scenario and failure controls">
+        <h2 className="presenter-title">Mission control</h2>
         <fieldset className="presenter-controls-group" disabled={preview !== false}>
         <div className="bar-group">
           <button className="button small primary ultraviolet" disabled={preview !== false} onClick={() => setDialog(true)} title="Shortcut: N">Start a scenario</button>
@@ -148,7 +149,7 @@ export function App() {
           <button className="button small secondary ultraviolet" disabled={!live} title="Cancel this run; its issue or PR stays on GitHub"
             onClick={() => view && confirm(`Stop “${view.run.title}”?`) && control(`/agentic-sdlc/api/runs/${view.run.run_id}/stop`)}>Stop run</button>
         </div>
-        <BreakThings session={session} config={config} view={view} live={live} refresh={refresh} notify={fail} />
+        <details className="failure-options"><summary>Simulate a failure</summary><BreakThings session={session} config={config} view={view} live={live} refresh={refresh} notify={fail} /></details>
         <div className="bar-group">
           <button className="button small secondary ultraviolet" disabled={preview !== false || !session.slot} onClick={() => {
             if (confirm("Stop this session's runs and close its issues and PRs?")) {

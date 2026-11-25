@@ -70,14 +70,26 @@
     renderWorker(view, inc);
     if (!inc) {
       renderProof(null);
+      if(parent!==window)parent.postMessage({type:'booth:demo-reset',demoId:'agentcore-research'},location.origin);
       $("temporal-link").hidden = true;
       return;
     }
     if (sentDecision && inc.decision) sentDecision = null;
     $("temporal-link").hidden = !inc.temporalUrl;
-    if (inc.temporalUrl) $("temporal-link").href = inc.temporalUrl;
+    if (inc.temporalUrl) {
+      const execution=new URL(inc.temporalUrl,location.href);
+      if(inc.runId && /\/workflows\/[^/]+\/?$/.test(execution.pathname))execution.pathname=execution.pathname.replace(/\/$/,'')+'/'+encodeURIComponent(inc.runId)+'/timeline';
+      $("temporal-link").href=execution.href;
+    }
     renderIncident(inc);
     renderProof(inc.proof);
+    if(parent!==window && inc.runId){
+      const phase=phaseOf(inc)||'diagnosing';
+      parent.postMessage({type:'booth:demo-execution',demoId:'agentcore-research',runId:inc.runId,
+        step:phase==='awaiting_approval'?'approval':phase,
+        status:inc.status==='Running'?(phase==='awaiting_approval'?'waiting':'running'):inc.status==='Completed'?'completed':'failed',
+        variant:'default',stale:false},location.origin);
+    }
   }
 
   // A new set of alarms for each visit to the start screen. With Claude Haiku

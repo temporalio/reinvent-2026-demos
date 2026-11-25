@@ -6,7 +6,7 @@ export const transport = new HttpTransport();
 
 /** What `GET api/view` returns: everything the page needs on load, in one request. */
 /** A session as this demo's API returns it: the harness summary plus its Workflow run ID. */
-export type TripSession = SessionSummary & { run_id?: string | null };
+export type TripSession = SessionSummary & { run_id?: string | null; plan?: Partial<TripPlan> };
 
 export interface PageView {
   /** Every session this person may name starts with this. */
@@ -17,7 +17,7 @@ export interface PageView {
 }
 
 export async function loadView(): Promise<PageView> {
-  const response = await fetch("api/view");
+  const response = await fetch("api/view",{signal:AbortSignal.timeout(10_000)});
   if (!response.ok) throw new Error(`Couldn't load the demo (${response.status})`);
   return response.json();
 }
@@ -38,7 +38,15 @@ export function travelerContext(now = new Date()): TravelerContext {
   };
 }
 
-export function createTrip(sessionId: string): Promise<TripSession> {
+export function createTrip(sessionId: string,plan:TripPlan): Promise<TripSession> {
   // The demo's POST /sessions adds run_id; the client passes the response through as-is.
-  return startSession(transport, ZiggyChatAgent, { sessionId, data: travelerContext() }) as Promise<TripSession>;
+  const data:TravelerContext&TripPlan={...travelerContext(),...plan};
+  return startSession(transport, ZiggyChatAgent, { sessionId, data }) as Promise<TripSession>;
+}
+
+export type TripPlan={traveler_name:string;origin_city:string;destination_city:string};
+export const travelerNames=['Alex Morgan','Jordan Lee','Priya Shah','Mateo Rivera','Avery Chen','Fatima Hassan','Gabriela Santos','Noah Williams','Samira Patel','Taylor Nguyen'];
+export const tripCities=['Las Vegas (LAS)','San Francisco (SFO)','Seattle (SEA)','New York (JFK)','Chicago (ORD)','Austin (AUS)','Toronto (YYZ)','Vancouver (YVR)','Montréal (YUL)','Mexico City (MEX)'];
+export function tripPrompt(plan:TripPlan):string {
+ return `Plan a simulated three-night trip for ${plan.traveler_name} from ${plan.origin_city} to ${plan.destination_city}, departing two weeks from today. Show flight and hotel options, then ask for approval before booking. All bookings are fictional.`;
 }

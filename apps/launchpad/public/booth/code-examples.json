@@ -526,6 +526,59 @@
           "note": "Curated native excerpt from the running implementation. Surrounding imports, setup, and other Workflow steps are omitted."
         }
       }
+    },
+    "agentcore-research": {
+      "concept": "Let compute stop during a durable approval wait",
+      "summary": "The running demo uses Python Strands with TemporalAgent. Every model/tool call is recorded; AgentCore workers can stop and a replacement resumes after a decide Signal. Other SDK tabs illustrate orchestration boundaries, not a Strands plugin port.",
+      "nativeLanguage": "python",
+      "source": {
+        "path": "apps/agentcore-research/agent/oncall/workflows.py",
+        "symbol": "IncidentWorkflow.run",
+        "startLine": 106,
+        "endLine": 129
+      },
+      "examples": {
+        "python": {
+          "code": "# The agent stops with an interrupt when it calls apply_repair (see\n# ApprovalGate). Waiting here is a durable wait: the Worker can drain and\n# go away, and the approval Signal brings a new one back to this line.\nwhile result.stop_reason == \"interrupt\":\n    interrupt = result.interrupts[0]\n    self._decision = None\n    self._awaiting = True\n    # A None memo value removes the key, which clears an earlier decision.\n    self._set_phase(\"awaiting_approval\", proposal=interrupt.reason, decision=None)\n    try:\n        await workflow.wait_condition(lambda: self._decision is not None, timeout=APPROVAL_TIMEOUT)\n        decision = self._decision or Decision(approved=False, approver=\"nobody\")\n    except asyncio.TimeoutError:\n        decision = Decision(approved=False, approver=\"nobody\", note=\"no decision within 24 hours\")\n        self._decision = decision\n    self._awaiting = False\n    self._set_phase(\"remediating\" if decision.approved else \"closing\", decision={**asdict(decision), \"at\": workflow.now().isoformat()})\n    response = \"approve\" if decision.approved else f\"rejected by {decision.approver}: {decision.note or 'no reason given'}\"\n    result = await self._agent.invoke_async([{\"interruptResponse\": {\"interruptId\": interrupt.id, \"response\": response}}])\n\nsummary = str(result).strip()\nfinal = \"resolved\" if self._decision and self._decision.approved else \"closed\"\nself._set_phase(final, summary=summary)\nreturn IncidentReport(phase=final, summary=summary)",
+          "kind": "native-excerpt",
+          "note": "Exact Python Strands workflow excerpt. The decide Signal records approval while the AgentCore worker is stopped."
+        },
+        "go": {
+          "code": "func InvestigateIncident(ctx workflow.Context, incident Incident) (Decision, error) {\n    ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{\n        StartToCloseTimeout: 90 * time.Second,\n    })\n    // The Python Strands agent is represented as an Activity boundary here.\n    var assessment Assessment\n    if err := workflow.ExecuteActivity(ctx, \"InvestigateIncident\", incident).Get(ctx, &assessment); err != nil {\n        return Decision{}, err\n    }\n    var humanDecision string\n    workflow.GetSignalChannel(ctx, \"investigateIncidentr_decision\").Receive(ctx, &humanDecision)\n    return Decision{Assessment: assessment, HumanDecision: humanDecision}, nil\n}",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Shows an Activity-backed investigation and a durable approval Signal, not a port of the Python Strands integration. Imports, types, registrations, and surrounding handlers are omitted."
+        },
+        "typescript": {
+          "code": "const humanDecision = defineSignal<[string]>('investigateIncidentr_decision');\nconst activities = proxyActivities<IncidentActivities>({\n  startToCloseTimeout: '90 seconds',\n});\nexport async function investigateIncident(incident: Incident): Promise<Decision> {\n  let decision: string | undefined;\n  setHandler(humanDecision, value => { decision = value; });\n  // Orchestration boundary only; this does not port the Python Strands agent.\n  const assessment = await activities.investigateIncident(incident);\n  await condition(() => decision !== undefined);\n  return { assessment, humanDecision: decision! };\n}",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Shows an Activity-backed investigation and a durable approval Signal, not a port of the Python Strands integration. Imports, types, registrations, and surrounding handlers are omitted."
+        },
+        "java": {
+          "code": "private String humanDecision;\npublic Decision investigateIncident(Incident incident) {\n    IncidentActivities activities = Workflow.newActivityStub(\n        IncidentActivities.class, ActivityOptions.newBuilder()\n            .setStartToCloseTimeout(Duration.ofSeconds(90)).build());\n    // The Python Strands step is represented by an Activity boundary.\n    Assessment assessment = activities.investigateIncident(incident);\n    Workflow.await(() -> humanDecision != null);\n    return new Decision(assessment, humanDecision);\n}\n// Implements an @SignalMethod on the omitted Workflow interface.\npublic void investigateIncidentrDecision(String value) { humanDecision = value; }",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Shows an Activity-backed investigation and a durable approval Signal, not a port of the Python Strands integration. Imports, types, registrations, and surrounding handlers are omitted."
+        },
+        "dotnet": {
+          "code": "private string? humanDecision;\n[WorkflowRun]\npublic async Task<Decision> InvestigateAsync(Incident incident)\n{\n    // Orchestration boundary, not a .NET port of the Python Strands plugin.\n    var assessment = await Workflow.ExecuteActivityAsync(\n        (Activities a) => a.InvestigateIncidentAsync(incident),\n        new() { StartToCloseTimeout = TimeSpan.FromSeconds(90) });\n    await Workflow.WaitConditionAsync(() => humanDecision != null);\n    return new Decision(assessment, humanDecision!);\n}\n[WorkflowSignal]\npublic Task InvestigateIncidentrDecisionAsync(string value) { humanDecision = value; return Task.CompletedTask; }",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Shows an Activity-backed investigation and a durable approval Signal, not a port of the Python Strands integration. Imports, types, registrations, and surrounding handlers are omitted."
+        },
+        "php": {
+          "code": "private ?string $decision = null;\n\npublic function run(IncidentInput $input): \\Generator\n{\n    $activities = Workflow::newActivityStub(DemoActivities::class,\n        ActivityOptions::new()->withStartToCloseTimeout('5 minutes'));\n    // Basic Activity orchestration, not the Python Strands plugin.\n    $assessment = yield $activities->investigateIncident($input);\n    yield Workflow::await(fn() => $this->decision !== null);\n    return ['assessment' => $assessment, 'decision' => $this->decision];\n}\n\n#[SignalMethod(name: 'decide')]\npublic function decide(string $decision): void { $this->decision = $decision; }",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Shows an Activity-backed investigation and a durable approval Signal, not a port of the Python Strands integration. Imports, types, registrations, and surrounding handlers are omitted."
+        },
+        "ruby": {
+          "code": "class IncidentWorkflow < Temporalio::Workflow::Definition\n  Workflow = Temporalio::Workflow\n  def execute(input)\n    @decision = nil\n    # Basic Activity boundary, not the Python Strands integration.\n    assessment = Workflow.execute_activity(Activities::InvestigateIncident, input,\n                                            start_to_close_timeout: 300)\n    Workflow.wait_condition { !@decision.nil? }\n    { assessment: assessment, decision: @decision }\n  end\n  workflow_signal name: 'decide'\n  def decide(decision)\n    @decision = decision\n  end\nend",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Shows an Activity-backed investigation and a durable approval Signal, not a port of the Python Strands integration. Imports, types, registrations, and surrounding handlers are omitted."
+        },
+        "rust": {
+          "code": "#[run]\npub async fn run(ctx: &mut WorkflowContext<Self>, input: Incident) -> WorkflowResult<Decision> {\n    let options = ActivityOptions::start_to_close_timeout(Duration::from_secs(300));\n    // Basic Activity boundary, not the Python Strands integration.\n    let assessment = ctx.execute_activity(Activities::investigate_incident, input, options).await?;\n    ctx.wait_condition(|state: &Self| state.decision.is_some()).await?;\n    let decision = ctx.state(|state| state.decision.clone().unwrap());\n    Ok(Decision { assessment, decision })\n}\n\n#[signal]\npub fn decide(&mut self, _ctx: &mut SyncWorkflowContext<Self>, decision: String) {\n    self.decision = Some(decision);\n}",
+          "kind": "illustrative",
+          "note": "Illustrative equivalent. Shows an Activity-backed investigation and a durable approval Signal, not a port of the Python Strands integration. Imports, types, registrations, and surrounding handlers are omitted."
+        }
+      }
     }
   }
 }

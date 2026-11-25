@@ -1,3 +1,5 @@
+import {AgentCoreArchitecture} from './AgentCoreArchitecture'
+import {SdlcArchitecture} from './SdlcArchitecture'
 import {TravelArchitecture} from './TravelArchitecture'
 import {NoRoadsArchitecture} from './NoRoadsArchitecture'
 import type {LiveCursor} from './workflowHistory'
@@ -9,6 +11,8 @@ import { architectureProfiles } from './architectureProfiles'
 export function ArchitecturePanel({ demoId, execution, phase,cursor }: {demoId:string;execution?:TacoExecution|null;phase?:TacoPhase;cursor?:LiveCursor|null}) {
   const id=useId()
   const profile=architectureProfiles[demoId]
+  if(demoId==='agentcore-research')return <AgentCoreArchitecture cursor={cursor} id={id} />
+  if(demoId==='agentic-sdlc')return <SdlcArchitecture cursor={cursor} id={id} />
   if(demoId==='agent-harness')return <TravelArchitecture cursor={cursor} id={id} />
   if(demoId==='no-roads')return <NoRoadsArchitecture cursor={cursor} id={id} />
   if(demoId==='data-pipeline')return <PipelineArchitecture cursor={cursor} id={id} />
