@@ -61,3 +61,7 @@ The hosted deployment is a different setup from the LAN one above: the stations'
 - **Storage.** The hosted hub keeps settings, presence and sessions in the DynamoDB table Fieldkit provisions from `spec.aws.dynamodb.tables.control` (env `CONTROL_TABLE`, hash key `pk`, TTL on `expires_at`). Settings survive restarts and every rollout of the project. Without `CONTROL_TABLE` the hub uses SQLite, as in local runs.
 - **PIN-only access.** `/config` and `/control-api` bypass Fieldkit SSO so booth machines need no employee login. The hub still requires the daily date PIN to issue an HttpOnly session cookie before accepting configuration writes. Same-origin validation, PIN throttling, and session expiry remain enabled. Public route access does not permit unauthenticated configuration writes. The date PIN is a simple booth access gate, not employee identity verification.
 - `CONTROL_HUB_URL` and `BOOTH_BIND_ADDRESS` apply only to local runs.
+
+## Pause Automatic Returns on One Machine
+
+The hourglass beside **Screensaver** pauses all 60-second return timers in that browser. When **Paused** appears, booth staff must use **Screensaver**, **Crew**, or a mission button to navigate. Tap the hourglass again to resume with a fresh 60-second interval. This choice survives a refresh and does not change other stations. Localhost timers are enabled by default again.

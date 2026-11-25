@@ -32,7 +32,7 @@ export async function openCamera(deviceId?: string): Promise<CameraSource> {
     video.srcObject = stream;
     await video.play();
     const activeStream = stream;
-    return { el: video, live: true, deviceId:stream.getVideoTracks()[0]?.getSettings().deviceId, capture: () => grab(video, video.videoWidth, video.videoHeight, true), stop: () => activeStream.getTracks().forEach(track => track.stop()) };
+    return { el: video, live: true, deviceId:stream.getVideoTracks()[0]?.getSettings().deviceId, capture: () => grab(video, video.videoWidth, video.videoHeight, true), stop: () => {video.pause();video.srcObject=null;activeStream.getTracks().forEach(track => track.stop());} };
   } catch (e) {
     stream?.getTracks().forEach(track => track.stop());
     const fallback = testVisitor(false);

@@ -48,6 +48,12 @@ let retakesLeft = 1;
 let photo = '';
 let email = '';
 let cleanups: (() => void)[] = [];
+let disposed=false;
+window.addEventListener('pagehide',()=>{
+  disposed=true;
+  cleanups.splice(0).forEach(cleanup=>cleanup());
+  camera?.stop();camera=null;photo='';email='';
+},{once:true});
 
 installChrome();
 
@@ -88,7 +94,8 @@ async function attract(): Promise<void> {
     let preferred: string | undefined;
     try { preferred = localStorage.getItem('holodeck.camera') || undefined; } catch { /* Use the default camera. */ }
     camera = await openCamera(preferred);
-    if (!camera.live && preferred) { camera.stop(); camera = await openCamera(); }
+    if(disposed){camera.stop();camera=null;return;}
+    if (!camera.live && preferred) { camera.stop(); camera = await openCamera();if(disposed){camera.stop();camera=null;return;} }
   }
   screen(
     header('Holo-Booth', 'Step into the frame. Our AI will beam you across the galaxy.'),
@@ -124,6 +131,7 @@ function cameraControls(): HTMLElement {
     select.disabled = retry.disabled = true;
     camera?.stop();
     camera = await openCamera(deviceId || undefined);
+    if(disposed){camera.stop();camera=null;return;}
     if (camera.live && camera.deviceId) { try { localStorage.setItem('holodeck.camera',camera.deviceId); } catch { /* Browser storage may be disabled. */ } }
     await attract();
   }
@@ -178,6 +186,7 @@ async function countdown(): Promise<void> {
     count.replaceChildren(h('span', {}, String(n)));
     tick(n === 1 ? 1320 : 880);
     await sleep(1000);
+    if(disposed)return;
   }
   count.replaceChildren();
   shutter();
@@ -199,12 +208,10 @@ function hintFor(reason = ''): string {
 }
 
 async function quickCheck(image: string): Promise<QuickCheck | null> {
-  const timeout = new Promise<null>((r) => setTimeout(() => r(null), 4000));
   try {
-    return await Promise.race([api<QuickCheck>('/photobooth/analyze', { image }), timeout]);
-  } catch {
-    return null; // network down or server busy: skip silently, the workflow copes
-  }
+    return await api<QuickCheck>('/photobooth/analyze',{image},undefined,AbortSignal.timeout(4000));
+  }catch{return null;}
+
 }
 
 function review(): void {
@@ -232,7 +239,7 @@ function review(): void {
     ),
   );
   void quickCheck(shot).then((r) => {
-    if (photo !== shot || !r?.checked || r.usable !== false) return;
+    if (disposed || !hint.isConnected || photo !== shot || !r?.checked || r.usable !== false) return;
     // An unusable photo doesn't use up the visitor's one retake.
     const title = root.querySelector('h1');
     if (title) title.textContent = 'Almost!';
@@ -309,7 +316,7 @@ function processing(s: Started): void {
   );
   let fingerprint = '';
   let lastChange = Date.now();
-  const stop = poll(() => api<Status>(`/photobooth/sessions/${s.session_id}`), (st) => {
+  const stop = poll(signal => api<Status>(`/photobooth/sessions/${s.session_id}`,undefined,undefined,signal), (st) => {
     if (st.stage === 'spooled' || st.stage === 'unreachable') { saved(); return true; }
     const fp = st.steps.map((x) => `${x.state}${x.attempts}`).join();
     if (fp !== fingerprint) { fingerprint = fp; lastChange = Date.now(); }

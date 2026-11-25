@@ -26,7 +26,8 @@ function localName(email: string): string {
 }
 
 function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
-  return Promise.race([p, new Promise<T>((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
+  let timer:ReturnType<typeof setTimeout>;
+  return Promise.race([p, new Promise<T>((_, rej) => {timer=setTimeout(() => rej(new Error('timeout')), ms);})]).finally(()=>clearTimeout(timer));
 }
 
 /**
@@ -76,6 +77,7 @@ export class FlightNet {
   /** Fire-and-forget; only one request in flight, newest snapshot wins. */
   sendTelemetry(snap: Snapshot, events: GameEvent[]): void {
     this.pendingEvents.push(...events);
+    this.pendingEvents=this.pendingEvents.slice(-240);
     if (!this.sessionId || this.inFlight) return;
     this.inFlight = true;
     // Cap the batch (the workflow validator rejects >120); the rest goes next second.
@@ -84,7 +86,7 @@ export class FlightNet {
       .then((st) => { this.lastState = st; this.setOnline(true); })
       .catch((e: Error) => {
         // 409 = the workflow rejected the batch (validation); not a network problem.
-        if (!e.message.startsWith('409')) { this.pendingEvents.unshift(...body.events); this.setOnline(false); }
+        if (!e.message.startsWith('409')) { this.pendingEvents.unshift(...body.events); this.pendingEvents=this.pendingEvents.slice(-240); this.setOnline(false); }
       })
       .finally(() => { this.inFlight = false; });
   }
@@ -93,6 +95,7 @@ export class FlightNet {
     if (!this.sessionId) return;
     for (let i = 0; i < 20 && this.inFlight; i++) await new Promise((r) => setTimeout(r, 100));
     this.pendingEvents.push(...events);
+    this.pendingEvents=this.pendingEvents.slice(-240);
     try {
       this.lastState = await withTimeout(api<SessionState>(`/flight/sessions/${this.sessionId}/telemetry`, { ...snap, seq: ++this.seq, events: this.pendingEvents.splice(0, 120) }), 4000);
     } catch { /* the finish call still carries the score */ }

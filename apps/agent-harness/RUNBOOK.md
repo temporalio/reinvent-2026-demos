@@ -396,3 +396,17 @@ These updates are only for AWS re:Invent 2026. This repository's main branch is 
 The laptop bundle uses this demo's source instructions with a separate UI port and a laptop-specific task queue. From the parent `new-demos/` folder, run `./bundle-setup.sh --only agent-harness` and `python3 bundle.py panel`, then start **Travel Agent / Temporal Agent Harness** in [Config](http://127.0.0.1:5199/config). UI: [localhost:5360](http://127.0.0.1:5360/).
 
 Use the shared `.env` from 1Password at the bundle root. Keep machine identity in `.env.local`. The panel keeps local Temporal running in Cloud mode and restarts this demo's owned processes when switching targets. See the [bundle runbook](../RUNBOOK.md) for Cloud prerequisites, offline limits and verification. Runtime is not verified by installation alone.
+
+## Booth Deployment and Slow Model Calls
+
+The booth monorepo's `deploy/reinvent-2026.yaml` uses Fieldkit's shared `gemini` secret. Only `travel-worker` receives `GEMINI_API_KEY`. Both web and worker use `ri26-travel` and the shared payload storage configured by the deployment. The localhost presentation adapter currently starts only the web app and explicitly disables inference; providing a key alone does not add its missing worker.
+
+For a slow response, inspect the exact conversation in the booth's lower Temporal UI panel:
+
+1. Find `gemini_interactions_create_streamed`. Check its pending Activity state and attempt number.
+2. A scheduled Activity without a start points to worker availability or routing. `GET /travel-agent/api/agents` reports whether a worker is polling `ri26-travel`.
+3. A started model Activity is inside the provider/client call. Its start-to-close timeout is three minutes. A second attempt after that timeout means Temporal recovered a stalled call; it does not identify the provider's underlying fault.
+4. Compare the Activity's last failure, retry state, and completed-attempt duration. Use worker logs for provider response codes, rate limits, authentication errors, or streaming exceptions. Keep keys and traveler prompts out of shared debug output.
+5. If the model Activity completed and the page awaits a tool approval or a choice, tap that card to continue. That wait is a durable human checkpoint.
+
+All flight and hotel searches, bookings, prices, confirmations, and seat selections come from simulated tool Activities in `ziggy/activities.py`. Approval never reserves a real trip or contacts an airline or hotel. Gemini inference and Temporal execution are real.

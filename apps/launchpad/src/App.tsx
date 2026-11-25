@@ -9,18 +9,19 @@ import { useStationControl } from './stationControl'
 import { DisplayArea } from './DisplayArea'
 import { launchRestriction } from './stationPolicy'
 import StationControl from './StationControlPanel'
-import { initialLaunchScreen, isLocalReview } from './launchNavigation'
+import { initialLaunchScreen } from './launchNavigation'
+import { readIdlePaused, saveIdlePaused } from './idlePreference'
 import { missionMetadata } from './missionMetadata'
 import { LogoMarquee } from './LogoMarquee'
 import { CrewPicker, type Persona } from './CrewPicker'
 import { BoothBackground } from './BoothBackground'
 import { idleDelayForScreen, idleNavigationTarget, useIdleScreensaver } from './useIdleScreensaver'
 
-const localReview = isLocalReview(window.location.hostname)
 const initialDemo = catalog.find(d=>d.id===new URLSearchParams(window.location.search).get('demo') || (d.kind==='video' && window.location.pathname===d.path)) || null
 
 export default function App() {
   const control = useStationControl()
+  const [idlePaused,setIdlePaused] = useState(()=>readIdlePaused())
   const [mediaPlaying,setMediaPlaying] = useState(false)
   const [configurationOpen,setConfigurationOpen] = useState(false)
   const [admitted,setAdmitted] = useState<string | null>(null)
@@ -65,7 +66,6 @@ export default function App() {
     const url=new URL(window.location.href);url.pathname='/';url.searchParams.delete('demo');url.searchParams.set('screen','crew');window.history.replaceState(null,'',url)
   }
   function showScreensaver() {
-    if(localReview){showCrew();return}
     setMediaPlaying(false);setSelected(null);setAdmitted(null);setScreen('screensaver')
     const url=new URL(window.location.href)
     url.pathname='/'
@@ -80,7 +80,7 @@ export default function App() {
     window.history.replaceState(null,'',url)
   }
   const idleTarget=idleNavigationTarget(screen,selected?.id,!!mayRun,configurationOpen,filter)
-  const idleCountdown=useIdleScreensaver({enabled:!localReview && idleTarget!==null && !(screen==='demo' && selected?.kind==='video' && mediaPlaying),onTimeout:idleTarget==='missions'?showMissions:showScreensaver,idleMs:idleDelayForScreen(screen),countdownMs:5_000,scope:`${screen}:${filter}:${selected?.id || ''}`})
+  const idleCountdown=useIdleScreensaver({enabled:!idlePaused && idleTarget!==null && !(screen==='demo' && selected?.kind==='video' && mediaPlaying),onTimeout:idleTarget==='missions'?showMissions:showScreensaver,idleMs:idleDelayForScreen(screen),countdownMs:5_000,scope:`${screen}:${filter}:${selected?.id || ''}`})
   if (screen === 'screensaver') return <iframe className="attract" title="Temporal Crash Course interactive screensaver" src="/screensaver/index.html" onLoad={event => {
     const doc = event.currentTarget.contentDocument
     doc?.addEventListener('screensaver:next', showCrew, { once: true })
@@ -117,7 +117,7 @@ export default function App() {
       })}</div></>}
       {screen === 'demo' && selected && <>{!mayRun ? <p role="status">{blocked || 'Choose another mission.'}</p> : <><DemoStage key={`${selected.id}-${persona}`} demo={selected} persona={persona} temporalUi={runtime.temporalUi} temporalZoom={control.effective.display.temporal_ui_zoom} onPlaybackChange={setMediaPlaying} /></>}</>}
     </DisplayArea>
-    <footer><button onClick={showCrew}>Crew</button><button onClick={()=>{setFilter('all');showMissions()}}>All missions</button><button onClick={()=>{setFilter('aws-ai');showMissions()}}>AI / AWS missions</button>{!localReview && <div className="screensaver-control"><span className="idle-countdown" role="status" aria-live="polite">{idleCountdown !== null ? `${idleTarget==='missions'?'Missions':'Screensaver'} in ${idleCountdown}s` : ''}</span><button onClick={showScreensaver}>Screensaver</button></div>}<button className="ziggy-settings" onClick={()=>setConfigurationOpen(true)} aria-label="Open station configuration"><img src="/assets/frame/ziggy-astronaut.png" alt="Ziggy station settings" /></button></footer>
+    <footer><button onClick={showCrew}>Crew</button><button onClick={()=>{setFilter('all');showMissions()}}>All missions</button><button onClick={()=>{setFilter('aws-ai');showMissions()}}>AI / AWS missions</button>{<div className="screensaver-control"><span className="idle-countdown" role="status" aria-live="polite">{idleCountdown !== null ? `${idleTarget==='missions'?'Missions':'Screensaver'} in ${idleCountdown}s` : ''}</span><button onClick={showScreensaver}>Screensaver</button><button className="idle-toggle" aria-label={idlePaused?"Resume automatic return timers":"Pause automatic return timers"} aria-pressed={idlePaused} title={idlePaused?"Timers paused — return to Screensaver manually":"Pause all 60-second return timers on this machine"} onClick={()=>{const next=!idlePaused;setIdlePaused(next);saveIdlePaused(undefined,next)}}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h14M5 21h14M7 3v4c0 2 3 4 5 5-2 1-5 3-5 5v4M17 3v4c0 2-3 4-5 5 2 1 5 3 5 5v4M9 7h6M9 18h6"/>{idlePaused&&<path d="M3 3l18 18"/>}</svg>{idlePaused&&<span>Paused</span>}</button></div>}<button className="ziggy-settings" onClick={()=>setConfigurationOpen(true)} aria-label="Open station configuration"><img src="/assets/frame/ziggy-astronaut.png" alt="Ziggy station settings" /></button></footer>
     {configurationOpen && <div className="station-settings-overlay" role="dialog" aria-modal="true" aria-label="Station configuration"><StationControl onExit={()=>setConfigurationOpen(false)} /></div>}
   </div>
 }

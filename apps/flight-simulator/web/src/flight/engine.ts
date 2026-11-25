@@ -132,6 +132,7 @@ function segDist(p: THREE.Vector3, a: THREE.Vector3, b: THREE.Vector3): number {
 
 export class FlightEngine {
   readonly renderer: THREE.WebGLRenderer;
+  private resizeObserver:ResizeObserver;
   private scene = new THREE.Scene();
   private camera: THREE.PerspectiveCamera;
   private composer: EffectComposer;
@@ -232,8 +233,26 @@ export class FlightEngine {
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
 
-    new ResizeObserver(() => this.resize()).observe(container);
+    this.resizeObserver=new ResizeObserver(() => this.resize());
+    this.resizeObserver.observe(container);
     this.resize();
+  }
+
+  dispose():void {
+    this.resizeObserver.disconnect();
+    const geometries=new Set<THREE.BufferGeometry>();
+    const materials=new Set<THREE.Material>();
+    this.scene.traverse(object=>{
+      const mesh=object as THREE.Mesh;
+      if(mesh.geometry)geometries.add(mesh.geometry);
+      if(mesh.material)for(const material of Array.isArray(mesh.material)?mesh.material:[mesh.material])materials.add(material);
+    });
+    for(const geometry of geometries)geometry.dispose();
+    for(const material of materials)material.dispose();
+    for(const pass of this.composer.passes)pass.dispose();
+    this.composer.dispose();
+    this.renderer.dispose();
+    this.renderer.forceContextLoss();
   }
 
   resize(): void {

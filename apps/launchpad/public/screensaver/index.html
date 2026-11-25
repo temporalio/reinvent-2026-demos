@@ -733,7 +733,10 @@
       clearTimeout(fallDelay);
       const to = [between(ambientWidth * .23, ambientWidth * .88), ambientHeight + 120];
       const frames = arc(from, to, [ambientWidth, ambientHeight], { turn: 149.13, spin: between(30, 90), fade:true });
-      asteroid.animate(frames, { duration: between(25, 40) * 1000, easing: "linear", fill: "forwards" }).finished.then(() => {
+      const animation=asteroid.animate(frames, { duration: between(25, 40) * 1000, easing: "linear", fill: "forwards" });
+      animation.finished.then(() => {
+        // The last frame is transparent. Release the filled effect before the next trip.
+        animation.cancel();
         fallDelay=setTimeout(() => fall([ambientWidth + 40, between(ambientHeight * .36, ambientHeight * .86)]), between(15, 45) * 1000);
       },()=>{});
     }

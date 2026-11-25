@@ -66,8 +66,9 @@ export function DemoStage({ demo, persona, temporalUi, temporalZoom=100, notice,
     const controller=new AbortController();let timer:ReturnType<typeof setTimeout>;setRecordedCursor(null)
     async function poll(){
       try{
+        const signal=AbortSignal.any([controller.signal,AbortSignal.timeout(10_000)])
         let next:string|undefined,events:HistoryEvent[]=[]
-        do{const response=await fetch(api+(next?'&nextPageToken='+encodeURIComponent(next):''),{signal:controller.signal});if(!response.ok)throw Error('History unavailable');const data=await response.json();events.push(...(data.history?.events||[]));next=data.nextPageToken}while(next)
+        do{const response=await fetch(api+(next?'&nextPageToken='+encodeURIComponent(next):''),{signal});if(!response.ok)throw Error('History unavailable');const data=await response.json();events.push(...(data.history?.events||[]));next=data.nextPageToken}while(next)
         const cursor=historyCursor(events,new URL(workflowUrl!,location.origin).pathname.split('/workflows/')[1].split('/')[1])
         if(cursor)setRecordedCursor(cursor)
         if(cursor?.terminal)return

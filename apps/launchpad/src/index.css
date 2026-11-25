@@ -174,3 +174,8 @@ main.station-surface-video { border:0; background:transparent; overflow:hidden; 
 
 /* Keep the lower customer logos legible over the moon terrain. */
 .customer-marquee.bottom { background:rgb(9 10 16 / 72%); box-shadow:0 0 14px 8px rgb(9 10 16 / 35%); }
+
+.idle-toggle { display:inline-flex; align-items:center; justify-content:center; gap:.35rem; padding:.6rem; min-width:48px; }
+.idle-toggle svg { width:1.1rem; height:1.1rem; fill:none; stroke:currentColor; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
+.idle-toggle[aria-pressed="true"] { color:var(--brand-highlight); border-color:var(--brand-highlight); }
+.idle-toggle span { font-size:.65rem; }

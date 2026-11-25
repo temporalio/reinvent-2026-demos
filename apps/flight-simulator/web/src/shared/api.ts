@@ -14,8 +14,10 @@ export function withBase(url: string): string {
 }
 
 /** Thin JSON client for the Holodeck backend (proxied at /api by Vite). */
-export async function api<T = unknown>(path: string, body?: unknown, method?: string): Promise<T> {
+export async function api<T = unknown>(path: string, body?: unknown, method?: string, signal?:AbortSignal): Promise<T> {
+  const timeout=AbortSignal.timeout(15_000);
   const res = await fetch(withBase(`/api${path}`), {
+    signal: signal ? AbortSignal.any([signal,timeout]) : timeout,
     method: method ?? (body === undefined ? 'GET' : 'POST'),
     headers: { 'content-type': 'application/json', 'x-station': stationId() },
     body: body === undefined ? undefined : JSON.stringify(body),
@@ -24,19 +26,4 @@ export async function api<T = unknown>(path: string, body?: unknown, method?: st
   return (await res.json()) as T;
 }
 
-/** Poll `fn` until `done` returns true (or the returned stop() is called). */
-export function poll<T>(fn: () => Promise<T>, onValue: (v: T) => boolean | void, everyMs = 700): () => void {
-  let stopped = false;
-  const tick = async () => {
-    if (stopped) return;
-    try {
-      const v = await fn();
-      if (onValue(v) === true) { stopped = true; return; }
-    } catch (e) {
-      console.warn('poll error', e);
-    }
-    if (!stopped) setTimeout(tick, everyMs);
-  };
-  tick();
-  return () => { stopped = true; };
-}
+export {poll} from './polling';

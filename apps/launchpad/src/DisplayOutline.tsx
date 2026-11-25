@@ -1,7 +1,6 @@
 import {useLayoutEffect,useRef,useState} from 'react'
 import {createPortal} from 'react-dom'
 import {displayRectangle} from './displayGeometry'
-import {isLocalReview} from './launchNavigation'
 import type {DisplaySettings} from './stationControl'
 
 type Bounds={left:number;top:number;width:number;height:number}
@@ -31,7 +30,7 @@ export function DisplayOutline({display}:{display:DisplaySettings;label:string})
   <div ref={shell} className="launchpad control-outline-shell" data-outline-shell aria-hidden="true" inert>
    <header><img src="/assets/brand/temporal-logo.svg" alt=""/><h1 className="demo-title">Demo</h1></header>
    <div className="presentation-bounds"/>
-   <footer><button type="button">Crew</button><button type="button">All missions</button><button type="button">AI / AWS missions</button>{!isLocalReview(window.location.hostname)&&<div className="screensaver-control"><span className="idle-countdown"/><button type="button">Screensaver</button></div>}<button type="button" className="ziggy-settings"><img src="/assets/frame/ziggy-astronaut.png" alt=""/></button></footer>
+   <footer><button type="button">Crew</button><button type="button">All missions</button><button type="button">AI / AWS missions</button>{<div className="screensaver-control"><span className="idle-countdown"/><button type="button">Screensaver</button><button type="button" className="idle-toggle" aria-label="Pause automatic return timers">⌛</button></div>}<button type="button" className="ziggy-settings"><img src="/assets/frame/ziggy-astronaut.png" alt=""/></button></footer>
   </div>
   {bounds&&rect&&<div className="control-screen-outline" data-testid="draft-panel-outline" aria-hidden="true" style={{left:bounds.left+rect.x,top:bounds.top+rect.y,width:rect.width,height:rect.height}}/>}
  </>,document.body)

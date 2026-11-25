@@ -2,7 +2,7 @@ import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {readFileSync} from 'node:fs'
 import {runInNewContext} from 'node:vm'
-import {initialLaunchScreen,isLocalReview} from '../src/launchNavigation.ts'
+import {initialLaunchScreen} from '../src/launchNavigation.ts'
 const source=readFileSync(new URL('../public/screensaver/navigation.js',import.meta.url),'utf8')
 function navigation(embedded,search='') {
   const events=[],details=[],destinations=[]
@@ -42,14 +42,9 @@ test('planet launch selects the demo directly and preserves station identity',()
  standalone.launch('https://invalid.example');assert.equal(standalone.destinations.length,1)
 })
 
-test('loopback feedback sessions skip the screensaver and preserve direct launches',()=>{
-  for(const host of ['localhost','127.0.0.1','[::1]']) {
-    assert.equal(isLocalReview(host),true)
-    assert.equal(initialLaunchScreen('',false,host),'crew')
-    assert.equal(initialLaunchScreen('?demo=tacos',true,host),'demo')
-  }
-  for(const host of ['reinvent-booth.tmprl-demo.cloud','localhost.example.com','192.168.1.2']) {
-    assert.equal(isLocalReview(host),false)
+test('localhost and hosted stations start on the screensaver and retain direct launches',()=>{
+  for(const host of ['localhost','127.0.0.1','[::1]','reinvent-booth.tmprl-demo.cloud','192.168.1.2']) {
     assert.equal(initialLaunchScreen('',false,host),'screensaver')
+    assert.equal(initialLaunchScreen('?demo=tacos',true,host),'demo')
   }
 })

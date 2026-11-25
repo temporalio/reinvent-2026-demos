@@ -1,3 +1,4 @@
+import {TravelArchitecture} from './TravelArchitecture'
 import {NoRoadsArchitecture} from './NoRoadsArchitecture'
 import type {LiveCursor} from './workflowHistory'
 import { useId } from 'react'
@@ -8,6 +9,7 @@ import { architectureProfiles } from './architectureProfiles'
 export function ArchitecturePanel({ demoId, execution, phase,cursor }: {demoId:string;execution?:TacoExecution|null;phase?:TacoPhase;cursor?:LiveCursor|null}) {
   const id=useId()
   const profile=architectureProfiles[demoId]
+  if(demoId==='agent-harness')return <TravelArchitecture cursor={cursor} id={id} />
   if(demoId==='no-roads')return <NoRoadsArchitecture cursor={cursor} id={id} />
   if(demoId==='data-pipeline')return <PipelineArchitecture cursor={cursor} id={id} />
   if(!profile)return <p>Architecture information is not available for this demo.</p>

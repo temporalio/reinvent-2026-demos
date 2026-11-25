@@ -590,10 +590,14 @@ async function toAttract(): Promise<void> {
 }
 
 // ---------- main loop ----------
+let animationFrame=0;
+let disposed=false;
+window.addEventListener('pagehide',()=>{disposed=true;cancelAnimationFrame(animationFrame);cleanups.splice(0).forEach(cleanup=>cleanup());engine.dispose();},{once:true});
 let last = performance.now();
 let hudAcc = 0;
 let attractFire = 0;
 function frame(now: number): void {
+  if(disposed)return;
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
   warpKick = Math.max(0, warpKick - dt * 0.9);
@@ -671,14 +675,14 @@ function frame(now: number): void {
     renderTemporal();
     if (game.durable) renderTiles();
   }
-  requestAnimationFrame(frame);
+  animationFrame=requestAnimationFrame(frame);
 }
 
 // ---------- boot ----------
 installChrome();
 net.onStatus = () => updateWfStrip();
 game = newGame();
-requestAnimationFrame(frame);
+animationFrame=requestAnimationFrame(frame);
 
 async function boot(): Promise<void> {
   const sid = net.storedSessionId();

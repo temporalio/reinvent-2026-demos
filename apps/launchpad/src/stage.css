@@ -94,3 +94,8 @@
 .roads-stage-link,.roads-stage-link-active { fill:none; stroke:var(--brand-highlight); stroke-width:2; }
 
 .temporal-viewport { flex:1; min-width:0; min-height:0; overflow:hidden; }
+
+.travel-architecture .travel-node-title {font:17px var(--font-mono);}
+.travel-architecture .travel-node-detail {font:12px var(--font-mono);fill:var(--text-muted);}
+.travel-architecture .travel-edge-label,.travel-architecture .travel-edge-label text {font:12px var(--font-mono);fill:var(--text-muted);}
+.travel-architecture [data-status=waiting] rect {stroke:var(--status-waiting);stroke-width:3px;}
