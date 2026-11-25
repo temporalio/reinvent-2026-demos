@@ -63,7 +63,7 @@ from Replay dev commit `e16bb888`; Replay’s footer Markdown is not included. A
 The bundled wordmark is the PNG rendition referenced by that template, attached
 inline so the message does not need to fetch its branding remotely. The subject is
 “Thanks for visiting Temporal's Photo Booth”. The Replay link uses
-`utm_source=reinvent`, `utm_medium=email`, and `utm_campaign=photobooth_2026`.
+`utm_source=reinvent`, `utm_medium=email`, and `utm_campaign=reinvent_2026_photobooth`.
 Attendee images are attached rather than loaded remotely when the email opens.
 SendGrid accepting a message
 is not proof it reached the recipient; confirm receipt with a consenting test user

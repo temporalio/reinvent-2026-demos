@@ -97,5 +97,5 @@ def test_photobooth_delivery_matches_replay_layout_and_copy():
     target = unescape(re.search(r'href="(https://replay.temporal.io/[^"]+)"', body).group(1))
     assert parse_qs(urlsplit(target).query) == {
         "utm_source": ["reinvent"], "utm_medium": ["email"],
-        "utm_campaign": ["photobooth_2026"],
+        "utm_campaign": ["reinvent_2026_photobooth"],
     }
