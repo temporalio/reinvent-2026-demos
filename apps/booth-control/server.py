@@ -412,6 +412,10 @@ class ControlServer(ThreadingHTTPServer):
         self.store, self.clock = store, clock
         self.pin_timezone = ZoneInfo(timezone_name)
         self.pin_limiter = PinLimiter()
+        self.machines = None
+        if os.environ.get('CONTROL_MACHINE_CONTROL') == '1' and isinstance(store, Store):
+            from machines import Machines
+            self.machines = Machines(Path(store.filename).parent)
         super().__init__(address, Handler)
 
 
@@ -526,7 +530,30 @@ class Handler(BaseHTTPRequestHandler):
             self.fail(ApiError(503, 'storage_unavailable', 'Settings storage is unavailable. Try again shortly.'))
 
     def do_POST(self):
-        self.write_request('POST')
+        if self.path.startswith('/control-api/machines/'):
+            self.machine_request()
+        else:
+            self.write_request('POST')
+
+    def machine_request(self):
+        from machines import MachineError
+        service = getattr(self.server, 'machines', None)
+        if service is None:
+            self.fail(ApiError(404, 'not_enabled', 'Machine control is available on the laptop LAN hub only.'))
+            return
+        try:
+            # Operator requests originate in the laptop's same-origin UI; signed
+            # native polls intentionally need no browser cookie or Origin header.
+            if self.path == '/control-api/machines/operator':
+                self.require_origin()
+            envelope = self.read_body()
+            self.json_response(200, service.handle(self.path, envelope, self.server.clock()))
+        except MachineError as error:
+            self.fail(ApiError(error.status, 'machine_control', error.message))
+        except ApiError as error:
+            self.fail(error)
+        except (OSError, sqlite3.Error):
+            self.fail(ApiError(503, 'storage_unavailable', 'Machine control storage is unavailable.'))
 
     def do_PATCH(self):
         self.write_request('PATCH')

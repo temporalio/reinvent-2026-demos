@@ -5,6 +5,7 @@ import { DemoStage } from './DemoStage'
 import catalog from './catalog.json'
 import './index.css'
 import './missionArtwork.css'
+import {ConnectionStatus} from './ConnectionStatus'
 import { useStationControl } from './stationControl'
 import { DisplayArea } from './DisplayArea'
 import { launchRestriction } from './stationPolicy'
@@ -33,7 +34,7 @@ export default function App() {
   const [runtimeLoaded,setRuntimeLoaded] = useState(false)
   useEffect(()=>{
     const controller=new AbortController()
-    fetch('/runtime-config.json',{signal:controller.signal}).then(r=>{if(!r.ok)throw Error();return r.json()}).then(config=>{
+    fetch('/runtime-config.json',{signal:controller.signal,cache:'no-store'}).then(r=>{if(!r.ok)throw Error();return r.json()}).then(config=>{
       if(!config || !['local','hosted'].includes(config.mode) || (config.availableDemos!==undefined && (!Array.isArray(config.availableDemos) || !config.availableDemos.every((value:unknown)=>typeof value==='string'))))throw Error('Invalid station configuration')
       if(config.temporalUi){const url=new URL(config.temporalUi,window.location.origin); if(url.origin!==window.location.origin || !url.pathname.startsWith('/_temporal/'))throw Error('Invalid Temporal UI route')}
       setRuntime(config); setRuntimeLoaded(true)
@@ -50,7 +51,8 @@ export default function App() {
     return ()=>window.removeEventListener('message',navigateFromDemo)
   },[])
   function unavailable(demo: (typeof catalog)[number]): string | null {
-    return launchRestriction(demo,runtime,control.effective,runtimeLoaded && control.ready)
+    const settings=new URLSearchParams(window.location.search).get('managed')==='1'?{...control.effective,network_mode:runtime.mode==='local'?'offline' as const:'online' as const}:control.effective
+    return launchRestriction(demo,runtime,settings,runtimeLoaded && control.ready)
   }
   // Admission is recorded once, so later policy changes never unmount an active demo.
   const blocked = selected ? unavailable(selected) : null
@@ -117,7 +119,7 @@ export default function App() {
       })}</div></>}
       {screen === 'demo' && selected && <>{!mayRun ? <p role="status">{blocked || 'Choose another mission.'}</p> : <><DemoStage key={`${selected.id}-${persona}`} demo={selected} persona={persona} temporalUi={runtime.temporalUi} temporalZoom={control.effective.display.temporal_ui_zoom} stationId={control.stationId} onPlaybackChange={setMediaPlaying} /></>}</>}
     </DisplayArea>
-    <footer><button onClick={showCrew}>Crew</button><button onClick={()=>{setFilter('all');showMissions()}}>All missions</button><button onClick={()=>{setFilter('aws-ai');showMissions()}}>AI / AWS missions</button>{<div className="screensaver-control"><span className="idle-countdown" role="status" aria-live="polite">{idleCountdown !== null ? `${idleTarget==='missions'?'Missions':'Screensaver'} in ${idleCountdown}s` : ''}</span><button onClick={showScreensaver}>Screensaver</button><button className="idle-toggle" aria-label={idlePaused?"Resume automatic return timers":"Pause automatic return timers"} aria-pressed={idlePaused} title={idlePaused?"Timers paused — return to Screensaver manually":"Pause all 60-second return timers on this machine"} onClick={()=>{const next=!idlePaused;setIdlePaused(next);saveIdlePaused(undefined,next)}}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h14M5 21h14M7 3v4c0 2 3 4 5 5-2 1-5 3-5 5v4M17 3v4c0 2-3 4-5 5 2 1 5 3 5 5v4M9 7h6M9 18h6"/>{idlePaused&&<path d="M3 3l18 18"/>}</svg>{idlePaused&&<span>Paused</span>}</button></div>}<button className="ziggy-settings" onClick={()=>setConfigurationOpen(true)} aria-label="Open station configuration"><img src="/assets/frame/ziggy-astronaut.png" alt="Ziggy station settings" /></button></footer>
+    <footer><button onClick={showCrew}>Crew</button><button onClick={()=>{setFilter('all');showMissions()}}>All missions</button><button onClick={()=>{setFilter('aws-ai');showMissions()}}>AI / AWS missions</button>{<div className="screensaver-control"><span className="idle-countdown" role="status" aria-live="polite">{idleCountdown !== null ? `${idleTarget==='missions'?'Missions':'Screensaver'} in ${idleCountdown}s` : ''}</span><button onClick={showScreensaver}>Screensaver</button><button className="idle-toggle" aria-label={idlePaused?"Resume automatic return timers":"Pause automatic return timers"} aria-pressed={idlePaused} title={idlePaused?"Timers paused — return to Screensaver manually":"Pause all 60-second return timers on this machine"} onClick={()=>{const next=!idlePaused;setIdlePaused(next);saveIdlePaused(undefined,next)}}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h14M5 21h14M7 3v4c0 2 3 4 5 5-2 1-5 3-5 5v4M17 3v4c0 2-3 4-5 5 2 1 5 3 5 5v4M9 7h6M9 18h6"/>{idlePaused&&<path d="M3 3l18 18"/>}</svg>{idlePaused&&<span>Paused</span>}</button></div>}<ConnectionStatus local={runtime.mode==='local'}/><button className="ziggy-settings" onClick={()=>setConfigurationOpen(true)} aria-label="Open station configuration"><img src="/assets/frame/ziggy-astronaut.png" alt="Ziggy station settings" /></button></footer>
     {configurationOpen && <div className="station-settings-overlay" role="dialog" aria-modal="true" aria-label="Station configuration"><StationControl onExit={()=>setConfigurationOpen(false)} /></div>}
   </div>
 }

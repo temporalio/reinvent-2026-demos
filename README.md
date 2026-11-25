@@ -20,9 +20,18 @@ Follow [station control setup](docs/STATION-CONTROL.md) to connect the four Mac 
 
 See [touchscreen presentation](docs/TOUCHSCREEN-UI.md) for panel fitting, idle behavior, SDK excerpts, and position preview. The [SDLC GitHub setup](docs/AGENTIC-SDLC-GITHUB.md) covers the dedicated demo account and sandbox repository.
 
-## Mac Mini kiosk setup and recovery
+## Mac Mini station supervisor
 
-Use a dedicated booth macOS account on each borrowed Mac Mini. Normal hosted operation needs Google Chrome and internet access; it needs no Docker, AWS login, provider keys, or personal account on the Mini. Run the commands below on each **Mac Mini**, from this checkout.
+Use the [station supervisor setup](docs/STATION-SUPERVISOR.md) for the event machines.
+It installs a native macOS helper that routes a stable localhost browser URL to the
+hosted or prepared local runtime, accepts signed laptop commands, and recovers the
+dedicated Chrome process. It needs no company sign-in on the Mini. The first setup
+still downloads/builds dependencies; reboot recovery reuses cached images and data.
+Use its isolated `--test` mode to rehearse on a MacBook without adding login items.
+
+## Mac Mini kiosk setup and recovery (legacy launcher)
+
+The legacy launcher below has no native restart or online/local switching. For those controls use the supervisor above. Use a dedicated booth macOS account on each borrowed Mac Mini. Normal hosted operation needs Google Chrome and internet access; it needs no Docker, AWS login, provider keys, or personal account on the Mini. Run the commands below on each **Mac Mini**, from this checkout.
 
 ### 1. Prepare the Mac and stylus
 

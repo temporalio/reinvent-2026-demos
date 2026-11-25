@@ -6,6 +6,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 INSTALLER = ROOT / 'scripts/setup/install-mac-kiosk.sh'
 RUNNER = ROOT / 'scripts/setup/start-mac-kiosk.sh'
+SUPERVISOR_INSTALLER = ROOT / 'scripts/setup/install-mac-station.sh'
 
 
 class MacKioskSetupTests(unittest.TestCase):
@@ -13,7 +14,7 @@ class MacKioskSetupTests(unittest.TestCase):
         return subprocess.run(['bash', str(INSTALLER), *args], capture_output=True, text=True, check=False)
 
     def test_shell_syntax(self):
-        subprocess.run(['bash', '-n', str(INSTALLER), str(RUNNER)], check=True)
+        subprocess.run(['bash', '-n', str(INSTALLER), str(RUNNER), str(SUPERVISOR_INSTALLER)], check=True)
 
     def test_dry_run_preserves_profile_and_station(self):
         for station in ('1', '2', '3', '4'):

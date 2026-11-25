@@ -73,6 +73,7 @@ def render(apps, port=15101, bind_address='127.0.0.1', hub_url=DEFAULT_CONTROL_H
     services = {
         'temporal': {
             'image': 'temporalio/temporal:1.8.3',
+            'restart': 'unless-stopped',
             'command': ['server', 'start-dev', '--ip', '0.0.0.0', '--db-filename', '/home/temporal/temporal.db', '--ui-public-path', '/_temporal/primary', '--ui-disable-news-fetch'],
             'volumes': ['temporal-data:/home/temporal'],
             'ports': ['127.0.0.1:17234:7233'],
@@ -80,6 +81,7 @@ def render(apps, port=15101, bind_address='127.0.0.1', hub_url=DEFAULT_CONTROL_H
         },
         'moto': {
             'image': MOTO,
+            'restart': 'unless-stopped',
             'environment': {'MOTO_PORT': '5000'},
             'ports': ['127.0.0.1:15001:5000'],
             'healthcheck': {'test': ['CMD', 'python', '-c', "import urllib.request; urllib.request.urlopen('http://localhost:5000/moto-api/')"], 'interval': '3s', 'timeout': '5s', 'retries': 30},
@@ -135,10 +137,12 @@ def render(apps, port=15101, bind_address='127.0.0.1', hub_url=DEFAULT_CONTROL_H
             service['depends_on'] = {'launchpad': {'condition': 'service_started'}, 'aws-seed': {'condition': 'service_completed_successfully'}, 'temporal-init': {'condition': 'service_completed_successfully'}, 'control-hub': {'condition': 'service_healthy'}}
         if name == 'control-hub':
             env['CONTROL_DB'] = '/data/control.sqlite3'
+            env['CONTROL_MACHINE_CONTROL'] = '1'
             service['volumes'] = ['control-data:/data']
             service['healthcheck'] = {'test': ['CMD', 'python', '-c', "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/healthz')"], 'interval': '3s', 'timeout': '3s', 'retries': 30}
         if name == 'launchpad':
             service['volumes'] = [str(ROOT / 'tmp/local/runtime-config.json') + ':/usr/share/nginx/html/runtime-config.json:ro']
+        service['restart'] = 'unless-stopped'
         services[name] = service
     # nginx resolves these API hosts while loading its static config.
     for web, api in [('tacos-web','tacos-api'),('banking-web','banking-api')]:
@@ -146,6 +150,9 @@ def render(apps, port=15101, bind_address='127.0.0.1', hub_url=DEFAULT_CONTROL_H
     SERVERLESS.apply(services, spec, ROOT, apps, port)
     AGENTS.apply(services, spec, ROOT, apps, port)
     ONCALL.apply(services, spec, ROOT, apps, port)
+    for name, service in services.items():
+        if name not in {'aws-seed', 'temporal-init', 'no-roads-deployment-init'}:
+            service.setdefault('restart', 'unless-stopped')
     volumes = {'temporal-data': {}, 'control-data': {}}
     volumes.update({name+'-data': {} for name in ['flightsim-web','photobooth-web'] if name in services})
     return {'name': 'reinvent-2026-local', 'services': services, 'volumes': volumes}

@@ -1,5 +1,7 @@
 # Booth station controls
 
+For native browser restart and actual online/local runtime switching, use the [macOS station supervisor](STATION-SUPERVISOR.md). The settings-only browser client described below does not perform that switch.
+
 The laptop runs the shared control hub. Each station uses its own local demo gateway and proxies `/control-api/` to that hub. The browser keeps a station ID from 1 through 4; the laptop's `/config` view can manage any station or the global policy. Tap Ziggy to enter the touch PIN screen. The daily PIN is the month and day in the hub's configured timezone, `America/Denver` by default, such as `1130` on November 30.
 
 ## Laptop and four Mac Minis
