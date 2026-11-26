@@ -8,8 +8,7 @@ import { CONSENT_TEXT_VERSION, consentNote } from '../shared/consent';
 import { openCamera, type CameraSource } from './camera';
 import { shutter, tick } from './sound';
 
-// Flow: attract → email → pose/countdown/flash → review (one retake) → submit
-// → live progress (optional; "Done" any time) → result, or "Saved!" if offline.
+// Flow: camera → countdown → review → generation + email entry → finished strip.
 
 // ---------- Types mirrored from backend/holodeck/photobooth ----------
 interface Step {
@@ -25,7 +24,7 @@ interface Status {
   session_id: string;
   workflow_id: string;
   temporal_ui_url?: string | null;
-  stage: 'spooled' | 'unreachable' | 'starting' | 'processing' | 'sending' | 'done';
+  stage: 'spooled' | 'unreachable' | 'starting' | 'processing' | 'awaiting_email' | 'expired' | 'sending' | 'done';
   steps: Step[];
   strip_url?: string | null;
   animated_url?: string | null;
@@ -35,8 +34,14 @@ interface Started { session_id: string; workflow_id: string; spooled: boolean; p
 
 /** The workflow ID, linked when the server knows a Temporal UI (the booth's lower panel follows the link). */
 function workflowRef(id: string, url: string | null | undefined): HTMLElement {
+  if(url){const target=new URL(url,location.origin);if(target.pathname.startsWith('/_temporal/'))url=target.pathname+target.search+target.hash;}
   const label = h('b', {}, id);
-  return url ? h('a', { href: url, target: '_blank', rel: 'noopener' }, label) : label;
+  return url ? h('a', { href: url, onclick: (event: Event) => {
+    if (window.parent !== window) {
+      event.preventDefault();
+      window.parent.postMessage({type:'booth:workflow', url, activate:true}, location.origin);
+    }
+  } }, label) : label;
 }
 
 const STALL_MS = 45_000; // no visible progress for this long → "we'll email it"
@@ -60,6 +65,7 @@ installChrome();
 function screen(...children: (Node | null)[]): HTMLElement {
   cleanups.forEach((c) => c());
   cleanups = [];
+  if(window.parent!==window)window.parent.postMessage({type:'booth:photobooth-stage',result:children.some(child=>child instanceof HTMLElement && child.classList.contains('pb-result'))},location.origin);
   return mount(root, h('div', { class: 'screen fade-in', style: 'align-items:center' }, ...children));
 }
 
@@ -108,7 +114,7 @@ async function attract(): Promise<void> {
           h('span', { class: 'panel-tab' }, 'How it works'),
           h('p', { style: 'margin:0' }, 'One photo. Four AI-generated frames: become an alien, fly a starship, explore a strange new world. We email you the strip.')),
         h('div', {class:'pb-camera-slot'}),
-        h('button', { class: 'btn mint big', onclick: emailScreen }, 'Start'),
+        h('button', { class: 'btn mint big', onclick: () => void countdown() }, 'Take my photo'),
       ),
     ),
   );
@@ -146,41 +152,7 @@ function cameraControls(): HTMLElement {
   return controls;
 }
 
-// ---------- 2. Email (required) ----------
-function emailScreen(): void {
-  const kb = onScreenKeyboard({
-    mode: 'email',
-    initial: email,
-    placeholder: 'you@company.com',
-    submitLabel: 'Next',
-    onSubmit: (v) => { email = v; pose(); },
-  });
-  screen(
-    header('Where should we send your strip?', 'We’ll email your AI photo strip when it’s ready.'),
-    h('div', { class: 'pb-side', style: 'max-width:calc(var(--u)*90)' },
-      kb.el,
-      consentNote(),
-      h('button', { class: 'btn ghost', onclick: reset }, 'Cancel'),
-    ),
-  );
-  cleanups.push(kb.destroy);
-}
-
-// ---------- 3. Pose + countdown + flash ----------
-function pose(): void {
-  screen(
-    header('Strike a pose', 'Get in the frame. We’ll count you down.'),
-    h('div', { class: 'pb-split' },
-      viewfinder(camera!.el, camera!.live ? h('div', { class: 'pb-rec' }, 'Live') : null),
-      h('div', { class: 'pb-side' },
-        h('p', { class: 'dim', style: 'margin:0' }, `Sending to ${email}`),
-        h('button', { class: 'btn mint big', onclick: () => void countdown() }, 'I’m ready'),
-        h('button', { class: 'btn ghost', onclick: emailScreen }, 'Change email'),
-      ),
-    ),
-  );
-}
-
+// ---------- 2. Capture ----------
 async function countdown(): Promise<void> {
   const count = h('div', { class: 'pb-count' });
   screen(header('Get ready!', 'Look at the camera'), h('div', { class: 'pb-split', style: 'justify-items:center' }, viewfinder(camera!.el, count)));
@@ -237,6 +209,7 @@ function review(): void {
         hint,
         h('button', { class: 'btn mint big', onclick: () => void submit() }, 'Beam me up \u2728'),
         retakeSlot,
+        h('p', {class:'consent'}, 'Continue to create four AI adventures from this photo. Enter your email on the next screen while they render.'),
       ),
     ),
   );
@@ -257,9 +230,9 @@ function review(): void {
 async function submit(): Promise<void> {
   screen(header('Beaming…', 'Saving your photo'));
   try {
-    const s = await api<Started>('/photobooth/sessions', { image: photo, email, consent_text_version: CONSENT_TEXT_VERSION });
-    if (s.spooled) saved();
-    else processing(s);
+    const s = await api<Started>('/photobooth/sessions', { image: photo, wait_for_email:true, consent_text_version: CONSENT_TEXT_VERSION });
+    camera?.stop(); camera=null; photo='';
+    processing(s);
   } catch (e) {
     failure(e);
   }
@@ -307,27 +280,57 @@ function stepRow(s: Step): HTMLElement {
 function processing(s: Started): void {
   const steps = h('div', { class: 'wf-steps pb-steps' });
   const thumbs = h('div', { class: 'pb-thumbs' }, ...[0, 1, 2, 3].map(() => h('div', { class: 'pb-thumb' })));
+  const recipient = h('div', { class:'pb-side pb-recipient' });
+  const network = h('p', {class:'dim',role:'status'});
+  const error = h('p', {class:'dim',role:'alert'});
+  let accepted=false, saving=false, active=true;
+  let latest:Status|null=null;
   screen(
-    header('Rendering your adventure', 'Watch it happen, or walk away: we’ll email it either way.'),
+    header('Your adventures are developing', 'Add your email while we create your four-picture strip.'),
     h('div', { class: 'pb-split even' },
-      h('div', { class: 'pb-side' }, thumbs),
-      h('div', { class: 'pb-side' },
-        h('button', { class: 'btn mint big', onclick: reset }, 'Done — we’ll email it'),
-        h('div', { class: 'panel' }, h('span', { class: 'panel-tab' }, 'Workflow'), steps),
-        h('p', { class: 'pb-wfid' }, 'Powered by Temporal · workflow ', workflowRef(s.workflow_id, s.temporal_ui_url)))),
+      h('div', { class: 'pb-side' }, thumbs, network,
+        h('div', { class: 'panel' }, h('span', { class: 'panel-tab' }, 'Live workflow'), steps)),
+      recipient),
   );
+  cleanups.push(()=>{active=false;});
+  const kb=onScreenKeyboard({mode:'email',initial:email,placeholder:'you@company.com',submitLabel:'Send my strip',
+    onSubmit:value=>{void saveRecipient(value);}});
+  recipient.append(h('h2',{},'Where should we send your strip?'),kb.el,consentNote(),error,
+    h('button',{class:'btn ghost',onclick:reset},'Cancel'));
+  cleanups.push(kb.destroy);
+  async function saveRecipient(value:string):Promise<void> {
+    if(saving||accepted)return;
+    saving=true; error.textContent='Saving your email…';
+    try {
+      await api(`/photobooth/sessions/${s.session_id}/recipient`,{email:value});
+      if(!active)return;
+      email=value;accepted=true;kb.destroy();
+      recipient.replaceChildren(h('h2',{},'You’re on the crew list!'),h('p',{},`We’ll send your strip to ${email}.`),
+        h('p',{class:'dim'},'Stay to see your finished adventures, or let Temporal finish and email them.'),
+        h('button',{class:'btn mint big',onclick:reset},'Done — we’ll email it'));
+      if(latest)update(latest);
+    }catch{if(active)error.textContent='We couldn’t save your email yet. Please try again; your photos are still processing.';}
+    finally{saving=false;}
+  }
   let fingerprint = '';
   let lastChange = Date.now();
-  const stop = poll(signal => api<Status>(`/photobooth/sessions/${s.session_id}`,undefined,undefined,signal), (st) => {
-    if (st.stage === 'spooled' || st.stage === 'unreachable') { saved(); return true; }
-    const fp = st.steps.map((x) => `${x.state}${x.attempts}`).join();
-    if (fp !== fingerprint) { fingerprint = fp; lastChange = Date.now(); }
+  function update(st:Status):boolean|void {
+    latest=st;
+    if(st.stage==='spooled'||st.stage==='unreachable') {
+      network.textContent='Your photo is saved. Waiting for the processing connection to return.';
+      if(accepted){saved();return true;}
+      return;
+    }
+    network.textContent=st.stage==='awaiting_email'?'Your pictures are ready. Add your email to finish.':'';
+    const fp=st.steps.map(x=>`${x.state}${x.attempts}`).join();
+    if(fp!==fingerprint){fingerprint=fp;lastChange=Date.now();}
     steps.replaceChildren(...st.steps.map(stepRow));
-    fillThumbs(thumbs, st);
-    if (st.stage === 'done') { later(() => result(st), 900); return true; }
-    if (Date.now() - lastChange > STALL_MS) { saved(); return true; }
-  }, 800);
-  cleanups.push(stop);
+    if(accepted)fillThumbs(thumbs,st);
+    if(st.stage==='done'&&accepted){later(()=>result(st),900);return true;}
+    if(st.stage==='expired'){failure('This photo session expired. Please start a new portrait.');return true;}
+    if(accepted&&Date.now()-lastChange>STALL_MS){saved();return true;}
+  }
+  cleanups.push(poll(signal=>api<Status>(`/photobooth/sessions/${s.session_id}`,undefined,undefined,signal),update,800));
 }
 
 // ---------- 7. Result ----------
@@ -344,7 +347,7 @@ function result(st: Status): void {
     : null;
   screen(
     header('Greetings, space traveler!', `Your strip is on its way to ${st.email}`),
-    h('div', { class: 'pb-split' },
+    h('div', { class: 'pb-split pb-result' },
       img,
       h('div', { class: 'pb-side' },
         h('div', { class: 'panel' },

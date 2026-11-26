@@ -60,17 +60,17 @@ export const architectureProfiles: Record<string, ArchitectureProfile> = {
     source:'apps/agentic-sdlc/README.md',
   },
   'flight-simulator': {
-    entry:['Flight controls','Local real-time gameplay'], api:['Flight API','Session and game events'],
+    entry:['Flight controls','Local real-time gameplay'], api:['Flight API','Telemetry + finish Updates'],
     worker:['Flight worker','Durable session state'], work:['Game activities','Record and retry events'],
-    systems:['Session results','Scores and event receipts'],
-    explanation:'The browser renders the flight. The backend session Workflow receives game events and runs retryable Activities; Temporal does not drive each animation frame.',
+    systems:['Leaderboard Workflow','Scores + event receipts'],
+    explanation:'The browser renders the flight. The backend session Workflow receives telemetry Updates and runs retryable event Activities; Temporal does not drive each animation frame.',
     source:'apps/flight-simulator/backend/holodeck/flight/workflows.py',
   },
   'photo-booth': {
-    entry:['Camera + scenes','Capture a crew portrait'], api:['Photo Booth API','Start and inspect a session'],
-    worker:['Photo Booth worker','Durable session pipeline'], work:['Photo activities','Analyze · render · compose'],
+    entry:['Camera + email','Capture, then recipient'], api:['Photo Booth API','Persist photo + recipient'],
+    worker:['Photo Booth worker','Durable session pipeline'], work:['Photo activities','4 parallel renders + compose'],
     systems:['Image + email tools','Provider calls and files'],
-    explanation:'The Workflow renders scene images in parallel, composes the strip, and sends the email through Activities. Scene rendering runs in parallel, followed by composition and delivery.',
+    explanation:'The Workflow renders scene images in parallel, composes the strip, and sends the email through Activities. The recipient Signal can arrive during rendering; delivery waits durably until an address is saved.',
     source:'apps/photo-booth/backend/holodeck/photobooth/workflows.py',
   },
 }

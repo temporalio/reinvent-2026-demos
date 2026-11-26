@@ -41,9 +41,15 @@ async def start_workflow(workflow_id: str, inp: PhotoBoothInput) -> str:
     return handle.first_execution_run_id
 
 
+async def deliver_recipient(workflow_id: str, email: str) -> None:
+    client = await asyncio.wait_for(get_client(), 4)
+    await client.get_workflow_handle(workflow_id).signal(PhotoBoothWorkflow.set_recipient, email,
+                                                        rpc_timeout=START_TIMEOUT)
+
+
 @asynccontextmanager
 async def lifespan(_app):
-    task = asyncio.create_task(spool.drain_forever(start_workflow))
+    task = asyncio.create_task(spool.drain_forever(start_workflow, deliver=deliver_recipient))
     try:
         yield
     finally:
@@ -62,7 +68,8 @@ class AnalyzeRequest(BaseModel):
 
 class StartRequest(BaseModel):
     image: str  # data URL or raw base64 JPEG/PNG
-    email: str
+    email: str = ""
+    wait_for_email: bool = False
     consent_text_version: str = ""
 
 
@@ -97,7 +104,7 @@ async def analyze_now(req: AnalyzeRequest) -> dict:
 async def start_session(req: StartRequest, x_station: str | None = Header(default=None)) -> dict:
     station = _station(x_station)
     email = req.email.strip().lower()
-    if not _EMAIL.fullmatch(email):
+    if not (req.wait_for_email and not email) and not _EMAIL.fullmatch(email):
         raise HTTPException(400, "invalid email")
     img = _decode(req.image)
 
@@ -108,7 +115,7 @@ async def start_session(req: StartRequest, x_station: str | None = Header(defaul
     photo_rel = f"{rel_dir}/capture.jpg"
     img.save(settings.media_dir / photo_rel, "JPEG", quality=92)
     inp = PhotoBoothInput(
-        session_id=session_id, station=station, photo_path=photo_rel, email=email,
+        session_id=session_id, station=station, photo_path=photo_rel, email=email, wait_for_email=req.wait_for_email,
         consent_text_version=req.consent_text_version, provider=resolve_provider_name(),
         analysis_provider=resolve_analysis_provider(),
         style=settings.photobooth_style if settings.photobooth_style in ("inspired", "photo") else "inspired",
@@ -129,6 +136,33 @@ async def start_session(req: StartRequest, x_station: str | None = Header(defaul
         log.warning("photo booth session %s spooled; Temporal unreachable", session_id)
     return {"session_id": session_id, "workflow_id": workflow_id, "spooled": not started, "provider": inp.provider,
             "temporal_ui_url": workflow_ui_url(workflow_id, run_id) if run_id else None}
+
+
+class RecipientRequest(BaseModel):
+    email: str
+
+
+@router.post("/sessions/{session_id}/recipient")
+async def set_recipient(session_id: str, req: RecipientRequest) -> dict:
+    if not _SID.fullmatch(session_id):
+        raise HTTPException(400, "bad session id")
+    email = req.email.strip().lower()
+    if not _EMAIL.fullmatch(email):
+        raise HTTPException(400, "invalid email")
+    row = spool.get(session_id)
+    if not row:
+        raise HTTPException(404, "unknown session")
+    if not row.input.wait_for_email:
+        raise HTTPException(409, "session already has a recipient")
+    try:
+        spool.set_recipient(session_id, email)
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
+    try:
+        await spool.deliver_recipients(deliver_recipient)
+    except Exception:
+        log.warning("photo booth recipient queued for session %s", session_id)
+    return {"saved": True, "email": email}
 
 
 @router.get("/sessions/{session_id}")

@@ -34,7 +34,7 @@ with workflow.unsafe.imports_passed_through():
         render_scene,
     )
     from .analysis import PhotoAnalysis
-    from .scenes import BY_ID, FALLBACK, pick_featured_four, pick_four
+    from .scenes import BY_ID, FALLBACK, pick_featured_four, pick_playful_four, pick_four
 
 # AI calls: retry forever (capped backoff) within a day. A booth outage or a
 # flaky model delays the email; it never loses the photo.
@@ -65,6 +65,7 @@ class PhotoBoothInput:
     analysis_provider: str = "heuristic"  # openai whenever a key exists, even with mock images
     style: str = "inspired"  # prompt style, fixed at capture time
     public_base_url: str = "http://localhost:8000"  # for links in the email
+    wait_for_email: bool = False  # render first; delivery waits for the recipient Signal
     captured_at: str = ""  # ISO timestamp from the booth (may be long before the workflow starts)
 
 
@@ -99,7 +100,16 @@ def _is_policy_refusal(err: ActivityError) -> bool:
 @workflow.defn
 class PhotoBoothWorkflow:
     def __init__(self) -> None:
+        self._recipient = ""
         self._s: PhotoBoothStatus | None = None
+
+    @workflow.signal
+    def set_recipient(self, email: str) -> None:
+        # The API validates and locks the first address; duplicate deliveries are safe.
+        if not self._recipient:
+            self._recipient = email
+        if self._s:
+            self._s.email = self._recipient
 
     def _step(self, key: str) -> StepState:
         assert self._s
@@ -113,7 +123,9 @@ class PhotoBoothWorkflow:
     async def run(self, inp: PhotoBoothInput) -> PhotoBoothStatus:
         session_dir = inp.photo_path.rsplit("/", 1)[0]
         # Preserve the original choices when replaying pre-change histories.
-        if workflow.patched("photobooth-eight-adventures-v1"):
+        if workflow.patched("photobooth-playful-adventures-v2"):
+            scene_ids = pick_playful_four(workflow.random())
+        elif workflow.patched("photobooth-eight-adventures-v1"):
             scene_ids = pick_featured_four(workflow.random())
         else:
             scene_ids = pick_four(workflow.random())
@@ -129,14 +141,15 @@ class PhotoBoothWorkflow:
                StepState("email", "Beaming strip to your inbox")],
         )
 
-        # Lead first: it's the one thing we must never lose.
-        await workflow.execute_activity(
-            save_lead,
-            Lead(email=inp.email, demo="holodeck-photobooth", station=inp.station,
-                 consent_text_version=inp.consent_text_version,
-                 id=str(workflow.uuid4()), captured_at=inp.captured_at or workflow.now().isoformat(),
-                 extra=json.dumps({"session_id": inp.session_id, "scenes": scene_ids, "provider": inp.provider})),
-            start_to_close_timeout=timedelta(seconds=15), retry_policy=PLUMBING_RETRY)
+        self._recipient = self._recipient or inp.email
+        if not inp.wait_for_email:
+            await workflow.execute_activity(
+                save_lead,
+                Lead(email=inp.email, demo="holodeck-photobooth", station=inp.station,
+                     consent_text_version=inp.consent_text_version,
+                     id=str(workflow.uuid4()), captured_at=inp.captured_at or workflow.now().isoformat(),
+                     extra=json.dumps({"session_id": inp.session_id, "scenes": scene_ids, "provider": inp.provider})),
+                start_to_close_timeout=timedelta(seconds=15), retry_policy=PLUMBING_RETRY)
 
         # 1. Analyse the photo: framing, face boxes, usable? Drives prompts and crops.
         scan = self._step("scan")
@@ -197,6 +210,24 @@ class PhotoBoothWorkflow:
                                                start_to_close_timeout=timedelta(seconds=120),
                                                retry_policy=PLUMBING_RETRY)
         st.state, st.url, s.animated_url = "done", anim.url, anim.url
+
+        # Capture-first sessions can finish images while the visitor types.
+        if inp.wait_for_email:
+            s.stage = "awaiting_email"
+            try:
+                await workflow.wait_condition(lambda: bool(self._recipient), timeout=timedelta(hours=24))
+            except TimeoutError:
+                s.stage = "expired"
+                return s
+            inp.email = self._recipient
+            s.email = self._recipient
+            await workflow.execute_activity(
+                save_lead,
+                Lead(email=inp.email, demo="holodeck-photobooth", station=inp.station,
+                     consent_text_version=inp.consent_text_version,
+                     id=str(workflow.uuid4()), captured_at=inp.captured_at or workflow.now().isoformat(),
+                     extra=json.dumps({"session_id": inp.session_id, "scenes": scene_ids, "provider": inp.provider})),
+                start_to_close_timeout=timedelta(seconds=15), retry_policy=PLUMBING_RETRY)
 
         # 4. Email it.
         s.stage = "sending"

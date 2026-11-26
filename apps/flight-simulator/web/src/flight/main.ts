@@ -265,6 +265,7 @@ let screenToken = 0;
 function setOverlay(...nodes: Node[]): number {
   cleanups.splice(0).forEach((f) => f());
   overlay.replaceChildren(...nodes);
+  if(parent!==window)parent.postMessage({type:'booth:flightsim-stage',result:mode==='leaderboard'},location.origin);
   return ++screenToken;
 }
 function own<T extends { destroy: () => void }>(kb: T): T { cleanups.push(() => kb.destroy()); return kb; }
@@ -375,7 +376,11 @@ function updateWfStrip(): void {
     return;
   }
   // A link (not clickable in flight) lets the booth's lower Temporal UI panel follow this workflow.
-  const id = net.workflowUrl ? h('a', { href: net.workflowUrl, target: '_blank', rel: 'noopener' }, net.workflowId) : net.workflowId;
+  const target=net.workflowUrl?new URL(net.workflowUrl,location.origin):null;
+  const workflowUrl=target?.pathname.startsWith('/_temporal/')?target.pathname+target.search+target.hash:net.workflowUrl;
+  const id = workflowUrl ? h('a', { href: workflowUrl, onclick:(event:Event)=>{
+    if(parent!==window){event.preventDefault();parent.postMessage({type:'booth:workflow',url:workflowUrl,activate:true},location.origin);}
+  } }, net.workflowId) : net.workflowId;
   wfStrip.replaceChildren('◉ Temporal workflow ', id,
     st ? ` · ${st.activities_total + st.activities_pending} activities · ${st.history_events} history events` : '');
 }
@@ -526,6 +531,7 @@ async function launch(email: string): Promise<void> {
 function showLeaderboard(r: { rank: number | null; score: number; name: string }): void {
   const { rank, score, name } = r;
   mode = 'leaderboard';
+  if(net.workflowUrl && parent!==window)parent.postMessage({type:'booth:workflow',url:net.workflowUrl},location.origin);
   setOverlay(h('div', { class: 'fd-screen dim fade-in' },
     h('h2', {}, rank ? `You placed #${rank}!` : 'Not quite the top 10'),
     h('p', { class: 'dim' }, rank ? `${name} · ${score.toLocaleString()} pts` : `${score.toLocaleString()} pts. One more run?`),

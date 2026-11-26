@@ -22,7 +22,7 @@ FROM runtime AS python-tests
 COPY backend/tests/ tests/
 RUN uv sync --frozen --no-install-project --extra aws --extra openai
 RUN HOLODECK_DATA_DIR=/tmp/photobooth-tests uv run --no-sync pytest -q \
-    tests/test_email.py tests/test_openai_params.py tests/test_api_links.py \
+    tests/test_email.py tests/test_openai_params.py tests/test_api_links.py tests/test_capture_first.py \
     tests/test_photobooth.py::test_pick_four_rules_over_many_seeds \
     tests/test_photobooth.py::test_inspired_prompts \
     tests/test_photobooth.py::test_photo_style_prompts \
@@ -30,5 +30,11 @@ RUN HOLODECK_DATA_DIR=/tmp/photobooth-tests uv run --no-sync pytest -q \
     tests/test_photobooth.py::test_mock_never_cuts_out_the_visitor \
     tests/test_photobooth.py::test_cinematic_prompts_prioritize_action_and_scenery \
     tests/test_photobooth.py::test_featured_strips_choose_four_distinct_adventures_with_varied_order
+
+# Replay and ordering checks use a private local server and fake Activities.
+FROM python-tests AS workflow-tests
+COPY --from=temporalio/temporal:1.8.3 /usr/local/bin/temporal /usr/local/bin/temporal
+RUN TEST_TEMPORAL_BINARY=/usr/local/bin/temporal HOLODECK_DATA_DIR=/tmp/photobooth-workflow-tests \
+    uv run --no-sync pytest -q tests/test_capture_workflow.py
 
 FROM runtime AS final

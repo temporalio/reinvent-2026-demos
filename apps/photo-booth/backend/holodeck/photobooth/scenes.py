@@ -1,6 +1,6 @@
 """Scene catalog and prompt templates for the Holo-Booth.
 
-New strips draw 4 distinct scenes from 8 cinematic adventures, in random order.
+New strips draw four distinct scenes from a varied cinematic adventure pool.
 The full 18-scene catalog and original picker stay available for old Workflow
 histories. Both pickers use ``workflow.random()`` so replay preserves the choice.
 
@@ -88,12 +88,43 @@ SCENES: list[Scene] = [
           "lab", "hologram", ("#0a0f14", "#23313d"), {"accent": "#59fdd0", "tint_hue": 0.52, "feature": "circuits"}, transform=True),
 ]
 
+PLAYFUL_SCENES: list[Scene] = [
+    Scene('furry_first_contact', 'alien_nest', 'First Contact, Extra Fluffy',
+          'a delighted explorer in a plum-purple field jacket and amber bubble helmet, face clearly visible through the transparent visor, kneeling beside an enormous woven nest to meet a friendly baby bird-like alien with fluffy mint fur, oversized paws and curious sparkling eyes; tiny siblings peek out among luminous leaves, huge flowers, suspended vines and misty waterfalls on a lush alien mountainside',
+          'jungle', 'visor', ('#102b32', '#a056af')),
+    Scene('snack_chase', 'comic_chase', 'That Was Its Sandwich',
+          'a startled but laughing visitor in a bright tangerine jumpsuit sprinting through a bustling alien street while a large goofy toothy alien lumbers behind, trying to reclaim its oversized sandwich; the creature looks mildly scary in a silly cartoon way, not threatening, with bouncing cheeks and untied sneakers; market umbrellas fly up, amused aliens step aside and noodle stalls, layered skybridges and pastel towers fill the sunset city; no injury, horror or gore',
+          'cantina', 'poster', ('#21164b', '#fa916b')),
+    Scene('city_tourist', 'alien_city_tour', 'Wish You Were Here',
+          'a cheerful tourist in a turquoise jacket, coral scarf and small travel backpack unfolding an absurdly complicated holographic map upside down while friendly alien locals point in three different directions; an immense walkable alien city stretches behind them with stacked balconies, floating trams, sculptural towers, tiny rooftop gardens, glowing shop windows and a violet sky with two moons',
+          'bridge', 'poster', ('#1b1240', '#589dc8')),
+    Scene('diner_counter', 'alien_diner', 'The Usual, Earthling?',
+          'a bemused traveler in a cherry-red flight uniform sitting on a chrome stool at an eat-at counter in a cozy retro-futurist alien diner; a friendly many-armed cook serves an impossibly tall pancake stack while a tiny fluffy customer tries to steal a berry; turquoise booths, copper espresso pipes, hovering plates, jewel-colored neon reflections and a panoramic window overlooking a busy moon spaceport create deep detailed scenery',
+          'cantina', 'poster', ('#162535', '#b86e83')),
+    Scene('curious_spacewalk', 'curious_aliens', 'Personal Space, Please',
+          'a laughing astronaut in a cobalt and sunflower-yellow suit floating on a safety tether outside an enormous space station, their recognizable face clearly visible inside a transparent spherical bubble helmet; a ring of curious friendly alien visitors in colorful little space pods examines their boots and copies their wave, one holding a tiny camera; station gardens, docking ships, a turquoise ringed planet, violet nebulae and a sunrise fill the vast background',
+          'station_exterior', 'visor', ('#051631', '#9657b7')),
+    Scene('street_food', 'orbital_street_food', 'One Small Bite for Humanity',
+          'an adventurous visitor in a magenta bomber jacket and teal trousers sampling a floating alien noodle with comic surprise at an orbital night-market stall; a smiling alien vendor demonstrates with four chopsticks while a tiny hovering pet begs for a bite; steam, glowing lanterns, colorful ingredient jars, crowded balconies, passing spacecraft and a giant planet behind the glass roof fill the richly detailed scene',
+          'cantina', 'poster', ('#311b40', '#da8c55')),
+    Scene('zero_g_laundry', 'orbital_laundromat', 'Spin Cycle in Zero-G',
+          'a laughing visitor in a lime-green utility suit with lilac patches floating inside a zero-gravity laundromat, trying to catch an escaped sock while friendly round aliens chase floating laundry; transparent washer bubbles, swirling rainbow socks, copper machinery, potted alien plants and enormous windows onto an orbital city create a funny everyday space adventure with sweeping depth',
+          'station_exterior', 'porthole', ('#163843', '#9958c7')),
+    Scene('moon_picnic', 'moon_beach', 'Lunch with a View',
+          'a relaxed explorer in a mustard-yellow and seafoam expedition suit with an open transparent bubble helmet, face fully visible, sitting at a picnic blanket on a glittering alien moon beach while a friendly crab-like alien politely offers a glowing fruit and steals a sandwich with another claw; pink waves, lavender sand dunes, tiny tidepool creatures, distant basalt arches and an enormous ringed planet create lush cinematic scenery',
+          'ringworld', 'visor', ('#29365b', '#d67e8e')),
+    Scene('robot_market', 'robot_market', 'Some Assembly Required',
+          'an amused visitor in a sapphire-blue coverall and bright coral vest browsing a crowded alien flea market while a small friendly robot proudly models a ridiculous flowerpot hat; other aliens barter for curious household gadgets, with detailed stalls, dangling glowing cables, whimsical sculptures, stacked terraces, distant airships and warm golden light across a vast futuristic plaza',
+          'lab', 'poster', ('#1e2a4e', '#c28d54')),
+
+]
+
 # Used when a provider refuses a scene twice (content policy). Deliberately bland.
 FALLBACK = Scene("star_portrait", "fallback", "Starfarer Portrait",
                  "a proud space-academy graduate in a smart navy uniform, soft starfield and a distant blue planet behind",
                  "nebula", "hologram", ("#020412", "#0b1840"), {"accent": "#7b6cff", "tint_hue": None, "feature": ""})
 
-BY_ID = {s.id: s for s in SCENES + [FALLBACK]}
+BY_ID = {s.id: s for s in SCENES + PLAYFUL_SCENES + [FALLBACK]}
 assert len({s.category for s in SCENES}) == len(SCENES), "categories must be unique"
 
 # Curated for scenery and motion rather than static portraits. Retain the complete
@@ -102,6 +133,14 @@ FEATURED_SCENE_IDS = (
     "starfighter_ace", "kepler_explorer", "asteroid_miner", "ice_planet",
     "jungle_ranger", "desert_nomad", "grand_prix", "spacewalk",
 )
+
+
+PLAYFUL_SCENE_IDS = ('furry_first_contact', 'snack_chase', 'city_tourist', 'diner_counter', 'curious_spacewalk', 'street_food', 'zero_g_laundry', 'moon_picnic', 'robot_market')
+
+
+def pick_playful_four(rand) -> list[str]:
+    """Blend playful encounters and original adventures, with no repeat setting."""
+    return rand.sample((*FEATURED_SCENE_IDS, *PLAYFUL_SCENE_IDS), 4)
 
 
 def pick_featured_four(rand) -> list[str]:
@@ -134,12 +173,12 @@ def pick_four(rand) -> list[str]:
 # Prompt templates
 # ---------------------------------------------------------------------------
 
-_TAIL = ("Fun, heroic and family-friendly; any action is cartoonish with no gore. "
+_TAIL = ("Casual, funny, welcoming and family-friendly; any scares are mild cartoon slapstick, never horror, injury or gore. "
          "Cinematic lighting, saturated jewel colors, rich detail, wide 3:2 landscape composition. "
          "Build an immersive environment with distinct foreground, midground and distant scenery; "
          "the environment should fill most of the image around the recognizable character. "
          "Use a dynamic three-quarter or medium-wide camera angle, expressive movement and depth. "
-         "Render polished cinematic adventure key art, with detailed costumes, dramatic rim light, "
+         "Render polished cinematic adventure key art, with colorful varied uniforms and spacesuits, transparent bubble helmets when appropriate with the entire recognizable face visible, detailed costumes, dramatic rim light, "
          "atmosphere and colorful environmental effects. No plain studio background, empty white "
          "spacesuit portrait, podium portrait, pasted photo, face cutout, inset headshot, ID card, "
          "decorative photo frame or giant floating head. Do not render titles, labels or watermarks.")
