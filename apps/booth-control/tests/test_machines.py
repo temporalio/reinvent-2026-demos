@@ -150,9 +150,9 @@ class NetworkPairingTests(MachineTests):
         # CI's hub image mounts this one standard-library client explicitly.
         candidate=Path('/fetch_config.py')
         if not candidate.is_file():
-            candidate=Path(__file__).resolve().parents[3]/'scripts/local/fetch_config.py'
+            candidate=next((parent/'scripts/local/fetch_config.py' for parent in Path(__file__).resolve().parents if (parent/'scripts/local/fetch_config.py').is_file()),candidate)
         if not candidate.is_file():
-            server.shutdown();server.server_close();thread.join();self.skipTest('client tested in integration container')
+            server.shutdown();server.server_close();thread.join();self.fail('Mount scripts/local/fetch_config.py at /fetch_config.py for this integration test.')
         spec=importlib.util.spec_from_file_location('fetch_config',candidate)
         client=importlib.util.module_from_spec(spec);spec.loader.exec_module(client)
         try:
