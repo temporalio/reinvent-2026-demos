@@ -129,3 +129,5 @@ Full platform validation is separate: scripts/validate-fieldkit.sh uses the pinn
 Normal hosted booth operation is browser-only. Fieldkit/Docker/kind are for optional local rehearsal or contingency; no offline failover is claimed by this initial port. Provider secrets belong in project-scoped Secrets Manager entries, not repository files or Mac browser configuration.
 
 Imported source retains its existing license notices. No license changes were made during migration.
+
+Dependency updates are checked against affected application builds and provider-free runtime tests. See [dependency compatibility](docs/DEPENDENCY-COMPATIBILITY.md) for the current changes and limits.

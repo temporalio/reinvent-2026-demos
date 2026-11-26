@@ -4,7 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Temporal National Bank — AI Loan Underwriting</title>
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="static/vendor/marked.umd.js"></script>
+  <script src="static/vendor/purify.min.js"></script>
+  <script src="static/vendor/assessment-renderer.js"></script>
   <style>
     :root {
       --bg: #0d0f14;
@@ -881,7 +883,7 @@
     badge.textContent = `LENNY: ${recommendation}`;
     badge.className = `ai-badge ${recommendation === 'APPROVE' ? 'approve' : 'reject'}`;
 
-    document.getElementById('assessment-box').innerHTML = marked.parse(assessment);
+    LoanAssessment.render(document.getElementById('assessment-box'), assessment);
     goTo(4);
   }
 

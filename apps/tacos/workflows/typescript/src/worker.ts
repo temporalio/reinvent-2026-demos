@@ -1,22 +1,26 @@
 import { NativeConnection, Worker } from "@temporalio/worker";
 import { createActivities } from "./activities";
+import { temporalSettings } from "./connection-options";
 import { BackendClient } from "./backend-client";
 
 async function main() {
-  const temporalAddr = process.env.TEMPORAL_ADDRESS || "localhost:7233";
-  const taskQueue = process.env.TEMPORAL_TASK_QUEUE || "dejavu-tacos";
+  const settings = temporalSettings();
+  const temporalAddr = settings.address;
+  const taskQueue = settings.taskQueue;
   const backendURL =
     process.env.DEJAVU_BACKEND_URL || "http://localhost:8000";
 
   const connection = await NativeConnection.connect({
     address: temporalAddr,
+    tls: settings.tls,
+    apiKey: settings.apiKey,
   });
 
   const backend = new BackendClient(backendURL);
 
   const worker = await Worker.create({
     connection,
-    namespace: "default",
+    namespace: settings.namespace,
     taskQueue,
     workflowsPath: require.resolve("./workflows"),
     activities: createActivities(backend),
@@ -26,7 +30,7 @@ async function main() {
   console.log(`Backend URL: ${backendURL}`);
   console.log(`Temporal address: ${temporalAddr}`);
 
-  await worker.run();
+  try { await worker.run(); } finally { await connection.close(); }
 }
 
 main().catch((err) => {

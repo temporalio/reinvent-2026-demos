@@ -1,0 +1,43 @@
+{
+  "lockfileSha256": "d0906d135b905493cea15e3f4ca85a98de68d50fa411cfb8477fd514e91013f9",
+  "dependencies": {
+    "marked": {
+      "version": "18.2.1",
+      "license": "MIT",
+      "resolved": "https://registry.npmjs.org/marked/-/marked-18.2.1.tgz",
+      "integrity": "sha512-ii4bxCTCqqwpT86XZWgJNs+ZnAIZksmLGYMViWA7PDIXYIeNo1x6cDdX3JOip9NM/cI6p8z57FxliACboTruMA=="
+    },
+    "dompurify": {
+      "version": "3.4.18",
+      "license": "(MPL-2.0 OR Apache-2.0)",
+      "resolved": "https://registry.npmjs.org/dompurify/-/dompurify-3.4.18.tgz",
+      "integrity": "sha512-ofe3wI/uNm68HInABYFJYqQxRw1EaKAjNdrFVKqjUY+UZurvNd2L/HuQe097s/4RivWiZyP6tT7aoT8atjfhwg=="
+    }
+  },
+  "files": {
+    "marked.umd.js": {
+      "sha256": "bb95d4c15f1289f78486eaacebf3bb18688475ed58a040ef762ed49337090542"
+    },
+    "marked.umd.js.map": {
+      "sha256": "12b9079002a5b54fdcf04f4f37a346a19a60e0a2d33835b1c7da86b558857821"
+    },
+    "marked.LICENSE": {
+      "sha256": "8e3a3f82f59a60958f56ca08f445647c32a4733dc7ca6c2c46f6eb898471ab9c"
+    },
+    "purify.min.js": {
+      "sha256": "8053ee2a6a09f9d50f7fcd6fb7f07072f52c7f3fa9aa12147cab4feaf65ee970"
+    },
+    "purify.min.js.map": {
+      "sha256": "e565dcc29492aa486364f05fbae2afb797a37918b4a36a079c1e0933499cc92a"
+    },
+    "dompurify.LICENSE": {
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    "dompurify.LICENSE-MPL": {
+      "sha256": "fab3dd6bdab226f1c08630b1dd917e11fcb4ec5e1e020e2c16f83a0a13863e85"
+    },
+    "assessment-renderer.js": {
+      "sha256": "8becdd31461e00c5d551d96cfa055dee418788f6b368f479a4c4b72cd662a9b5"
+    }
+  }
+}
