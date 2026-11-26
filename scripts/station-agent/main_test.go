@@ -61,7 +61,7 @@ func TestGatewayKeepsControlOnLaptopInBothModes(t *testing.T) {
 	a := &Agent{cfg: Config{Hosted: online.URL, Local: local.URL, Hub: hub.URL, Listen: "127.0.0.1:15103"}}
 	for _, mode := range []string{"online", "offline"} {
 		a.status.Mode = mode
-		for _, path := range []string{"/demo/", "/banking/assets/index.js", "/control-api/state", "/assets/index.js", "/screensaver/index.html", "/booth/keyboard.css", "/brand/temporal-mark.svg", "/shots/example.jpg", "/favicon.svg", "/runtime-config.json"} {
+		for _, path := range []string{"/demo/", "/photobooth/api/sessions", "/photobooth/media/test.jpg", "/photobooth/assets/index.js", "/photobooth/index.html", "/banking/assets/index.js", "/control-api/state", "/assets/index.js", "/screensaver/index.html", "/booth/keyboard.css", "/brand/temporal-mark.svg", "/shots/example.jpg", "/favicon.svg", "/runtime-config.json"} {
 			r := httptest.NewRequest("GET", "http://127.0.0.1:15103"+path, nil)
 			w := httptest.NewRecorder()
 			a.handler().ServeHTTP(w, r)

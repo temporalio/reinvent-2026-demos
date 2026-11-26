@@ -59,6 +59,13 @@ Resize/move controls preview on that booth. **Save settings** keeps the change;
 **Discard draft** restores it. **Save control iframe defaults** also stores a
 preset that booths can load and cache locally.
 
+## Enable Agentic SDLC once for the event
+
+Finish the [GitHub/worker checklist](AGENTIC-SDLC-GITHUB.md) on a trusted laptop:
+install the sandbox token in Fieldkit, connect and activate its signed webhook,
+and rehearse all scenarios before removing the launch gate. The four booths share
+that backend; they need no GitHub login, PAT, provider key or webhook forwarder.
+
 ## Restart services or check them
 
 ```bash

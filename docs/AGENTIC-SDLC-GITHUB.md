@@ -14,6 +14,31 @@ The runtime token does not need repository Administration or Webhooks permission
 
 Treat the four borrowed Mac Minis as untrusted, browser-only kiosks. Do not install AWS credentials, provider keys, the GitHub token, private env files, or a signed-in GitHub owner session there. The hosted backend owns those credentials. Staff complete the GitHub steps from a trusted laptop or phone as `iandouglas`: create the dependency PR, steer agents through comments, and approve **Actions → Review deployments**. The kiosks show the demo console; its GitHub links do not remove these staff steps. The server’s PAT does not sign a browser in.
 
+## Details for booth activation
+
+| Detail | Booth value |
+| --- | --- |
+| Sandbox | `temporal-aws-reinvent-2026/reinvent-sdlc-sandbox` |
+| Worker token | Fine-grained PAT restricted to that repo; Contents, Pull requests, Issues, Commit statuses and Actions: read/write |
+| Token destination | `GITHUB_TOKEN` in Fieldkit's existing `fieldkit/reinvent-2026/github` secret |
+| Webhook URL | `https://reinvent-booth.tmprl-demo.cloud/agentic-sdlc/webhooks/github` |
+| Webhook secret | Match `GITHUB_WEBHOOK_SECRET` in `fieldkit/reinvent-2026/runtime`; preserve its other properties |
+| Model access | At least one configured supported provider; the booth manifest references shared platform OpenAI credentials |
+| Staff approval | Trusted-laptop/phone GitHub login authorized for the configured approval environments |
+| Borrowed booth machines | Browser access only; no GitHub/AWS credentials |
+
+The trusted control laptop already has nonempty token and webhook-secret fields in
+its ignored `.env.sdlc.local`; these are not evidence that hosted workers have them.
+The card's `tentative` launch flag is a fixed gate, not a readiness probe. Remove it
+only after signed webhook delivery and the three scenario rehearsals below pass.
+Do not create a new account or token merely to repeat station setup.
+
+Read-only check on November 26, 2026: the sandbox exists, is public and uses `main`.
+Webhook status could not be read with the current GitHub CLI scope. Hosted secret
+installation could not be verified because the AWS session had expired. The
+November 23 status below is historical until a Fieldkit/sandbox administrator
+verifies activation.
+
 ## Prepare the sandbox
 
 1. Create the new repository with `main` as the default branch and Issues enabled. Use only demo content. Enable Actions, including the bundled `actions/checkout` action and GitHub-hosted Ubuntu runners.
