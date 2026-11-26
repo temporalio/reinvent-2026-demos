@@ -512,20 +512,6 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         try:
             url = urlsplit(self.path)
-            if re.fullmatch(r'/control-api/booth-config/[a-f0-9]{64}', url.path):
-                from machines import MachineError
-                service = getattr(self.server, 'machines', None)
-                if service is None:
-                    raise ApiError(404, 'not_enabled', 'Pairing is available on the laptop controller only.')
-                query = parse_qs(url.query, keep_blank_values=True)
-                if set(query) != {'station'} or len(query['station']) != 1:
-                    raise ApiError(422, 'invalid_station', 'Provide one station ID.')
-                try:
-                    result = service.download(url.path.rsplit('/',1)[1], query['station'][0], self.headers.get('X-Booth-Nonce',''), self.headers.get('X-Booth-Proof',''), self.server.clock())
-                except MachineError as error:
-                    raise ApiError(error.status,'pairing',error.message) from None
-                self.json_response(200, result)
-                return
             if url.path in ('/healthz', '/control-api/healthz') and not url.query:
                 self.json_response(200, {'ok': True})
                 return
@@ -548,7 +534,22 @@ class Handler(BaseHTTPRequestHandler):
             self.fail(ApiError(503, 'storage_unavailable', 'Settings storage is unavailable. Try again shortly.'))
 
     def do_POST(self):
-        if self.path.startswith('/control-api/machines/'):
+        match = re.fullmatch(r'/control-api/booth-config/([1-4])/(start|finish)', self.path)
+        if match:
+            from machines import MachineError
+            service = getattr(self.server, 'machines', None)
+            try:
+                if service is None:
+                    raise ApiError(404, 'not_enabled', 'Pairing is available on the controller only.')
+                result = service.pairing(match[1],match[2],self.read_body(),self.server.clock())
+                self.json_response(200,result)
+            except MachineError as error:
+                self.fail(ApiError(error.status,'pairing',error.message))
+            except ApiError as error:
+                self.fail(error)
+            except (OSError,sqlite3.Error):
+                self.fail(ApiError(503,'storage_unavailable','Pairing storage is unavailable.'))
+        elif self.path.startswith('/control-api/machines/'):
             self.machine_request()
         else:
             self.write_request('POST')

@@ -66,10 +66,10 @@ with opener.open(request,timeout=5) as response:
 if reply.get('nonce')!=nonce or not hmac.compare_digest(sign('REPLY',reply['time'],reply['payload']),reply['signature']):
     raise SystemExit('Controller response signature did not verify.')
 result = json.loads(reply['payload'])
-code = '-'.join(result['code'][i:i+4] for i in range(0,32,4))
+code = result['code'][:3]+'-'+result['code'][3:]
 operator = output/'operator.key'
 operator.write_text(key+'\n')
-print(f'Booth {args.station} one-time pairing code (expires in 10 minutes): {code}')
+print(f'Booth {args.station} one-time pairing code (expires in 2 minutes; 5 attempts): {code}')
 target = u.hostname if u.scheme=='http' and u.port==15101 and ':' not in u.hostname else args.hub.rstrip('/')
 print(f'On that booth run: ./scripts/fetch-booth-config.sh {target} {args.station}')
 print('Enter the code when prompted. It works once; re-pairing revokes the previous station key.')

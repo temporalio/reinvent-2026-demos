@@ -15,6 +15,7 @@ import re
 import secrets
 import sqlite3
 import threading
+from spake2 import SPAKE2_B
 
 
 class MachineError(Exception):
@@ -44,10 +45,14 @@ class Machines:
             raise ValueError('Invalid machine operator key file')
         self.filename = str(directory / 'machines.sqlite3')
         self.lock = threading.RLock()
+        self.pairing_sessions = {}
         with closing(sqlite3.connect(self.filename)) as db:
             db.execute('CREATE TABLE IF NOT EXISTS machines (station TEXT PRIMARY KEY, status TEXT, last_seen REAL, command TEXT)')
             db.execute('CREATE TABLE IF NOT EXISTS credentials (station TEXT PRIMARY KEY, secret TEXT NOT NULL)')
             db.execute('CREATE TABLE IF NOT EXISTS downloads (ticket TEXT PRIMARY KEY, station TEXT NOT NULL, hub TEXT NOT NULL, code TEXT NOT NULL, expires REAL NOT NULL)')
+            if 'attempts' not in {row[1] for row in db.execute('PRAGMA table_info(downloads)')}:
+                db.execute('ALTER TABLE downloads ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0')
+            db.execute('DELETE FROM downloads WHERE length(code) != 6')
             db.execute('CREATE TABLE IF NOT EXISTS nonces (principal TEXT, nonce TEXT, expires REAL, PRIMARY KEY(principal,nonce))')
             db.commit()
 
@@ -107,11 +112,11 @@ class Machines:
                 _ = u.port
             except ValueError:
                 raise MachineError(422, 'Invalid download hub origin.') from None
-            code = secrets.token_hex(16)
-            ticket = hashlib.sha256(bytes.fromhex(code)).hexdigest()
+            code = f'{secrets.randbelow(1000000):06d}'
+            ticket = secrets.token_hex(32)
             db.execute('DELETE FROM downloads WHERE station=? OR expires<?', (request['station'], now))
-            db.execute('INSERT INTO downloads VALUES (?,?,?,?,?)', (ticket, request['station'], hub.rstrip('/'), code, now+600))
-            return {'code': code, 'expires': int(now)+600, 'station': request['station']}
+            db.execute('INSERT INTO downloads VALUES (?,?,?,?,?,0)', (ticket, request['station'], hub.rstrip('/'), code, now+120))
+            return {'code': code, 'expires': int(now)+120, 'station': request['station'], 'attempts':5}
         if action == 'pair' and request.get('station') in ('1', '2', '3', '4'):
             station = request['station']
             return {'station': station, 'key': self.station_key(station)}
@@ -130,30 +135,57 @@ class Machines:
                              'command': json.loads(command) if command else None}
         return {'stations': rows, 'server_time': int(now)}
 
-    def download(self, ticket, station, nonce, proof, now):
-        if (station not in ('1','2','3','4') or not re.fullmatch('[a-f0-9]{64}', ticket)
-                or not isinstance(nonce, str) or not re.fullmatch('[a-f0-9]{32}', nonce)
-                or not isinstance(proof, str) or not re.fullmatch('[a-f0-9]{64}', proof)):
-            raise MachineError(401, 'Pairing proof was not accepted.')
+    def pairing(self, station, phase, body, now):
+        """Confirm a short password with SPAKE2, never derive a key from it alone."""
+        if station not in ('1','2','3','4'):
+            raise MachineError(404, 'Unknown station.')
         with self.lock, closing(sqlite3.connect(self.filename)) as db:
             db.execute('BEGIN IMMEDIATE')
-            row = db.execute('SELECT hub,code,expires FROM downloads WHERE ticket=? AND station=?', (ticket,station)).fetchone()
-            if not row or row[2] < now:
+            self.pairing_sessions = {k:v for k,v in self.pairing_sessions.items() if v['expires'] > now}
+            if phase == 'start':
+                row = db.execute('SELECT ticket,hub,code,expires,attempts FROM downloads WHERE station=?', (station,)).fetchone()
+                if not row or row[3] <= now:
+                    raise MachineError(404, 'Pairing code expired or was used. Generate a new code on the controller.')
+                ticket,hub,code,expires,attempts = row
+                if attempts >= 5:
+                    raise MachineError(429, 'Five pairing attempts used. Generate a fresh code on the controller.')
+                # Commit before parsing/cryptography: malformed guesses and restarts
+                # cannot roll back the limit. Each session permits one confirmation.
+                db.execute('UPDATE downloads SET attempts=attempts+1 WHERE ticket=?', (ticket,))
+                db.commit()
+                message,nonce = body.get('message'),body.get('nonce')
+                if (not isinstance(message,str) or not re.fullmatch('[a-f0-9]{66}',message)
+                        or not isinstance(nonce,str) or not re.fullmatch('[a-f0-9]{32}',nonce)):
+                    raise MachineError(401, 'Pairing request was not accepted.')
+                exchange = SPAKE2_B(code.encode(), idA=('booth:'+station).encode(), idB=b'controller')
+                outgoing = exchange.start()
+                try:
+                    key = exchange.finish(bytes.fromhex(message))
+                except Exception:
+                    raise MachineError(401, 'Pairing request was not accepted.') from None
+                session = secrets.token_hex(16)
+                self.pairing_sessions[session] = dict(key=key,station=station,ticket=ticket,hub=hub,nonce=nonce,expires=expires)
+                payload = json.dumps(dict(session=session,station=station,hub=hub,nonce=nonce,message=outgoing.hex()),separators=(',',':'))
+                return {'payload':payload,'signature':hmac.new(key,('PAIR-SERVER\n'+payload).encode(),hashlib.sha256).hexdigest()}
+            session,proof = body.get('session'),body.get('proof')
+            if not isinstance(session,str) or not re.fullmatch('[a-f0-9]{32}',session):
+                raise MachineError(401, 'Pairing session was not accepted.')
+            pending = self.pairing_sessions.get(session)
+            if not pending or pending['station'] != station:
+                raise MachineError(401, 'Pairing session expired. Try again with a fresh code.')
+            del self.pairing_sessions[session]
+            if not db.execute('SELECT 1 FROM downloads WHERE ticket=? AND expires>?', (pending['ticket'],now)).fetchone():
                 raise MachineError(404, 'Pairing code expired or was used. Generate a new code on the controller.')
-            hub, code, _ = row
-            secret = bytes.fromhex(code)
-            expected = hmac.new(secret, f'CONFIG-REQUEST\n{station}\n{nonce}\n{ticket}'.encode(), hashlib.sha256).hexdigest()
-            if not hmac.compare_digest(expected, proof):
-                raise MachineError(401, 'Pairing proof was not accepted.')
-            key = hmac.new(secret, f'STATION-KEY\n{station}\n{nonce}'.encode(), hashlib.sha256).hexdigest()
-            db.execute('INSERT INTO credentials VALUES (?,?) ON CONFLICT(station) DO UPDATE SET secret=excluded.secret', (station,key))
-            db.execute('DELETE FROM downloads WHERE ticket=?', (ticket,))
+            key = pending['key']
+            expected = hmac.new(key, f"PAIR-CLIENT\n{session}\n{pending['nonce']}".encode(),hashlib.sha256).hexdigest()
+            if not isinstance(proof,str) or not re.fullmatch('[a-f0-9]{64}',proof) or not hmac.compare_digest(proof,expected):
+                raise MachineError(401, 'Incorrect pairing code. Try again; at most five attempts are allowed.')
+            station_key = hmac.new(key, f'STATION-KEY\n{station}\n{session}'.encode(),hashlib.sha256).hexdigest()
+            db.execute('INSERT INTO credentials VALUES (?,?) ON CONFLICT(station) DO UPDATE SET secret=excluded.secret', (station,station_key))
+            db.execute('DELETE FROM downloads WHERE ticket=?', (pending['ticket'],))
             db.commit()
-        # The station derives its key locally. Neither the code nor the key is
-        # transmitted over the LAN, even when the endpoint uses plain HTTP.
-        payload = json.dumps({'station':station,'hub':hub}, separators=(',',':'))
-        signed = hmac.new(secret, f'CONFIG-REPLY\n{nonce}\n{payload}'.encode(), hashlib.sha256).hexdigest()
-        return {'nonce':nonce,'payload':payload,'signature':signed}
+            payload = json.dumps({'station':station,'hub':pending['hub']},separators=(',',':'))
+            return {'payload':payload,'signature':hmac.new(key,('PAIR-FINISH\n'+payload).encode(),hashlib.sha256).hexdigest()}
 
     def poll(self, db, station, request, now):
         # Keep a small, typed status record. Never persist arbitrary host details.

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Pair a booth over the LAN without sending the one-time code or station key."""
+"""Pair a booth over the LAN with a short code and password-authenticated key exchange."""
 import argparse
 import getpass
 import hashlib
@@ -34,33 +34,47 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 
 
 def fetch_pairing(hub, station, code):
+    from spake2 import SPAKE2_A
     hub = origin(hub)
-    code = code.replace('-', '').replace(' ', '').strip().lower()
-    if station not in ('1','2','3','4') or not re.fullmatch('[a-f0-9]{32}', code):
-        raise ValueError('Use station 1–4 and the one-time code from the control laptop.')
-    secret = bytes.fromhex(code)
-    ticket = hashlib.sha256(secret).hexdigest()
+    code = code.replace('-', '').replace(' ', '').strip()
+    if station not in ('1','2','3','4') or not re.fullmatch('[0-9]{6}',code):
+        raise ValueError('Use station 1–4 and the six-digit pairing code from the controller.')
+    exchange = SPAKE2_A(code.encode(),idA=('booth:'+station).encode(),idB=b'controller')
+    outgoing = exchange.start()
     nonce = secrets.token_hex(16)
-    proof = hmac.new(secret, f'CONFIG-REQUEST\n{station}\n{nonce}\n{ticket}'.encode(), hashlib.sha256).hexdigest()
-    req = urllib.request.Request(f'{hub}/control-api/booth-config/{ticket}?station={station}',
-                                 headers={'X-Booth-Nonce':nonce,'X-Booth-Proof':proof})
-    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
-    with opener.open(req, timeout=8) as response:
-        reply = json.loads(response.read(65537))
-    if not isinstance(reply,dict):
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}),NoRedirect())
+    def post(phase, body):
+        request = urllib.request.Request(f'{hub}/control-api/booth-config/{station}/{phase}',
+            data=json.dumps(body).encode(),headers={'Content-Type':'application/json'})
+        with opener.open(request,timeout=8) as response:
+            reply = json.loads(response.read(65537))
+        if not isinstance(reply,dict) or not isinstance(reply.get('payload'),str) or len(reply['payload'])>4096 or not isinstance(reply.get('signature'),str) or not re.fullmatch('[a-f0-9]{64}',reply['signature']):
+            raise ValueError('The pairing response was not valid.')
+        return reply
+    reply = post('start',{'message':outgoing.hex(),'nonce':nonce})
+    data = json.loads(reply['payload'])
+    if (not isinstance(data,dict) or data.get('nonce')!=nonce or data.get('station')!=station
+            or not isinstance(data.get('session'),str) or not re.fullmatch('[a-f0-9]{32}',data['session'])
+            or not isinstance(data.get('message'),str) or not re.fullmatch('[a-f0-9]{66}',data['message'])):
         raise ValueError('The pairing response was not valid.')
-    payload = reply.get('payload')
-    if not isinstance(payload,str) or len(payload)>4096 or reply.get('nonce')!=nonce:
-        raise ValueError('The pairing response was not valid.')
-    expected = hmac.new(secret, f'CONFIG-REPLY\n{nonce}\n{payload}'.encode(), hashlib.sha256).hexdigest()
-    if not isinstance(reply.get('signature'),str) or not hmac.compare_digest(expected,reply['signature']):
+    try:
+        key = exchange.finish(bytes.fromhex(data['message']))
+    except Exception:
+        raise ValueError('The pairing response could not be verified.') from None
+    expected = hmac.new(key,('PAIR-SERVER\n'+reply['payload']).encode(),hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expected,reply['signature']):
+        raise ValueError('Incorrect pairing code or unverified controller. Check the six digits and retry; after five attempts, request a fresh code.')
+    session = data['session']
+    proof = hmac.new(key,f'PAIR-CLIENT\n{session}\n{nonce}'.encode(),hashlib.sha256).hexdigest()
+    reply = post('finish',{'session':session,'proof':proof})
+    expected = hmac.new(key,('PAIR-FINISH\n'+reply['payload']).encode(),hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expected,reply['signature']):
         raise ValueError('The pairing response could not be verified. No configuration was saved.')
-    data = json.loads(payload)
-    if not isinstance(data,dict) or data.get('station')!=station or not isinstance(data.get('hub'),str):
+    config = json.loads(reply['payload'])
+    if not isinstance(config,dict) or config.get('station')!=station or not isinstance(config.get('hub'),str):
         raise ValueError('The pairing response belongs to another station.')
-    data['hub'] = origin(data['hub'])
-    data['key'] = hmac.new(secret, f'STATION-KEY\n{station}\n{nonce}'.encode(), hashlib.sha256).hexdigest()
-    return data
+    return {'station':station,'hub':origin(config['hub']),
+            'key':hmac.new(key,f'STATION-KEY\n{station}\n{session}'.encode(),hashlib.sha256).hexdigest()}
 
 
 def main():
@@ -72,7 +86,7 @@ def main():
     try:
         hub = args.controller or input('Control laptop IP: ').strip()
         station = args.station or input('Booth station number (1–4): ').strip()
-        code = args.code_file.read_text() if args.code_file else getpass.getpass('One-time code from the control laptop: ')
+        code = args.code_file.read_text() if args.code_file else getpass.getpass('Six-digit code from the control laptop (e.g. 123-456): ')
         config = fetch_pairing(hub,station,code)
         root = Path(__file__).resolve().parents[2]
         os.umask(0o077)
@@ -87,7 +101,7 @@ def main():
         print(f'For this MacBook rehearsal: ./scripts/local.sh booth --station {station} --test')
         print(f'For an event Mini with login startup: ./scripts/local.sh booth --station {station}')
     except urllib.error.HTTPError as error:
-        print(f'Pairing failed ({error.code}). Generate a fresh code on the controller and try again.',file=sys.stderr)
+        print(f'Pairing failed ({error.code}). Code expired, was used, or reached its five-attempt limit. Generate a fresh code on the controller.',file=sys.stderr)
         return 1
     except (OSError,ValueError,EOFError) as error:
         print(f'Pairing failed: {error}',file=sys.stderr)

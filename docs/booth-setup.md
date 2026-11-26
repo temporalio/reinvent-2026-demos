@@ -30,7 +30,8 @@ ENV
 ```
 
 Ask the controller operator to run `./scripts/local.sh pair --station 3` just
-before your first startup. Enter that one-time code when prompted. Later starts
+before your first startup. Enter the six-digit code (`123-456` or `123456`) within
+two minutes. After five attempts, request a new code. Later starts
 reuse the saved key. `.env` stays local and contains no work credentials.
 
 ## Personal MacBook rehearsal

@@ -29,16 +29,24 @@ and cached settings therefore remain on one origin when the backend changes.
 
 ## Network pairing
 
-`pair --station N` on the trusted controller generates a random one-time code.
-The operator types it once on that booth's fetch command. It expires after ten
-minutes, is scoped to that station, and can be redeemed once.
+`pair --station N` on the trusted controller generates a six-digit code, shown
+as `123-456`. The booth accepts either format. It expires after two minutes and
+permits five exchange attempts for that station, including malformed attempts.
+The counter is committed before checking the request and survives hub restarts.
+A fresh code from the trusted controller resets the limit; booths cannot reset it.
+Successful pairing consumes the code. Interrupted exchanges count as attempts.
 
-The code is not sent over HTTP. The request contains a hash identifying its ticket
-and an HMAC proof bound to the station and a fresh nonce. The controller and booth
-derive a new station key independently. The reply contains station/hub metadata
-and a nonce-bound HMAC; the client verifies it before saving anything. Neither the
-code nor the station key crosses the LAN. Re-pairing replaces that station's key,
-revoking its previous configuration. A used/interrupted download needs a fresh code.
+The client and controller use [SPAKE2](https://github.com/warner/python-spake2), a
+password-authenticated key exchange, with separate client/server confirmations.
+The short code is never sent or used alone to derive the permanent key. Fresh
+exchange randomness creates a 256-bit station key automatically; neither that key
+nor the code crosses the LAN. Nonces, station identity and exchange sessions bind
+the confirmations. Re-pairing revokes the station's old key. A replaced or expired
+code invalidates pending exchanges. Existing paired machines keep their keys.
+
+Update the checkout on both machines and restart the controller before using short
+codes. Outstanding codes from the previous protocol must be regenerated. The
+fetch wrapper installs its pinned exchange dependency in the ignored tooling venv.
 
 The fetched config is mode 0600 under `tmp/booth-config/`. Installation copies its
 settings into the user's supervisor support directory. The laptop operator key

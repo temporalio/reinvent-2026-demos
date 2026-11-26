@@ -24,4 +24,4 @@ class FetchConfigTests(unittest.TestCase):
         class Opener:
             def open(self,*_,**__):return Response()
         with patch.object(client.urllib.request,'build_opener',return_value=Opener()):
-            with self.assertRaises(ValueError):client.fetch_pairing('192.168.86.108','3','a'*32)
+            with self.assertRaises(ValueError):client.fetch_pairing('192.168.86.108','3','123456')
