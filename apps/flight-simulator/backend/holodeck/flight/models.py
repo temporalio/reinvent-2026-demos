@@ -9,10 +9,11 @@ GAME_MS = 90_000
 # bonuses (an enemy kill is worth a burst of points).
 MAX_POINTS_PER_SEC = 3_200
 SCORE_SLACK = 4_000
+CARGO_LOSS_PER_SEC = 600
 # Cap on events per telemetry batch (one activity is scheduled per event).
 MAX_EVENTS_PER_BATCH = 120
 
-SYSTEMS = ["engines", "shields", "navigation", "sensors", "life_support", "cargo"]
+SYSTEMS = ["engines", "shields", "navigation", "sensors", "life_support", "cargo", "blasters"]
 
 
 @dataclass
@@ -54,6 +55,7 @@ class Telemetry:
     deploys: int = 0
     repairs: int = 0
     damage_taken: float = 0.0
+    cargo_lost: float = 0.0
     temporal_charges: int = 0
     next_threshold: int = 10_000
     events: list[GameEvent] = field(default_factory=list)
@@ -89,6 +91,7 @@ class SessionState:
     deploys: int = 0
     repairs: int = 0
     damage_taken: float = 0.0
+    cargo_lost: float = 0.0
     temporal_charges: int = 0
     next_threshold: int = 10_000
     event_log: list[str] = field(default_factory=list)

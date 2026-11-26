@@ -428,8 +428,8 @@
       "source": {
         "path": "apps/flight-simulator/backend/holodeck/flight/workflows.py",
         "symbol": "FlightSessionWorkflow.telemetry",
-        "startLine": 120,
-        "endLine": 142
+        "startLine": 122,
+        "endLine": 145
       },
       "examples": {
         "go": {
@@ -468,7 +468,7 @@
           "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation. Rust fragments follow the 1.1.2 SDK API pinned in these demos."
         },
         "python": {
-          "code": "@workflow.update\ndef telemetry(self, t: Telemetry) -> SessionState:\n    s = self._state\n    if t.seq <= s.seq:  # duplicate/late batch (client retry): ignore\n        return self._view()\n    s.seq = t.seq\n    s.elapsed_ms = min(t.elapsed_ms, s.game_ms)\n    s.score = t.score\n    s.distance = t.distance\n    s.hull = t.hull\n    s.broken = list(t.broken)\n    s.durable = t.durable\n    s.deploys = t.deploys\n    s.repairs = t.repairs\n    s.damage_taken = t.damage_taken\n    s.temporal_charges = t.temporal_charges\n    s.next_threshold = t.next_threshold\n    s.event_log = (s.event_log + [f\"{e.t_ms // 1000:>2}s {e.type}{':' + e.kind if e.kind else ''}\" for e in t.events])[-EVENT_LOG_MAX:]\n    for ev in t.events:\n        self._schedule(ev)\n    if s.elapsed_ms >= s.game_ms:\n        s.status = \"ended\"\n    return self._view()",
+          "code": "@workflow.update\ndef telemetry(self, t: Telemetry) -> SessionState:\n    s = self._state\n    if t.seq <= s.seq:  # duplicate/late batch (client retry): ignore\n        return self._view()\n    s.seq = t.seq\n    s.elapsed_ms = min(t.elapsed_ms, s.game_ms)\n    s.score = t.score\n    s.distance = t.distance\n    s.hull = t.hull\n    s.broken = list(t.broken)\n    s.durable = t.durable\n    s.deploys = t.deploys\n    s.repairs = t.repairs\n    s.damage_taken = t.damage_taken\n    s.cargo_lost = t.cargo_lost\n    s.temporal_charges = t.temporal_charges\n    s.next_threshold = t.next_threshold\n    s.event_log = (s.event_log + [f\"{e.t_ms // 1000:>2}s {e.type}{':' + e.kind if e.kind else ''}\" for e in t.events])[-EVENT_LOG_MAX:]\n    for ev in t.events:\n        self._schedule(ev)\n    if s.elapsed_ms >= s.game_ms:\n        s.status = \"ended\"\n    return self._view()",
           "kind": "native-excerpt",
           "note": "Curated native excerpt from the running implementation. Surrounding imports, setup, and other Workflow steps are omitted."
         }

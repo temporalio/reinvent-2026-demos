@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import uuid
 
 import pytest
@@ -24,7 +25,7 @@ from holodeck.shared.leads import Lead, save_lead
 
 @pytest.fixture(scope="module")
 async def env():
-    async with await WorkflowEnvironment.start_local() as env:
+    async with await WorkflowEnvironment.start_local(dev_server_existing_path=os.getenv("TEST_TEMPORAL_BINARY")) as env:
         yield env
 
 
@@ -309,3 +310,22 @@ async def test_blocked_username_gets_callsign_on_the_board(worker):
     await h.execute_update(FlightSessionWorkflow.telemetry, tel(1, 1000, 321))
     res = await h.execute_update(FlightSessionWorkflow.finish)
     assert res.name.startswith("Pilot-") and all("@" not in e.name for e in res.top)
+
+
+async def test_cargo_loss_survives_update_and_resume(worker):
+    h = await start_session(worker, game_ms=3000)
+    await h.execute_update(FlightSessionWorkflow.telemetry, tel(1, 1000, 5000, broken=["cargo"]))
+    state = await h.execute_update(FlightSessionWorkflow.telemetry, tel(2, 2000, 4700, broken=["cargo"], cargo_lost=600,
+        events=[GameEvent("cargo_loss", 2000, "cargo", 600)]))
+    assert state.score == 4700 and state.cargo_lost == 600
+    restored = await h.query(FlightSessionWorkflow.state)
+    assert restored.score == 4700 and restored.cargo_lost == 600
+    duplicate = await h.execute_update(FlightSessionWorkflow.telemetry, tel(2, 2000, 4700, cargo_lost=600))
+    assert duplicate.score == 4700
+    with pytest.raises(WorkflowUpdateFailedError):
+        await h.execute_update(FlightSessionWorkflow.telemetry, tel(3, 3000, 3000, cargo_lost=600))
+    with pytest.raises(WorkflowUpdateFailedError):
+        await h.execute_update(FlightSessionWorkflow.telemetry, tel(3, 3000, 4500, cargo_lost=1800))
+    await h.execute_update(FlightSessionWorkflow.telemetry, tel(3, 3000, 4400, broken=["cargo"], cargo_lost=1200))
+    result = await h.execute_update(FlightSessionWorkflow.finish)
+    assert result.score == 4400

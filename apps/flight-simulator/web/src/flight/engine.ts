@@ -181,6 +181,7 @@ export class FlightEngine {
   autopilotSkill = 1;
   /** How much the autopilot meanders (attract mode looks nicer with more). */
   autopilotWander = 0.3;
+  private routePhase = Math.random()*Math.PI*2;
 
   constructor(private container: HTMLElement, private events: EngineEvents) {
     this.renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
@@ -439,6 +440,7 @@ export class FlightEngine {
   }
 
   reset(): void {
+    this.routePhase = Math.random()*Math.PI*2;
     for (const o of this.active) { o.active = false; o.obj.visible = false; }
     this.active = [];
     for (const e of this.enemies) { e.active = false; e.obj.visible = false; }
@@ -504,12 +506,14 @@ export class FlightEngine {
   }
 
   /** Fire the blaster from alternating wing guns, with a little aim assist. */
-  fire(): void {
+  fire(aim?: {x:number;y:number}): void {
     const b = this.bolts.find((x) => !x.active && !x.enemy);
     if (!b) return;
     this.gunSide *= -1;
     const origin = _w.copy(this.pos).addScaledVector(this.right, this.gunSide * 0.9).addScaledVector(this.up, -0.6).addScaledVector(this.forward, 1.5);
-    const dir = this.aimDir(origin);
+    const dir = aim
+      ? new THREE.Vector3(aim.x, aim.y, 0.5).unproject(this.camera).sub(this.camera.position).normalize()
+      : this.aimDir(origin);
     b.active = true; b.mesh.visible = true; b.life = 1.3; b.enemy = false;
     b.mesh.position.copy(origin);
     b.origin.copy(origin);
@@ -582,8 +586,8 @@ export class FlightEngine {
     let tx = f.turn.x, ty = f.turn.y;
     if (f.autopilot) ({ x: tx, y: ty } = this.autopilot());
     if (f.navBroken) {
-      tx = tx * 0.6 + Math.sin(this.t * 1.7) * 0.35 + (Math.random() - 0.5) * 0.4;
-      ty = ty * 0.6 + Math.cos(this.t * 1.3) * 0.3 + (Math.random() - 0.5) * 0.4;
+      tx = THREE.MathUtils.clamp(tx * 0.3 + Math.sin(this.t * 2.7) * 1.1 + Math.sin(this.t * 6.1) * 0.5, -1, 1);
+      ty = THREE.MathUtils.clamp(ty * 0.3 + Math.cos(this.t * 2.1) * 0.8 + Math.sin(this.t * 4.3) * 0.4, -.85, .85);
     }
     const k = Math.min(1, dt * 5);
     this.yawRate += (-tx * MAX_YAW - this.yawRate) * k;
@@ -793,8 +797,8 @@ export class FlightEngine {
   private autopilot(): { x: number; y: number } {
     const skill = this.autopilotSkill;
     const range = 40 + 100 * skill;
-    let ax = Math.sin(this.t * 0.35) * this.autopilotWander;
-    let ay = Math.cos(this.t * 0.27) * this.autopilotWander * 0.66;
+    let ax = Math.sin(this.t * 0.35 + this.routePhase) * this.autopilotWander;
+    let ay = Math.cos(this.t * 0.27 + this.routePhase) * this.autopilotWander * 0.66;
     const loc = new THREE.Vector3();
     const avoid = (p: THREE.Vector3, r: number) => {
       this.local(p, loc);

@@ -28,7 +28,7 @@ import (
 	"time"
 )
 
-const version = "3"
+const version = "4"
 
 type Config struct {
 	Station string `json:"station"`
@@ -415,7 +415,8 @@ func localLaunchpadPath(path string) bool {
 		strings.HasPrefix(path, "/assets/") || strings.HasPrefix(path, "/screensaver/") ||
 		strings.HasPrefix(path, "/booth/") || strings.HasPrefix(path, "/agentcore-video/") ||
 		strings.HasPrefix(path, "/brand/") || strings.HasPrefix(path, "/shots/") || path == "/favicon.svg" ||
-		path == "/photobooth" || path == "/photobooth/" || path == "/photobooth/index.html" || strings.HasPrefix(path, "/photobooth/assets/")
+		path == "/photobooth" || path == "/photobooth/" || path == "/photobooth/index.html" || strings.HasPrefix(path, "/photobooth/assets/") ||
+		path == "/flightsim" || path == "/flightsim/" || path == "/flightsim/index.html" || strings.HasPrefix(path, "/flightsim/assets/") || strings.HasPrefix(path, "/flightsim/flight/")
 }
 
 func (a *Agent) handler() http.Handler {
@@ -544,7 +545,7 @@ func (a *Agent) maintain() {
 	}
 	// Compose versions emit either JSON lines or an array. Exclude completed setup jobs.
 	for _, row := range rows {
-		if a.snapshot().Mode == "online" && row.Service != "gateway" && row.Service != "launchpad" && row.Service != "control-hub" && row.Service != "photobooth-web" {
+		if a.snapshot().Mode == "online" && row.Service != "gateway" && row.Service != "launchpad" && row.Service != "control-hub" && row.Service != "photobooth-web" && row.Service != "flightsim-web" {
 			continue
 		}
 		if row.Service == "aws-seed" || row.Service == "temporal-init" || row.Service == "no-roads-deployment-init" {

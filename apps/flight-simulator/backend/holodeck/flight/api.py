@@ -22,6 +22,11 @@ from .workflows import FlightSessionWorkflow, LeaderboardWorkflow, SessionInput
 router = APIRouter(prefix="/flight", tags=["flight"])
 
 
+@router.get('/capabilities')
+async def capabilities():
+    return {'touch_flight': True, 'cargo_score_loss': True, 'version': 2}
+
+
 class EventBody(BaseModel):
     type: str
     t_ms: int = 0
@@ -40,6 +45,7 @@ class TelemetryBody(BaseModel):
     deploys: int = 0
     repairs: int = 0
     damage_taken: float = 0
+    cargo_lost: float = 0
     temporal_charges: int = 0
     next_threshold: int = 10_000
     events: list[EventBody] = []

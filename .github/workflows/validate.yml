@@ -29,6 +29,13 @@ jobs:
       - run: docker build -t reinvent-control apps/booth-control
       - run: docker run --rm --network none -v "$PWD/scripts/local/fetch_config.py:/fetch_config.py:ro" --entrypoint python reinvent-control -m unittest discover -s tests -v
 
+  flight-simulator:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - run: docker build --target python-tests -t reinvent-flight-tests apps/flight-simulator
+      - run: docker build -t reinvent-flight apps/flight-simulator
+
   photo-booth:
     runs-on: ubuntu-latest
     steps:

@@ -21,8 +21,7 @@ let game: Game;
 let lastLeaderboard: LeaderboardView = { entries: [], day_label: 'Today', champions: [], total_games: 0 };
 
 // ---------- static DOM ----------
-// Everything sits inside the flying area: systems flank the view (3 left, 3
-// right), the blaster and Temporal buttons sit along the bottom, and the
+// Systems flank the autopiloted view. Tap the view to fire; Temporal and the
 // bottom-right corner holds only a read-only gauge (the admin hot corner).
 const app = document.getElementById('app')!;
 const stage = h('div', { class: 'fd-stage' });
@@ -36,11 +35,10 @@ const sweep = h('div', { class: 'fd-sweep' });
 const cockpit = h('div', { class: 'fd-cockpit', html: cockpitSvg() });
 const banner = h('div', { class: 'fd-banner' }, h('h2', {}), h('p', {}));
 const reticle = h('div', { class: 'fd-joy' }, h('i'));
-const hint = h('div', { class: 'fd-hint' }, 'Drag to steer · hold Blaster to fire · tap red panels to restore');
+const hint = h('div', { class: 'fd-hint' }, 'Autopilot engaged · tap hazards to fire · tap red panels to restore');
 const wfStrip = h('div', { class: 'fd-wf' });
 const sideL = h('div', { class: 'fd-side left' });
 const sideR = h('div', { class: 'fd-side right' });
-const blasterBtn = h('button', { class: 'fd-blaster', 'aria-label': 'Fire blaster' }, h('span', { class: 'bi' }, '✦'), h('span', {}, 'Blaster'));
 const temporalBtn = h('button', { class: 'fd-temporal', 'aria-label': 'Deploy Temporal' });
 const gaugeVal = h('div', { class: 'gv' }, '100%');
 const gaugeBar = h('i');
@@ -65,7 +63,7 @@ const hud = h('div', { class: 'fd-hud' },
     h('div', { class: 'fd-chips', style: 'justify-content:flex-end' }, chipTaps)),
 );
 const muteBtn = h('button', { class: 'fd-mute', onclick: () => { muteBtn.textContent = sfx.toggleMute() ? '🔇' : '🔊'; } }, sfx.muted ? '🔇' : '🔊');
-stage.append(vignette, staticFx, cockpit, flash, sweep, banner, hud, reticle, hint, wfStrip, sideL, sideR, blasterBtn, temporalBtn, gauge, muteBtn);
+stage.append(vignette, staticFx, cockpit, flash, sweep, banner, hud, reticle, hint, wfStrip, sideL, sideR, temporalBtn, gauge, muteBtn);
 
 // ---------- engine ----------
 const engine = new FlightEngine(stage, {
@@ -104,7 +102,7 @@ SYSTEMS.forEach((s, i) => {
     h('span', { class: 'nm' }, h('span', { class: 'ic' }, s.icon), s.name), ringWrap, st, count);
   // The whole tile is the tap target (children have pointer-events: none).
   el.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); repair(s.id); });
-  (i < 3 ? sideL : sideR).append(el);
+  (i < Math.ceil(SYSTEMS.length/2) ? sideL : sideR).append(el);
   tileEls.set(s.id, { el, st, count, ring: ringWrap.querySelector('.fg') as SVGCircleElement });
 });
 
@@ -179,84 +177,34 @@ function renderTemporal(): void {
 }
 
 // ---------- input ----------
-// Free flight: the pointer's offset from the view centre is a turn *rate*.
-// Centre (or no finger) = hold your current heading; nothing ever re-centres.
+// Every background tap aims one shot. Repair/deploy controls consume their own
+// pointers, so a second finger can restore a system without steering or firing.
 const keys = new Set<string>();
-let turn = { x: 0, y: 0 };
-let steerPointer: number | null = null;
-const DEAD = 0.07;
-const curve = (v: number) => (Math.abs(v) < DEAD ? 0 : Math.sign(v) * Math.pow((Math.abs(v) - DEAD) / (1 - DEAD), 1.25));
-
-function aim(e: PointerEvent): void {
-  if (mode !== 'playing') return;
-  const onControl = !!(e.target as HTMLElement).closest('button');
-  if (e.pointerType === 'mouse') {
-    // Hovering a control = hold course, so reaching for a tile doesn't yank the ship.
-    if (onControl) { turn = { x: 0, y: 0 }; reticle.classList.remove('on'); return; }
-  } else {
-    if (e.type === 'pointerdown') { if (onControl || steerPointer !== null) return; steerPointer = e.pointerId; }
-    if (e.pointerId !== steerPointer) return;
-  }
-  const r = stage.getBoundingClientRect();
-  const px = e.clientX - r.left, py = e.clientY - r.top;
-  turn = { x: curve(Math.max(-1, Math.min(1, (px / r.width) * 2 - 1)) * 1.6), y: curve(Math.max(-1, Math.min(1, 1 - (py / r.height) * 2)) * 1.6) };
-  turn.x = Math.max(-1, Math.min(1, turn.x)); turn.y = Math.max(-1, Math.min(1, turn.y));
-  reticle.style.left = `${px}px`;
-  reticle.style.top = `${py}px`;
-  reticle.classList.add('on');
-  hint.style.opacity = '0';
-}
-const endSteer = (e: PointerEvent) => {
-  if (e.pointerType !== 'mouse' && e.pointerId === steerPointer) { steerPointer = null; turn = { x: 0, y: 0 }; reticle.classList.remove('on'); }
-};
-stage.addEventListener('pointerdown', aim);
-stage.addEventListener('pointermove', aim);
-stage.addEventListener('pointerup', endSteer);
-stage.addEventListener('pointercancel', endSteer);
-document.addEventListener('pointerleave', () => { turn = { x: 0, y: 0 }; });
-
-// Blaster: hold to auto-fire. Mouse button on the view, the BLASTER button, or Space.
 let fireCooldown = 0;
-const mouseFire = { on: false };
-stage.addEventListener('pointerdown', (e) => {
-  if (mode === 'playing' && e.pointerType === 'mouse' && e.button === 0 && !(e.target as HTMLElement).closest('button')) { mouseFire.on = true; fireNow(); }
+let reticleLeft = 0;
+stage.addEventListener('pointerdown', (event) => {
+  if(mode!=='playing'||event.button>0||(event.target as HTMLElement).closest('button,a,input,select,textarea'))return;
+  event.preventDefault();
+  const rect=stage.getBoundingClientRect(),px=event.clientX-rect.left,py=event.clientY-rect.top;
+  const aim={x:Math.max(-1,Math.min(1,px/rect.width*2-1)),y:Math.max(-1,Math.min(1,1-py/rect.height*2))};
+  reticle.style.left=px+'px';reticle.style.top=py+'px';reticle.classList.add('on');reticleLeft=.3;
+  hint.style.opacity='0';fireNow(aim);
 });
-window.addEventListener('pointerup', (e) => { if (e.pointerType === 'mouse') mouseFire.on = false; });
-const blasterPointers = new Set<number>();
-blasterBtn.addEventListener('pointerdown', (e) => {
-  e.preventDefault(); e.stopPropagation();
-  blasterPointers.add(e.pointerId); blasterBtn.classList.add('on'); fireNow();
-});
-const blasterUp = (e: PointerEvent) => { blasterPointers.delete(e.pointerId); if (!blasterPointers.size) blasterBtn.classList.remove('on'); };
-blasterBtn.addEventListener('pointerup', blasterUp);
-blasterBtn.addEventListener('pointercancel', blasterUp);
-blasterBtn.addEventListener('pointerleave', blasterUp);
-
-function fireNow(): void {
-  if (mode !== 'playing' || fireCooldown > 0) return;
-  fireCooldown = 1 / CONFIG.BLASTER_PER_SEC;
-  engine.fire();
-  game.shot();
-  sfx.laser();
+function fireNow(aim?:{x:number;y:number}): void {
+  if(mode!=='playing'||fireCooldown>0)return;
+  if(!game.shot()){fireCooldown=.35;toast('Blasters offline — restore weapons','var(--coral)',true);return;}
+  fireCooldown=1/CONFIG.BLASTER_PER_SEC;engine.fire(aim);sfx.laser();
 }
-
-window.addEventListener('keydown', (e) => {
-  if (mode !== 'playing') return;
-  const k = e.key.toLowerCase();
-  keys.add(k);
-  if (k === ' ') { e.preventDefault(); fireNow(); }
-  if (k === 't' || k === 'enter') { e.preventDefault(); deploy(); }
-  const n = Number(e.key);
-  if (n >= 1 && n <= SYSTEMS.length) repair(SYSTEMS[n - 1].id);
+window.addEventListener('keydown',event=>{
+  if(mode!=='playing')return;
+  const key=event.key.toLowerCase();keys.add(key);
+  if(key===' '){event.preventDefault();fireNow();}
+  if(key==='t'||key==='enter'){event.preventDefault();deploy();}
+  const number=Number(event.key);if(number>=1&&number<=SYSTEMS.length)repair(SYSTEMS[number-1].id);
 });
-window.addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
-
-function steerInput(): { x: number; y: number } {
-  const x = (keys.has('arrowright') || keys.has('d') ? 1 : 0) - (keys.has('arrowleft') || keys.has('a') ? 1 : 0);
-  const y = (keys.has('arrowup') || keys.has('w') ? 1 : 0) - (keys.has('arrowdown') || keys.has('s') ? 1 : 0);
-  return x || y ? { x, y } : turn;
-}
-function firing(): boolean { return mouseFire.on || blasterPointers.size > 0 || keys.has(' '); }
+window.addEventListener('keyup',event=>keys.delete(event.key.toLowerCase()));
+window.addEventListener('blur',()=>keys.clear());
+function firing(): boolean{return keys.has(' ');}
 
 // ---------- overlay screens ----------
 let cleanups: (() => void)[] = [];
@@ -300,7 +248,7 @@ function newGame(): Game {
         if (s.klaxon) sfx.klaxon();
       }
     },
-    onBreak: (id) => { sfx.alarm(); const s = SYSTEMS.find((x) => x.id === id)!; toast(`${s.name} offline!`, 'var(--coral)'); renderTiles(); },
+    onBreak: (id) => { sfx.alarm(); const s = SYSTEMS.find((x) => x.id === id)!; toast(`${s.name} offline · ${s.effect}`, 'var(--coral)'); renderTiles(); },
     onRepair: (id, byTemporal) => {
       const t = tileEls.get(id)!.el;
       t.classList.remove('fixed'); void t.offsetWidth; t.classList.add('fixed');
@@ -348,8 +296,9 @@ async function startGame(resumeFrom?: SessionState): Promise<void> {
   sfx.unlock();
   game = newGame();
   engine.reset();
+  engine.autopilotSkill=autoplay ? .35 : .65;
   autoState.brokenAt.clear(); autoState.lastTap = 0; autoState.chargeAt = 0;
-  turn = { x: 0, y: 0 };
+  keys.clear();reticleLeft=0;reticle.classList.remove('on');
   mode = 'countdown';
   document.body.classList.add('fd-playing');
   renderTiles();
@@ -417,6 +366,7 @@ const ACTIVITY_LABELS: [string, string, string][] = [
   ['destroy_obstacle', 'hazards destroyed', '☄'],
   ['destroy_enemy', 'enemies destroyed', '✈'],
   ['collision', 'collisions', '💥'],
+  ['cargo_loss', 'cargo loss updates', '▦'],
   ['system_failure', 'system failures', '⚠'],
   ['repair_tap', 'repair taps', '🔧'],
   ['temporal_charge', 'charges earned', '⚡'],
@@ -501,7 +451,15 @@ const stat = (k: string, v: string | number) => h('div', {}, h('div', { class: '
 const usernameOf = (email: string) => email.split('@')[0].split('+')[0].replace(/[^A-Za-z0-9._-]/g, '').slice(0, 16);
 
 /** Email is required to fly: it's the booth's lead capture, saved the moment the game starts. */
-function askEmailToFly(): void {
+async function askEmailToFly(): Promise<void> {
+  setOverlay(h('div',{class:'fd-screen'},h('h2',{},'Checking your ship…')));
+  if(!await net.supportsTouchFlight()){
+    setOverlay(h('div',{class:'fd-screen'},h('h2',{},'Flight Deck is not ready'),
+      h('p',{},'Please ask booth staff for help or choose another mission.'),
+      h('details',{},h('summary',{},'Staff setup'),h('p',{},'Touch flight and cargo loss require the updated Flight Simulator API and worker. Deploy the matching backend, or use the prepared local runtime for rehearsal.')),
+      h('button',{class:'btn ghost',onclick:()=>void toAttract()},'Back')));
+    return;
+  }
   const preview = h('p', { class: 'fd-name-preview' }, 'Your leaderboard name will be your email username');
   const kb = onScreenKeyboard({
     mode: 'email', placeholder: 'you@company.com', submitLabel: 'Fly',
@@ -532,7 +490,7 @@ function showLeaderboard(r: { rank: number | null; score: number; name: string }
   const { rank, score, name } = r;
   mode = 'leaderboard';
   if(net.workflowUrl && parent!==window)parent.postMessage({type:'booth:workflow',url:net.workflowUrl},location.origin);
-  setOverlay(h('div', { class: 'fd-screen dim fade-in' },
+  setOverlay(h('div', { class: 'fd-screen fd-leaderboard dim fade-in' },
     h('h2', {}, rank ? `You placed #${rank}!` : 'Not quite the top 10'),
     h('p', { class: 'dim' }, rank ? `${name} · ${score.toLocaleString()} pts` : `${score.toLocaleString()} pts. One more run?`),
     leaderboardBlock(lastLeaderboard, rank),
@@ -576,6 +534,7 @@ async function toAttract(): Promise<void> {
   staticFx.classList.remove('on');
   game = newGame();
   engine.reset();
+  engine.autopilotSkill=autoplay ? .35 : .65;
   engine.setScenario({ ...CALM, color: 0x120c30, accent: 0x7b6cff });
   const lbBox = h('div', { style: 'width:100%;display:flex;justify-content:center' }, leaderboardBlock(lastLeaderboard));
   setOverlay(h('div', { class: 'fd-screen fade-in', style: 'background:linear-gradient(180deg, rgba(5,6,13,0.2), rgba(5,6,13,0.75))' },
@@ -584,9 +543,9 @@ async function toAttract(): Promise<void> {
     h('p', { style: 'font-size:calc(var(--u)*2.4);max-width:36em' }, `${CONFIG.GAME_SECONDS} seconds of free flight. Blast hazards and enemy fighters, keep your systems running, then deploy Temporal.`),
     h('button', { class: 'btn big mint fd-launch', onclick: () => askEmailToFly() }, 'Tap to launch'),
     h('div', { class: 'fd-howto' },
-      h('div', {}, h('span', { class: 'big' }, '✋'), h('b', {}, 'Fly'), 'Point or drag where you want to turn. Your heading stays put.'),
-      h('div', {}, h('span', { class: 'big' }, '✦'), h('b', {}, 'Blast'), 'Hold BLASTER to fire. Enemy ships pay big.'),
-      h('div', {}, h('span', { class: 'big' }, '🔧'), h('b', {}, 'Repair'), 'Tap red panels. Repairs take more taps as time runs out.'),
+      h('div', {}, h('span', { class: 'big' }, '✋'), h('b', {}, 'Autopilot'), 'Autopilot steers your ship. Restore Nav when the flight gets erratic.'),
+      h('div', {}, h('span', { class: 'big' }, '✦'), h('b', {}, 'Blast'), 'Tap a hazard or enemy to aim and fire. Restore Blasters if weapons fail.'),
+      h('div', {}, h('span', { class: 'big' }, '🔧'), h('b', {}, 'Repair'), 'Tap red panels: shields protect hull, engines keep speed, cargo failures lose points.'),
       h('div', {}, h('span', { class: 'big' }, '✨'), h('b', {}, 'Deploy'), `Every ${CONFIG.THRESHOLD.toLocaleString()} pts, tap Deploy Temporal to protect every system.`)),
     lbBox,
   ));
@@ -608,6 +567,7 @@ function frame(now: number): void {
   last = now;
   warpKick = Math.max(0, warpKick - dt * 0.9);
   fireCooldown = Math.max(0, fireCooldown - dt);
+  reticleLeft=Math.max(0,reticleLeft-dt);if(!reticleLeft)reticle.classList.remove('on');
   const playing = mode === 'playing';
 
   if (playing) {
@@ -629,7 +589,7 @@ function frame(now: number): void {
 
   const attract = mode === 'attract';
   engine.update(dt, {
-    turn: playing ? steerInput() : { x: 0, y: 0 },
+    turn: { x: 0, y: 0 },
     speed: attract ? 45 : mode === 'countdown' ? 20 + warpKick * 40 : game.speed,
     spawnGap: playing ? game.spawnGap : attract ? 0.7 : Infinity,
     sizeScale: playing ? game.sizeScale : 1,
@@ -641,7 +601,7 @@ function frame(now: number): void {
     navBroken: playing && game.broken('navigation'),
     sensorsBroken: playing && game.broken('sensors'),
     durable: playing && game.durable,
-    autopilot: !playing || autoplay,
+    autopilot: true,
     warp: warpKick,
   });
   engine.render();
@@ -665,8 +625,8 @@ function frame(now: number): void {
     chipMult.style.display = m !== 1 ? '' : 'none';
     chipMult.textContent = `×${m.toFixed(1)} bonus`;
     const rate = Math.round(game.rateFactor * 100);
-    const rateCol = rate >= 85 ? 'var(--mint)' : rate >= 60 ? 'var(--amber)' : 'var(--coral)';
-    chipRate.textContent = `Points rate ${rate}%`;
+    const rateCol = game.broken('cargo') ? 'var(--coral)' : rate >= 85 ? 'var(--mint)' : rate >= 60 ? 'var(--amber)' : 'var(--coral)';
+    chipRate.textContent = game.broken('cargo') ? `Cargo −${CONFIG.CARGO_LOSS_PER_SEC} pts/s` : `Points rate ${rate}%`;
     chipRate.style.color = rateCol;
     chipRate.style.borderColor = rateCol;
     gaugeVal.textContent = `${rate}%`;
@@ -692,7 +652,7 @@ animationFrame=requestAnimationFrame(frame);
 
 async function boot(): Promise<void> {
   const sid = net.storedSessionId();
-  if (sid) {
+  if (sid && await net.supportsTouchFlight()) {
     const st = await net.getSession(sid);
     if (st && st.status === 'playing' && st.elapsed_ms < st.game_ms - 1000) { await startGame(st); return; }
     if (st && st.status === 'ended') {

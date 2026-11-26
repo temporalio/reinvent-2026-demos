@@ -4,7 +4,7 @@ COPY web/package.json web/package-lock.json ./
 RUN npm ci
 COPY web/ ./
 RUN npm test && npm run build
-FROM python:3.13-slim
+FROM python:3.13-slim AS runtime
 COPY --from=ghcr.io/astral-sh/uv:0.12.19 /uv /usr/local/bin/uv
 WORKDIR /app
 COPY backend/pyproject.toml backend/uv.lock ./
@@ -16,3 +16,11 @@ ENV PATH="/app/.venv/bin:$PATH" HOLODECK_DATA_DIR=/data
 RUN mkdir -p /data
 EXPOSE 8080
 CMD ["python", "run.py"]
+
+FROM runtime AS python-tests
+COPY backend/tests/ tests/
+COPY --from=temporalio/temporal:1.8.3 /usr/local/bin/temporal /usr/local/bin/temporal
+RUN uv sync --frozen --no-install-project --extra aws --extra openai
+RUN TEST_TEMPORAL_BINARY=/usr/local/bin/temporal HOLODECK_DATA_DIR=/tmp/flight-tests uv run --no-sync pytest -q tests/test_flight.py
+
+FROM runtime AS final
