@@ -40,7 +40,8 @@ For booth 3:
 ```
 
 Read the printed one-time code to the person running the booth's fetch command.
-The code expires in ten minutes and works once. Repeat for stations 1, 2 and 4
+The six-digit code looks like `123-456`. It expires in two minutes, allows at most
+five attempts, and works once. Repeat for stations 1, 2 and 4
 when each is ready. No file needs copying.
 
 ## Unlock restart and online/offline controls

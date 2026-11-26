@@ -30,8 +30,8 @@ server {
     proxy_set_header Host $http_host;
     proxy_pass $controller$request_uri;
   }
-  location ~ "^/control-api/booth-config/[a-f0-9]{64}$" {
-    limit_except GET { deny all; }
+  location ~ ^/control-api/booth-config/[1-4]/(start|finish)$ {
+    limit_except POST { deny all; }
     set $controller "${CONTROL_HUB_URL}";
     proxy_set_header Cookie "";
     proxy_set_header X-Booth-Read-Only 1;

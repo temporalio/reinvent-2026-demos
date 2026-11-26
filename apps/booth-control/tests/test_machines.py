@@ -100,45 +100,84 @@ class NetworkPairingTests(MachineTests):
     def issue(self, station='3', hub='http://127.0.0.1:15101'):
         return self.request('operator', {'action':'download','station':station,'hub':hub})
 
-    def redeem(self, issued, station=None, proof=None):
-        import hashlib
-        import hmac
-        secret=bytes.fromhex(issued['code'])
-        ticket=hashlib.sha256(secret).hexdigest()
-        station=station or issued['station']
+    def start(self, issued, code=None):
+        from spake2 import SPAKE2_A
+        exchange=SPAKE2_A((code or issued['code']).encode(),idA=('booth:'+issued['station']).encode(),idB=b'controller')
         nonce='b'*32
-        proof=proof or hmac.new(secret,f'CONFIG-REQUEST\n{station}\n{nonce}\n{ticket}'.encode(),hashlib.sha256).hexdigest()
-        reply=self.service.download(ticket,station,nonce,proof,self.now)
-        return reply,secret,nonce
+        reply=self.service.pairing(issued['station'],'start',{'message':exchange.start().hex(),'nonce':nonce},self.now)
+        payload=json.loads(reply['payload'])
+        key=exchange.finish(bytes.fromhex(payload['message']))
+        return payload,key
 
-    def test_download_is_single_use_and_never_transmits_key(self):
-        import hashlib
-        import hmac
-        old=self.service.station_key('3')
+    def finish(self, payload, key, proof=None, station=None):
+        import hashlib,hmac
+        proof=proof or hmac.new(key,f"PAIR-CLIENT\n{payload['session']}\n{payload['nonce']}".encode(),hashlib.sha256).hexdigest()
+        return self.service.pairing(station or payload['station'],'finish',{'session':payload['session'],'proof':proof},self.now)
+
+    def test_short_code_expiry_and_generated_key(self):
+        import hashlib,hmac
         issued=self.issue()
-        reply,secret,nonce=self.redeem(issued)
-        self.assertEqual(set(json.loads(reply['payload'])),{'station','hub'})
-        expected=hmac.new(secret,f'STATION-KEY\n3\n{nonce}'.encode(),hashlib.sha256).hexdigest()
+        self.assertRegex(issued['code'],r'^[0-9]{6}$')
+        self.assertEqual(issued['expires'],self.now+120)
+        self.assertEqual(issued['attempts'],5)
+        old=self.service.station_key('3')
+        payload,key=self.start(issued)
+        reply=self.finish(payload,key)
+        expected=hmac.new(key,f"STATION-KEY\n3\n{payload['session']}".encode(),hashlib.sha256).hexdigest()
         self.assertEqual(self.service.station_key('3'),expected)
         self.assertNotEqual(old,expected)
         self.assertNotIn(expected,json.dumps(reply))
-        self.assertNotIn(issued['code'],json.dumps(reply))
-        self.assertEqual(reply['signature'],hmac.new(secret,f"CONFIG-REPLY\n{nonce}\n{reply['payload']}".encode(),hashlib.sha256).hexdigest())
-        with self.assertRaises(MachineError):self.redeem(issued)
+        self.assertEqual(set(json.loads(reply['payload'])),{'station','hub'})
+        with self.assertRaises(MachineError):self.finish(payload,key)
+        with self.assertRaises(MachineError):self.start(issued)
         with self.assertRaises(MachineError):self.request('3',{},key=old)
         self.assertIsNone(self.request('3',{},key=expected)['command'])
 
-    def test_wrong_proof_and_station_do_not_consume_download(self):
+    def test_five_wrong_guesses_lock_even_across_restart(self):
         issued=self.issue()
-        with self.assertRaises(MachineError):self.redeem(issued,proof='0'*64)
-        with self.assertRaises(MachineError):self.redeem(issued,station='2')
-        self.redeem(issued)
+        wrong='000000' if issued['code']!='000000' else '999999'
+        old=self.service.station_key('3')
+        for index in range(5):
+            payload,key=self.start(issued,wrong)
+            with self.assertRaises(MachineError):self.finish(payload,key)
+            self.assertEqual(self.service.station_key('3'),old)
+            if index==2:self.service=Machines(self.temp.name)
+        with self.assertRaises(MachineError) as caught:self.start(issued)
+        self.assertEqual(caught.exception.status,429)
+        fresh=self.issue();payload,key=self.start(fresh);self.finish(payload,key)
 
-    def test_expired_and_replaced_codes_are_rejected(self):
-        old=self.issue();new=self.issue()
-        with self.assertRaises(MachineError):self.redeem(old)
-        self.now+=601
-        with self.assertRaises(MachineError):self.redeem(new)
+    def test_invalid_request_counts_and_final_valid_attempt_can_finish(self):
+        issued=self.issue()
+        for _ in range(4):
+            with self.assertRaises(MachineError):self.service.pairing('3','start',{},self.now)
+        payload,key=self.start(issued)
+        with self.assertRaises(MachineError):self.start(issued)
+        self.finish(payload,key)
+
+    def test_expiry_replacement_and_station_binding(self):
+        issued=self.issue();payload,key=self.start(issued)
+        with self.assertRaises(MachineError):self.finish(payload,key,station='2')
+        self.issue()
+        with self.assertRaises(MachineError):self.finish(payload,key)
+        issued=self.issue();payload,key=self.start(issued)
+        self.now+=120
+        with self.assertRaises(MachineError):self.finish(payload,key)
+        with self.assertRaises(MachineError):self.start(issued)
+
+    def test_invalid_confirmation_cannot_be_retried(self):
+        issued=self.issue();payload,key=self.start(issued)
+        old=self.service.station_key('3')
+        with self.assertRaises(MachineError):self.finish(payload,key,proof='0'*64)
+        with self.assertRaises(MachineError):self.finish(payload,key)
+        self.assertEqual(self.service.station_key('3'),old)
+
+    def test_same_code_still_creates_independent_permanent_keys(self):
+        from unittest.mock import patch
+        with patch('machines.secrets.randbelow',return_value=123):
+            issued=self.issue();self.assertEqual(issued['code'],'000123')
+            payload,key=self.start(issued);self.finish(payload,key);first=self.service.station_key('3')
+            issued=self.issue();payload,key=self.start(issued);self.finish(payload,key)
+        self.assertNotEqual(first,self.service.station_key('3'))
 
     def test_real_fetch_client_derives_the_same_key(self):
         import importlib.util
@@ -147,7 +186,7 @@ class NetworkPairingTests(MachineTests):
         server=ControlServer(('127.0.0.1',0),Store(Path(self.temp.name)/'control.sqlite3'),clock=lambda:self.now)
         server.machines=self.service
         thread=threading.Thread(target=server.serve_forever,kwargs={'poll_interval':.01},daemon=True);thread.start()
-        # CI's hub image mounts this one standard-library client explicitly.
+        # CI mounts the production fetch client into the hub test image.
         candidate=Path('/fetch_config.py')
         if not candidate.is_file():
             candidate=next((parent/'scripts/local/fetch_config.py' for parent in Path(__file__).resolve().parents if (parent/'scripts/local/fetch_config.py').is_file()),candidate)
@@ -158,7 +197,10 @@ class NetworkPairingTests(MachineTests):
         try:
             hub=f'http://127.0.0.1:{server.server_address[1]}'
             issued=self.issue(hub=hub)
-            config=client.fetch_pairing(hub,'3',issued['code'])
+            wrong='000000' if issued['code']!='000000' else '999999'
+            with self.assertRaises(ValueError):client.fetch_pairing(hub,'3',wrong)
+            formatted=issued['code'][:3]+'-'+issued['code'][3:]
+            config=client.fetch_pairing(hub,'3',formatted)
             self.assertEqual(config,{'station':'3','hub':hub,'key':self.service.station_key('3')})
             with self.assertRaises(Exception):client.fetch_pairing(hub,'3',issued['code'])
         finally:

@@ -54,7 +54,9 @@ PYTHON="$ROOT/tmp/tools/bin/python"
 prepare_tools() {
   if [[ ! -x "$PYTHON" ]];then
     python3 -m venv tmp/tools
-    "$ROOT/tmp/tools/bin/pip" install -r requirements-tooling.txt
+  fi
+  if ! "$PYTHON" -c 'import spake2, yaml, jsonschema' >/dev/null 2>&1;then
+    "$PYTHON" -m pip install -r requirements-tooling.txt
   fi
 }
 case "$command" in
