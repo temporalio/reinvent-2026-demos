@@ -490,7 +490,7 @@ function showLeaderboard(r: { rank: number | null; score: number; name: string }
   const { rank, score, name } = r;
   mode = 'leaderboard';
   if(net.workflowUrl && parent!==window)parent.postMessage({type:'booth:workflow',url:net.workflowUrl},location.origin);
-  setOverlay(h('div', { class: 'fd-screen dim fade-in' },
+  setOverlay(h('div', { class: 'fd-screen fd-leaderboard dim fade-in' },
     h('h2', {}, rank ? `You placed #${rank}!` : 'Not quite the top 10'),
     h('p', { class: 'dim' }, rank ? `${name} · ${score.toLocaleString()} pts` : `${score.toLocaleString()} pts. One more run?`),
     leaderboardBlock(lastLeaderboard, rank),

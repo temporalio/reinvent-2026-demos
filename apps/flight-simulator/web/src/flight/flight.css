@@ -320,3 +320,12 @@ body:not(.fd-playing) .fd-joy { display: none; }
 .fd-tile .nm { font-size:clamp(12px,1.25vw,20px); }
 .fd-tile .st { font-size:clamp(12px,1.2vw,18px); }
 .fd-banner { left:calc(clamp(100px,14vw,180px) + 1.5rem);right:calc(clamp(100px,14vw,180px) + 1.5rem); }
+
+body:not(.fd-playing) :is(.fd-banner,.fd-static,.fd-vignette) { display:none; }
+.fd-screen.fd-leaderboard { justify-content:flex-start;gap:clamp(6px,1.4vh,14px);padding:clamp(12px,3vh,28px);overflow:auto; }
+.fd-leaderboard > :is(h2,p) { margin:0; }
+.fd-leaderboard > h2 { font-size:clamp(20px,4vh,40px); }
+.fd-leaderboard .fd-board { flex:1;min-height:0;gap:clamp(4px,1vh,10px); }
+.fd-leaderboard .fd-lb { width:100%;font-size:clamp(12px,2.7vh,20px); }
+.fd-leaderboard .fd-lb td { padding:.25vh .75em; }
+.fd-leaderboard .fd-champs { max-height:20vh;overflow:auto; }
