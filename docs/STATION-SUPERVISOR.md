@@ -33,12 +33,11 @@ the owner's policy.
 Install Docker Desktop and Python 3. From the repo:
 
 ```bash
-BOOTH_BIND_ADDRESS=0.0.0.0 ./scripts/local.sh up
-python3 scripts/setup/export-station-pairing.py \
-  --station 3 --hub http://192.168.50.10:15101
+./scripts/local.sh control
+./scripts/local.sh pair --station 3
 ```
 
-Startup prints the active LAN addresses and a copyable `CONTROL_HUB_URL` setting when bound to `0.0.0.0`. Use your laptop's reserved private LAN address. Allow its gateway port through the
+Startup prints the active LAN addresses and a copyable `CONTROL_HUB_URL` setting when bound to `0.0.0.0`. Pairing uses the detected laptop address; use `pair --station 3 --hub http://192.168.50.10:15101` to choose an address explicitly. Reserve that private LAN address. Allow its gateway port through the
 firewall on that private network only. The exporter saves two ignored files under
 `tmp/station-pairing`: the station's JSON pairing file, and `operator.key` for the
 laptop. Transfer **only** `station-3.json` to station 3. Repeat for 1, 2, and 4.
@@ -53,12 +52,11 @@ copying a release bundle. Homebrew is optional. Start Docker and accept its init
 prompts. From the repo, with that station's pairing file copied to Downloads:
 
 ```bash
-CONTROL_HUB_URL=http://192.168.50.10:15101 ./scripts/local.sh up
-./scripts/local.sh station --pairing-file ~/Downloads/station-3.json --dry-run
-./scripts/local.sh station --pairing-file ~/Downloads/station-3.json
+./scripts/local.sh booth --station 3 --pairing-file ~/Downloads/station-3.json --dry-run
+./scripts/local.sh booth --station 3 --pairing-file ~/Downloads/station-3.json
 ```
 
-The first command prepares the local stack. The station installer builds the native
+The dry run checks the station and pairing without changing the machine. The booth command prepares the local stack using the hub in its pairing file, then builds the native
 executable through Docker, copies it into
 `~/Library/Application Support/TemporalReinventStation`, and installs the per-user
 `io.temporal.reinvent-station` LaunchAgent. It replaces the old kiosk LaunchAgent.
@@ -129,10 +127,12 @@ Use another station number for a test laptop if that number is not already in us
 After preparation and pairing, run:
 
 ```bash
-./scripts/local.sh station --pairing-file ~/Downloads/station-3.json --test
+./scripts/local.sh booth --station 3 --pairing-file ~/Downloads/station-3.json --test
 ```
 
-This opens a separate Chrome profile under `tmp/station-test`, runs in the foreground,
+`up` alone starts containers and never opens Chrome. `booth --station 3` identifies the demo machine, prepares its stack, and launches Chrome. `station --station 3` skips preparation for an already prepared stack. The supplied number must match its pairing file.
+
+Test mode opens a separate Chrome profile under `tmp/station-test`, runs in the foreground,
 and installs no login items. Ctrl-C stops the supervisor and its booth Chrome.
 It does not close personal Chrome profiles. Quit another supervisor test first if
 port 15103 is occupied. Camera permissions still apply to this separate profile.

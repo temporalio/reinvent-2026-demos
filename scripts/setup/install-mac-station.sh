@@ -3,17 +3,18 @@
 set -euo pipefail
 booth_root="$(cd "$(dirname "$0")/../.." && pwd)"
 booth_pair=''
+booth_station=''
 booth_hosted='https://reinvent-booth.tmprl-demo.cloud'
 booth_local='http://127.0.0.1:15101'
 booth_listen='127.0.0.1:15103'
 booth_test=false
 booth_dry=false
-usage(){ echo 'Usage: install-mac-station.sh --pairing-file /path/station-N.json [--hosted https://host] [--local http://127.0.0.1:15101] [--listen 127.0.0.1:15103] [--test|--dry-run]' >&2; exit 2; }
+usage(){ echo 'Usage: install-mac-station.sh --station 1|2|3|4 --pairing-file /path/station-N.json [--hosted https://host] [--local http://127.0.0.1:15101] [--listen 127.0.0.1:15103] [--test|--dry-run]' >&2; exit 2; }
 while [[ $# -gt 0 ]];do
  case "$1" in
-  --pairing-file|--hosted|--local|--listen)
+  --station|--pairing-file|--hosted|--local|--listen)
    [[ $# -ge 2 ]]||usage
-   case "$1" in --pairing-file)booth_pair="$2";;--hosted)booth_hosted="${2%/}";;--local)booth_local="${2%/}";;--listen)booth_listen="$2";;esac
+   case "$1" in --station)booth_station="$2";;--pairing-file)booth_pair="$2";;--hosted)booth_hosted="${2%/}";;--local)booth_local="${2%/}";;--listen)booth_listen="$2";;esac
    shift 2;;
   --test)booth_test=true;shift;;
   --dry-run)booth_dry=true;shift;;
@@ -22,10 +23,11 @@ while [[ $# -gt 0 ]];do
 done
 [[ -f "$booth_pair" ]]||usage
 if ! "$booth_dry" && [[ ! -f "$booth_root/tmp/local/compose.yaml" ]];then echo 'Prepare the local stack using scripts/local.sh up first.' >&2;exit 2;fi
-booth_docker=''
-for candidate in "$HOME/.docker/bin/docker" /usr/local/bin/docker /Applications/Docker.app/Contents/Resources/bin/docker;do
+booth_docker="$(command -v docker || true)"
+for candidate in "$booth_docker" "$HOME/.docker/bin/docker" /usr/local/bin/docker /Applications/Docker.app/Contents/Resources/bin/docker;do
  if [[ -x "$candidate" ]];then booth_docker="$candidate";break;fi
 done
+if "$booth_dry" && [[ -z "$booth_docker" ]];then booth_docker=/usr/bin/docker;fi
 [[ -n "$booth_docker" ]]||{ echo 'Install Docker Desktop first.' >&2;exit 2; }
 booth_support="$HOME/Library/Application Support/TemporalReinventStation"
 if ! "$booth_dry";then
@@ -35,12 +37,13 @@ fi
 if "$booth_test";then booth_support="$booth_root/tmp/station-test";fi
 booth_config="$booth_support/config.json"
 # Validate without printing pairing credentials or modifying this Mac.
-export BOOTH_PAIR_FILE="$booth_pair" BOOTH_SUPPORT_DIR="$booth_support" BOOTH_HOSTED_ORIGIN="$booth_hosted" BOOTH_LOCAL_ORIGIN="$booth_local" BOOTH_LISTEN_ADDR="$booth_listen" BOOTH_REPO_DIR="$booth_root" BOOTH_DOCKER_BIN="$booth_docker" BOOTH_DRY_RUN="$booth_dry"
+export BOOTH_PAIR_FILE="$booth_pair" BOOTH_SUPPORT_DIR="$booth_support" BOOTH_HOSTED_ORIGIN="$booth_hosted" BOOTH_LOCAL_ORIGIN="$booth_local" BOOTH_LISTEN_ADDR="$booth_listen" BOOTH_REPO_DIR="$booth_root" BOOTH_DOCKER_BIN="$booth_docker" BOOTH_DRY_RUN="$booth_dry" BOOTH_STATION_NUMBER="$booth_station"
 python3 - <<'PY'
 import ipaddress,json,os,re
 from pathlib import Path
 from urllib.parse import urlsplit
 p=json.loads(Path(os.environ['BOOTH_PAIR_FILE']).read_text())
+if os.environ['BOOTH_STATION_NUMBER'] and p.get('station')!=os.environ['BOOTH_STATION_NUMBER']:raise SystemExit('Station number does not match the pairing file.')
 if p.get('station') not in list('1234') or not re.fullmatch('[a-f0-9]{64}',p.get('key','')):raise SystemExit('Invalid pairing file')
 for k in ('hub',):
  u=urlsplit(p[k]);assert u.scheme in ('http','https') and u.hostname and not u.username and not u.password and u.path in ('','/') and not u.query and not u.fragment,'Invalid hub origin'

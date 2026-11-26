@@ -12,6 +12,22 @@ This is an initial migration, not a deployed booth release. See [deployment bloc
 
 With Docker Desktop running, use `./scripts/local.sh up`, then open http://localhost:15101. This starts the launchpad, all nine demo presentation routes, Temporal OSS, and Moto. Six demos execute local Temporal workflows, with mock providers for Holodeck. Loan, Agent Harness, and Agentic SDLC provide provider-limited UI/API previews. See [local development](docs/LOCAL-DEVELOPMENT.md) for supported apps and limits.
 
+## Control laptop or booth machine
+
+`./scripts/local.sh --help` describes both roles. On the **control laptop**, run
+`./scripts/local.sh control`, then `./scripts/local.sh pair --station 3`. Copy the
+resulting `tmp/station-pairing/station-3.json` to Downloads on the **demo MacBook or
+Mac Mini**. On that machine, run:
+
+```bash
+./scripts/local.sh booth --station 3 --pairing-file ~/Downloads/station-3.json --test
+```
+
+This prepares its containers and launches a separate Chrome kiosk profile. Test mode
+adds no login item; omit `--test` on the event Mini to install automatic startup.
+The plain `up` command starts containers only. Keep `operator.key` on the laptop.
+See the [complete station setup](docs/STATION-SUPERVISOR.md).
+
 ## Manage the four stations
 
 Open http://localhost:15101/config on the laptop, or tap Ziggy on a station and enter the daily date PIN. Controls include global and per-station demo switches, online/offline launch policy, and inherited defaults for display width, height, zoom, position, and Temporal UI zoom. Each station can override individual fields or return them to Use global. The layout editor shows a live red outline before saving. A station On override takes precedence over global Off; existing demos continue running.

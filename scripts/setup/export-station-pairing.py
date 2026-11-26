@@ -11,8 +11,26 @@ from urllib.parse import urlsplit
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--station', choices=list('1234'), required=True)
-parser.add_argument('--hub', required=True, help='Laptop LAN HTTP(S) origin')
+parser.add_argument('--hub', help='Laptop LAN HTTP(S) origin; auto-detect when omitted')
 args = parser.parse_args()
+root = Path(__file__).resolve().parents[2]
+if not args.hub:
+    import importlib.util
+    import yaml
+    spec = importlib.util.spec_from_file_location('lan_addresses', root/'scripts/local/addresses.py')
+    addresses = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(addresses)
+    rows = addresses.lan_addresses()
+    if not rows:
+        parser.error('No LAN address detected. Supply --hub http://LAPTOP-IP:15101.')
+    compose_file = root/'tmp/local/compose.yaml'
+    if not compose_file.is_file():
+        parser.error('Start ./scripts/local.sh control first.')
+    binding = yaml.safe_load(compose_file.read_text())['services']['gateway']['ports'][0]
+    host, port, _ = binding.split(':')
+    if host != '0.0.0.0':
+        parser.error('The laptop is bound to localhost only. Start ./scripts/local.sh control first.')
+    args.hub = f'http://{rows[0][1]}:{port}'
 u = urlsplit(args.hub)
 if u.scheme not in ('http','https') or not u.hostname or u.username or u.password or u.path not in ('','/') or u.query or u.fragment:
     parser.error('--hub must be an HTTP(S) origin')
