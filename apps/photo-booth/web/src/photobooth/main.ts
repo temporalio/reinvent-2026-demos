@@ -91,6 +91,8 @@ function header(title: string, sub?: string): HTMLElement {
 // ---------- 1. Attract ----------
 async function attract(): Promise<void> {
   if (!camera) {
+    screen(header('Starting camera', 'Allow camera access in Chrome and macOS if prompted.'),
+      h('p', {class:'dim',role:'status'}, 'Connecting to your camera… Camera controls will appear if it cannot start.'));
     let preferred: string | undefined;
     try { preferred = localStorage.getItem('holodeck.camera') || undefined; } catch { /* Use the default camera. */ }
     camera = await openCamera(preferred);

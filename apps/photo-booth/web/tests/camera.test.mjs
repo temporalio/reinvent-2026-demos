@@ -21,3 +21,19 @@ test('denied permission supplies an actionable retry message',async()=>{setup({e
 test('busy cameras provide a different error',async()=>{setup({error:new DOMException('busy','NotReadableError')});assert.match((await openCamera()).error,/busy/)})
 test('video playback failure releases the acquired camera',async()=>{const x=setup({playError:new Error('play failed')});assert.equal((await openCamera()).live,false);assert.equal(x.stopped(),1)})
 test('explicit synthetic mode never opens hardware and stops its animation',async()=>{const x=setup({search:'?testcam=1'}),camera=await openCamera();assert.equal(x.calls(),0);assert.equal(camera.live,false);camera.stop();assert.equal(x.cancelled(),1)})
+test('an unanswered permission request times out and stops a late stream',async()=>{
+ const x=setup();let grant,calls=0
+ replace('navigator',{mediaDevices:{getUserMedia:()=>{calls++;return new Promise(resolve=>{grant=resolve})}}})
+ const camera=await openCamera(undefined,5)
+ assert.equal(camera.live,false);assert.match(camera.error,/waiting for permission/)
+ const retry=await openCamera(undefined,5);assert.equal(retry.live,false);assert.equal(calls,1);retry.stop()
+ let stopped=0
+ grant({getTracks:()=>[{stop:()=>stopped++}]})
+ await new Promise(resolve=>setTimeout(resolve,0))
+ assert.equal(stopped,1);camera.stop();assert.equal(x.cancelled(),2)
+})
+test('video that never becomes playable releases the acquired stream on timeout',async()=>{
+ const x=setup();replace('document',{createElement:tag=>tag==='video'?{play:()=>new Promise(()=>{}),pause(){}}:{getContext:()=>new Proxy({createLinearGradient:()=>({addColorStop(){}})},{get:(target,key)=>key in target?target[key]:()=>{}})}})
+ const camera=await openCamera(undefined,5)
+ assert.equal(camera.live,false);assert.equal(x.stopped(),1);camera.stop()
+})

@@ -14,31 +14,50 @@ export interface CameraSource {
 
 const OUT_W = 768;
 const OUT_H = 1024;
+let permissionRequestPending = false;
 
-export async function openCamera(deviceId?: string): Promise<CameraSource> {
+export async function openCamera(deviceId?: string, startupMs = 8000): Promise<CameraSource> {
   const test = new URLSearchParams(location.search).get('testcam');
   if (test !== null) return testVisitor(test === 'dark');
   let stream: MediaStream | undefined;
+  let expired = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      expired = true;
+      reject(new DOMException('Camera startup timed out', 'TimeoutError'));
+    }, startupMs);
+  });
   try {
     if (!navigator.mediaDevices?.getUserMedia) throw new Error('no camera API');
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: { ...(deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'user' }), width: { ideal: 1920 }, height: { ideal: 1080 } },
-      audio: false,
-    });
-    const video = document.createElement('video');
-    video.className = 'mirror';
-    video.muted = true;
-    video.playsInline = true;
-    video.srcObject = stream;
-    await video.play();
-    const activeStream = stream;
-    return { el: video, live: true, deviceId:stream.getVideoTracks()[0]?.getSettings().deviceId, capture: () => grab(video, video.videoWidth, video.videoHeight, true), stop: () => {video.pause();video.srcObject=null;activeStream.getTracks().forEach(track => track.stop());} };
+    const opening = (async () => {
+      if (permissionRequestPending) throw new DOMException('Camera permission is pending', 'TimeoutError');
+      permissionRequestPending = true;
+      const acquired = await navigator.mediaDevices.getUserMedia({
+        video: { ...(deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'user' }), width: { ideal: 1920 }, height: { ideal: 1080 } },
+        audio: false,
+      }).finally(() => { permissionRequestPending = false; });
+      if (expired) { acquired.getTracks().forEach(track => track.stop()); throw new DOMException('Camera startup timed out', 'TimeoutError'); }
+      stream = acquired;
+      const video = document.createElement('video');
+      video.className = 'mirror';
+      video.muted = true;
+      video.playsInline = true;
+      video.srcObject = stream;
+      await video.play();
+      if (expired) { video.pause(); video.srcObject = null; throw new DOMException('Camera startup timed out', 'TimeoutError'); }
+      const activeStream = stream;
+      return { el: video, live: true, deviceId:activeStream.getVideoTracks()[0]?.getSettings().deviceId, capture: () => grab(video, video.videoWidth, video.videoHeight, true), stop: () => {video.pause();video.srcObject=null;activeStream.getTracks().forEach(track => track.stop());} };
+    })();
+    return await Promise.race([opening, timeout]);
   } catch (e) {
     stream?.getTracks().forEach(track => track.stop());
     const fallback = testVisitor(false);
     const name = e instanceof Error ? e.name : '';
-    fallback.error = name === 'NotAllowedError' ? 'Allow Camera in Island’s site settings, then try again.' : name === 'NotReadableError' ? 'Camera is busy or unavailable. Close other camera apps or choose another camera.' : name === 'NotFoundError' ? 'No camera is available. Connect a camera, then try again.' : 'Camera could not start. Check browser and macOS camera permissions, then try again.';
+    fallback.error = name === 'TimeoutError' ? 'Camera is still waiting for permission or a response. Allow Camera in Chrome and macOS, then tap Enable camera.' : name === 'NotAllowedError' ? 'Allow Camera in Chrome’s site settings and macOS Privacy & Security, then try again.' : name === 'NotReadableError' ? 'Camera is busy or unavailable. Close other camera apps or choose another camera.' : name === 'NotFoundError' ? 'No camera is available. Connect a camera, then try again.' : 'Camera could not start. Check browser and macOS camera permissions, then try again.';
     return fallback;
+  } finally {
+    clearTimeout(timer);
   }
 }
 

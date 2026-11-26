@@ -52,7 +52,8 @@ Cmd-Tab to Terminal and press Ctrl-C to stop the test.
 This prepares containers and installs the supervisor to start Chrome at login.
 Before unplugging the setup keyboard:
 
-- Open Photo Booth once and approve the camera prompts.
+- Open Photo Booth once and approve Chrome and macOS camera prompts. If startup
+  times out, use **Enable camera** after approving permissions.
 - Confirm touchscreen/stylus input.
 - With the owner's approval, configure automatic login and power-failure recovery.
 - Test an actual reboot. FileVault or management policy may require manual login.

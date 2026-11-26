@@ -24,7 +24,9 @@ The same separation applies to legacy LAN-enabled startup. Localhost-only develo
 
 The booth supervisor runs directly on macOS, outside Docker. Chrome keeps one
 loopback origin. The supervisor always serves the launchpad, navigation, settings UI and packaged
-media from the local stack. Demo/API traffic follows the hosted/local selection;
+media from the local stack. Photo Booth HTML/assets are also local so camera
+startup and permission guidance match the checkout. Photo Booth API/media and
+other demo traffic follow the hosted/local selection;
 runtime capabilities come from the selected backend, and control traffic goes to
 the laptop. This keeps booth controls current even if a hosted UI deployment lags. Browser station identity, camera permission
 and cached settings therefore remain on one origin when the backend changes.
@@ -105,7 +107,7 @@ Google. Losing internet during a demo updates the indicator rather than silently
 replacing the attendee's screen. Staff can switch from the laptop.
 
 The local launcher is prepared in either mode. In online mode, health recovery
-checks its gateway, frontend and local hub; offline mode checks demo services too.
+checks its gateway, frontend, local hub and Photo Booth frontend; offline mode checks demo services too.
 Docker restart policies recover exited services. Local health recovery runs every
 45 seconds, excludes intentionally completed setup jobs, and has retry bounds.
 The supervisor restarts only its own Chrome process group, including on a laptop
