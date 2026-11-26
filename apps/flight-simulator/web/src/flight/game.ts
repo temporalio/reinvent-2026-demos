@@ -30,6 +30,7 @@ export interface Snapshot {
   deploys: number;
   repairs: number;
   damage_taken: number;
+  cargo_lost?: number;
   temporal_charges: number;
   next_threshold: number;
 }
@@ -49,6 +50,9 @@ export class Game {
   deploys = 0;
   repairs = 0;
   damageTaken = 0;
+  cargoLost = 0;
+  private cargoEventPoints = 0;
+  private cargoEventAt = 0;
   charges = 0;
   nextThreshold: number = CONFIG.THRESHOLD;
   durableUntil = 0;
@@ -76,7 +80,9 @@ export class Game {
   private scenarioStartMs = 0;
   private breakAcc = 0;
 
-  constructor(private hooks: GameHooks) {
+  private hooks: GameHooks;
+  constructor(hooks: GameHooks) {
+    this.hooks = hooks;
     this.systems = Object.fromEntries(SYSTEMS.map((s) => [s.id, { broken: false, progress: 0, need: 1 }])) as Record<SystemId, SystemState>;
   }
 
@@ -97,7 +103,10 @@ export class Game {
   // ---- difficulty ramp (read by the engine every frame) ----
   /** Cruise speed: starts slow for practice, accelerates to MAX_SPEED at MAX_AT_S, then holds. */
   get cruise(): number { return lerp(CONFIG.START_SPEED, CONFIG.MAX_SPEED, smooth(this.climb)); }
-  get speed(): number { return this.cruise * (this.broken('engines') ? 0.65 : 1) * (this.durable ? 1.1 : 1); }
+  get canFire(): boolean { return !this.broken('blasters'); }
+  get cargoLossRate(): number { return this.broken('cargo') ? CONFIG.CARGO_LOSS_PER_SEC : 0; }
+  get netPointsPerSec(): number { return this.pointsPerSec - this.cargoLossRate; }
+  get speed(): number { return this.cruise * (this.broken('engines') ? 0.45 : 1) * (this.durable ? 1.1 : 1); }
   /** Seconds between hazards. One at a time, never clustered; gaps shrink as the clock runs down. */
   get spawnGap(): number { return this.tS < CONFIG.EASY_SECONDS ? CONFIG.EASY_SPAWN_GAP : lerp(0.9, 0.3, this.ramp); }
   /** Asteroid size multiplier: pebbles early, boulders late. */
@@ -134,8 +143,9 @@ export class Game {
   update(dtMs: number): boolean {
     if (this.over) return false;
     const wasDurable = this.durable;
+    const previousMs = this.elapsedMs;
     this.elapsedMs = Math.min(this.elapsedMs + dtMs, CONFIG.GAME_SECONDS * 1000);
-    const dt = dtMs / 1000;
+    const dt = (this.elapsedMs - previousMs) / 1000;
 
     while (this.scheduleIdx + 1 < this.schedule.length && this.schedule[this.scheduleIdx + 1].at <= this.tS) {
       this.scheduleIdx++;
@@ -146,8 +156,15 @@ export class Game {
     }
 
     this.distance += this.speed * dt;
-    // Score only ever goes up; broken systems just slow how fast it grows.
-    this.addScore(this.pointsPerSec * dt);
+    const earned = this.pointsPerSec * dt;
+    const lost = Math.min(this.score + earned, this.cargoLossRate * dt);
+    this.cargoLost += lost;
+    this.cargoEventPoints += lost;
+    this.addScore(earned - lost);
+    if (this.cargoEventPoints > 0 && (this.elapsedMs-this.cargoEventAt >= 1000 || this.over)) {
+      this.log('cargo_loss', 'cargo', Math.round(this.cargoEventPoints));
+      this.cargoEventPoints = 0; this.cargoEventAt = this.elapsedMs;
+    }
 
     // Storms/flares glitch systems, but never more than 1-2 at a time.
     if (this.scenario.breakRate && this.brokenCount < 2) {
@@ -172,7 +189,7 @@ export class Game {
   }
 
   private addScore(pts: number): void {
-    this.score += pts;
+    this.score = Math.max(0, this.score + pts);
     while (this.score >= this.nextThreshold) {
       this.nextThreshold += CONFIG.THRESHOLD;
       this.charges++;
@@ -205,7 +222,7 @@ export class Game {
     if (!this.durable) {
       // A collision knocks out 1 system (heavy hits: up to MAX_BREAKS_PER_HIT), never the whole ship.
       const n = HEAVY.includes(kind) ? 1 + (Math.random() < 0.5 ? 1 : 0) : Math.random() < 0.7 ? 1 : 0;
-      const weighted: SystemId[] = ['shields', 'shields', 'engines', 'navigation', 'sensors', 'life_support', 'cargo'];
+      const weighted: SystemId[] = ['shields', 'shields', 'engines', 'navigation', 'sensors', 'life_support', 'cargo', 'blasters'];
       for (let i = 0; i < Math.min(n, CONFIG.MAX_BREAKS_PER_HIT); i++) {
         this.breakRandom(kind === 'bolt' ? ['sensors', 'navigation', 'engines'] : weighted);
       }
@@ -226,7 +243,7 @@ export class Game {
     return pts;
   }
 
-  shot(): void { this.shots++; this.log('fire_blaster'); }
+  shot(): boolean { if(!this.canFire)return false;this.shots++;this.log('fire_blaster');return true; }
   /** A bolt expired without hitting anything: the accuracy streak resets. */
   missed(): void { this.streak = 0; }
 
@@ -303,6 +320,7 @@ export class Game {
       deploys: this.deploys,
       repairs: this.repairs,
       damage_taken: Math.round(this.damageTaken),
+      cargo_lost: this.cargoLost,
       temporal_charges: this.charges,
       next_threshold: this.nextThreshold,
     };
@@ -317,6 +335,7 @@ export class Game {
     this.deploys = s.deploys;
     this.repairs = s.repairs;
     this.damageTaken = s.damage_taken;
+    this.cargoLost = s.cargo_lost ?? 0;
     this.charges = s.temporal_charges;
     this.nextThreshold = s.next_threshold || CONFIG.THRESHOLD * (Math.floor(s.score / CONFIG.THRESHOLD) + 1);
     const need = repairTapsAt(this.elapsedMs);

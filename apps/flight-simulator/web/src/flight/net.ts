@@ -54,6 +54,11 @@ export class FlightNet {
    * Start the session workflow with the visitor's email (required). The
    * workflow saves the lead right away and picks the leaderboard name.
    */
+  async supportsTouchFlight(): Promise<boolean> {
+    try { const result=await withTimeout(api<{touch_flight?:boolean;cargo_score_loss?:boolean}>('/flight/capabilities'),2500);return result.touch_flight===true&&result.cargo_score_loss===true; }
+    catch{return false;}
+  }
+
   async createSession(email: string, consentVersion: string): Promise<boolean> {
     this.seq = 0;
     this.pendingEvents = [];

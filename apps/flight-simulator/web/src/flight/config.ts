@@ -19,7 +19,7 @@ export const CONFIG = {
    * pilot crosses 10k at ~30-40s and earns 2-3 Temporal charges per run.
    */
   POINTS_PER_SEC: 320,
-  /** Each broken system cuts the points *rate* by this much (score never goes down). */
+  /** Each broken system cuts the points rate by this much. Cargo also subtracts points. */
   RATE_PENALTY_PER_BROKEN: 0.15,
   RATE_FLOOR: 0.4,
   // Bonuses: all continuous (size, range, speed, closeness, streak, repair time),
@@ -48,21 +48,23 @@ export const CONFIG = {
 
   HULL_EMERGENCY_RESTORE: 25,
   BLASTER_PER_SEC: 4,
+  CARGO_LOSS_PER_SEC: 600,
 
   TELEMETRY_MS: 1000,
   /** Optional official logo; falls back to the built-in emblem when missing. */
   LOGO_URL: '/flight/temporal-logo.svg',
 } as const;
 
-export type SystemId = 'engines' | 'shields' | 'navigation' | 'sensors' | 'life_support' | 'cargo';
+export type SystemId = 'engines' | 'shields' | 'navigation' | 'sensors' | 'life_support' | 'cargo' | 'blasters';
 
 export const SYSTEMS: { id: SystemId; name: string; fix: string; effect: string; icon: string }[] = [
   { id: 'engines', name: 'Engines', fix: 'Restore', effect: 'Ship slows', icon: '⚙' },
   { id: 'shields', name: 'Shields', fix: 'Restore', effect: 'Hits do 2× damage', icon: '⛨' },
-  { id: 'navigation', name: 'Navigation', fix: 'Reboot', effect: 'Steering drifts', icon: '⌖' },
+  { id: 'navigation', name: 'Nav', fix: 'Reboot', effect: 'Autopilot unstable', icon: '⌖' },
+  { id: 'blasters', name: 'Blasters', fix: 'Restore', effect: 'Weapons disabled', icon: '✦' },
   { id: 'sensors', name: 'Sensors', fix: 'Reboot', effect: 'Hazards cloaked', icon: '◎' },
   { id: 'life_support', name: 'Life Support', fix: 'Restore', effect: 'Vision fading', icon: '♥' },
-  { id: 'cargo', name: 'Cargo Hold', fix: 'Restore', effect: 'Cargo leaking', icon: '▦' },
+  { id: 'cargo', name: 'Cargo', fix: 'Restore', effect: 'Cargo leaking', icon: '▦' },
 ];
 
 /** Taps needed to repair a system that breaks at `elapsedMs`. */

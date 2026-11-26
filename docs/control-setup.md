@@ -61,6 +61,22 @@ preset that booths can load and cache locally.
 
 ## Enable Agentic SDLC once for the event
 
+Use the existing sandbox on the trusted control laptop. There is one shared
+repository for all four stations; do not create another account or repository.
+
+```bash
+gh auth login --hostname github.com --web --git-protocol https
+gh auth status
+gh repo view temporal-aws-reinvent-2026/reinvent-sdlc-sandbox --web
+gh run list --repo temporal-aws-reinvent-2026/reinvent-sdlc-sandbox --limit 10
+```
+
+For staff approvals, sign in as `iandouglas`: that is the required reviewer
+currently configured on `plan-approval`, `merge-approval`, and `production`.
+Open the pending run in GitHub Actions, choose **Review deployments**, and approve
+the requested environment. The runtime PAT uses the temporary sandbox account;
+it is a separate credential from your staff browser login.
+
 Finish the [GitHub/worker checklist](AGENTIC-SDLC-GITHUB.md) on a trusted laptop:
 install the sandbox token in Fieldkit, connect and activate its signed webhook,
 and rehearse all scenarios before removing the launch gate. The four booths share

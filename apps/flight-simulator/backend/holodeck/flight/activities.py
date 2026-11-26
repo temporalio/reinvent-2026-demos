@@ -78,7 +78,13 @@ async def deploy_temporal(ev: GameEvent) -> ActivityReceipt:
     return _record(ev)
 
 
+@activity.defn
+async def record_cargo_loss(ev: GameEvent) -> ActivityReceipt:
+    return _record(ev)
+
+
 GAME_ACTIVITIES = {
+    "cargo_loss": record_cargo_loss,
     "collision": record_collision,
     "system_failure": record_system_failure,
     "repair_tap": repair_tap,

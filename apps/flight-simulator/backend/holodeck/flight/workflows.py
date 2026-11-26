@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
 from datetime import timedelta
 
 from temporalio import workflow
@@ -28,6 +29,7 @@ with workflow.unsafe.imports_passed_through():
         MAX_EVENTS_PER_BATCH,
         MAX_POINTS_PER_SEC,
         SCORE_SLACK,
+        CARGO_LOSS_PER_SEC,
         FinishResult,
         LeaderboardEntry,
         LeaderboardInput,
@@ -132,6 +134,7 @@ class FlightSessionWorkflow:
         s.deploys = t.deploys
         s.repairs = t.repairs
         s.damage_taken = t.damage_taken
+        s.cargo_lost = t.cargo_lost
         s.temporal_charges = t.temporal_charges
         s.next_threshold = t.next_threshold
         s.event_log = (s.event_log + [f"{e.t_ms // 1000:>2}s {e.type}{':' + e.kind if e.kind else ''}" for e in t.events])[-EVENT_LOG_MAX:]
@@ -155,13 +158,16 @@ class FlightSessionWorkflow:
             raise ApplicationError(f"unknown event types: {sorted(bad)}", non_retryable=True)
         if t.elapsed_ms < s.elapsed_ms:
             raise ApplicationError("time went backwards", non_retryable=True)
-        if t.score < s.score:
-            raise ApplicationError("score can only go up", non_retryable=True)
-        dt = (t.elapsed_ms - s.elapsed_ms) / 1000
-        if t.score - s.score > MAX_POINTS_PER_SEC * dt + SCORE_SLACK:
-            raise ApplicationError(
-                f"impossible score jump: +{t.score - s.score} in {dt:.1f}s", non_retryable=True
-            )
+        dt = max(0, (min(t.elapsed_ms, s.game_ms) - s.elapsed_ms) / 1000)
+        loss = t.cargo_lost - s.cargo_lost
+        if t.score < 0 or not math.isfinite(t.cargo_lost) or loss < 0 or loss > CARGO_LOSS_PER_SEC * dt + 1:
+            raise ApplicationError("invalid cargo loss or negative score", non_retryable=True)
+        if loss > 0 and not ('cargo' in s.broken or 'cargo' in t.broken or any(e.type=='system_failure' and e.kind=='cargo' for e in t.events)):
+            raise ApplicationError("cargo loss requires a cargo failure", non_retryable=True)
+        if s.score - t.score > loss + 1:
+            raise ApplicationError("score decrease exceeds recorded cargo loss", non_retryable=True)
+        if t.score - s.score + loss > MAX_POINTS_PER_SEC * dt + SCORE_SLACK:
+            raise ApplicationError("impossible score jump", non_retryable=True)
 
     # ---- finish ----
     @workflow.update
