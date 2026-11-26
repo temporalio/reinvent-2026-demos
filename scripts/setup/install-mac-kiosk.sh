@@ -55,7 +55,6 @@ booth_pending="$booth_support/agent.plist.pending"
 /usr/bin/plutil -insert StandardErrorPath -string "$HOME/Library/Logs/TemporalReinventKiosk/stderr.log" "$booth_pending"
 /usr/bin/plutil -lint "$booth_pending"
 booth_domain="gui/$(/usr/bin/id -u)"
-/bin/launchctl bootout "$booth_domain/io.temporal.reinvent-kiosk" 2>/dev/null || true
 /bin/mv "$booth_pending" "$booth_plist"
-/bin/launchctl bootstrap "$booth_domain" "$booth_plist"
+bash "$(dirname "$0")/reload-mac-service.sh" "$booth_domain" io.temporal.reinvent-kiosk "$booth_plist"
 printf 'Installed station %s. Kiosk starts now and at login. Settings remain in %s/browser.\n' "$booth_station" "$booth_support"
