@@ -25,13 +25,22 @@ const stories: Record<string, [string,string,string]> = {
   'no-roads': ['Absorb work when demand changes.', 'Temporal queues durable work while workers process the backlog.', 'Compare the backlog and concurrency as workers process durable tasks.'],
   'agent-harness': ['Keep an agent’s journey durable.', 'Temporal coordinates agent execution and tool calls.', 'Review the trip plan, approve tool calls, and follow the agent’s progress.'],
   'agentic-sdlc': ['Carry a change through the delivery process.', 'Durable orchestration coordinates the coding and review pipeline.', 'Follow planning, code review, and the human decisions that gate delivery.'],
-  'flight-simulator': ['Take the controls. Follow the mission.', 'The simulator combines interactive flight with backend Workflow execution.', 'The live flight display and Workflow history show different parts of the experience.'],
+  'flight-simulator': ['Your flight survives a worker restart.', 'The browser runs the real-time flight. Workflow Updates send game events and score snapshots to one durable session Workflow.', 'The Workflow records repair and flight Activities, retries failures, and submits the result to the leaderboard. Inspect the last flight’s Updates and Activities below.'],
   'agentcore-research': ['Let the worker stop while the agent waits.', 'AgentCore supplies on-demand compute; Temporal retains the agent’s state and completed model/tool results.', 'Investigate an alarm, wait for the worker to drain, then approve the repair. A new worker resumes the same Workflow from its recorded history.'],
-  'photo-booth': ['Turn a booth visit into a keepsake.', 'A Workflow coordinates photo processing and delivery.', 'Follow the steps from portrait capture to the finished photo strip and delivery.'],
+  'photo-booth': ['Four adventures. One durable Workflow.', 'Temporal records the portrait analysis, runs four image-generation Activities in parallel, and waits durably for the email address.', 'Failed provider calls retry individually. The Workflow composes the strip and delivers the attachment without restarting completed work.'],
 }
 
 export function DemoStage({ demo, persona, temporalUi, temporalZoom=100, stationId, notice, onPlaybackChange }: {demo:(typeof catalog)[number];persona:string;temporalUi:string|null;temporalZoom?:number;stationId?:string;notice?:string;onPlaybackChange?:(playing:boolean)=>void}) {
-  const holodeck = demo.id==='photo-booth' || demo.id==='flight-simulator'
+  const [photoResult,setPhotoResult]=useState(false)
+  const [flightResult,setFlightResult]=useState(false)
+  const holodeck = (demo.id==='flight-simulator' && !flightResult) || (demo.id==='photo-booth' && !photoResult)
+  useEffect(()=>{
+    function stage(event:MessageEvent){
+      if(demo.id==='flight-simulator' && event.origin===location.origin && event.source===appFrame.current?.contentWindow && event.data?.type==='booth:flightsim-stage' && typeof event.data.result==='boolean')setFlightResult(event.data.result)
+      if(demo.id==='photo-booth' && event.origin===location.origin && event.source===appFrame.current?.contentWindow && event.data?.type==='booth:photobooth-stage' && typeof event.data.result==='boolean')setPhotoResult(event.data.result)
+    }
+    window.addEventListener('message',stage);return()=>window.removeEventListener('message',stage)
+  },[demo.id])
   const [workflowOverlay,setWorkflowOverlay]=useState<string|null>(null)
   const initialTab: Tab = persona.toLowerCase() === 'mech' ? 'code' : persona.toLowerCase() === 'envoy' ? 'architecture' : 'business'
   const [tab,setTab] = useState<Tab>(initialTab)
@@ -86,20 +95,20 @@ export function DemoStage({ demo, persona, temporalUi, temporalZoom=100, station
       const url=workflowTarget(event.data.url,temporalUi,window.location.origin)
       if(!url)return
       const activate=event.data.activate===true
-      if(holodeck) {
-        // Holodeck has no lower information panel. Keep the app mounted beneath
-        // a bounded workflow view so returning preserves the visitor's strip.
+      setWorkflowUrl(url)
+      if(holodeck && demo.id!=='photo-booth') {
+        // Live flight has no lower panel yet. Preserve the running game
+        // beneath a bounded workflow view when staff inspect it.
         if(activate)setWorkflowOverlay(url)
         return
       }
       // A repeated background announcement must not pull the panel away from where the visitor browsed.
       if(temporalFrame.current && (activate || url!==lastWorkflow.current))showInTemporalFrame(temporalFrame.current,url,{resetScroll:activate})
       lastWorkflow.current=url
-      setWorkflowUrl(url)
       if(activate) {setTab('temporal'); buttons.current[3]?.focus()}
     }
     window.addEventListener('message',focusWorkflow); return ()=>window.removeEventListener('message',focusWorkflow)
-  },[temporalUi,holodeck])
+  },[temporalUi,holodeck,demo.id])
   const [moneyRun,setMoneyRun]=useState<MoneyExecution|null>(null)
   useEffect(()=>{
     if(demo.id!=='money-transfer')return
@@ -156,7 +165,7 @@ export function DemoStage({ demo, persona, temporalUi, temporalZoom=100, station
         {t.id==='business' && <div className="business-story"><h2>{story?.[0]}</h2><p>{story?.[1]}</p><p className="business-detail">{notice || story?.[2]}</p>{demo.id==='agentcore-research'&&<ul className="agentcore-talking-points"><li>Each model and tool call is a recorded Activity.</li><li>The approval Signal is durable even when no worker is polling.</li><li>Describe, memo, and history reads show progress without waking compute.</li></ul>}</div>}
         {t.id==='architecture' && tab==='architecture' && <ArchitecturePanel demoId={demo.id} execution={tacoRun} phase={phase} cursor={liveCursor} />}
         {t.id==='code' && <CodeSamples demoId={demo.id} execution={tacoRun} phase={phase} money={moneyRun} cursor={liveCursor} />}
-        {t.id==='temporal' && (temporalUi ? <div className="temporal-viewport"><iframe ref={temporalFrame} title={`${demo.title}: Temporal workflow history`} src={demoWorkflowList(temporalUi,demo.id,location.origin)} onLoad={event=>styleTemporalFrame(event.currentTarget)} className="stage-temporal" style={{zoom:temporalZoom/100}} /></div> : <p>The hosted Temporal UI route has not been enabled for this project. Local preview connects this tab to Temporal OSS.</p>)}
+        {t.id==='temporal' && (temporalUi ? <div className="temporal-viewport"><iframe ref={temporalFrame} title={`${demo.title}: Temporal workflow history`} src={workflowUrl || demoWorkflowList(temporalUi,demo.id,location.origin)} onLoad={event=>styleTemporalFrame(event.currentTarget)} className="stage-temporal" style={{zoom:temporalZoom/100}} /></div> : <p>The hosted Temporal UI route has not been enabled for this project. Local preview connects this tab to Temporal OSS.</p>)}
       </div>)}
     </section>}
   </div>

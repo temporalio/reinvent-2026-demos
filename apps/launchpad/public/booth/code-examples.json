@@ -481,8 +481,8 @@
       "source": {
         "path": "apps/photo-booth/backend/holodeck/photobooth/workflows.py",
         "symbol": "PhotoBoothWorkflow.run",
-        "startLine": 184,
-        "endLine": 214
+        "startLine": 195,
+        "endLine": 223
       },
       "examples": {
         "go": {
@@ -521,9 +521,9 @@
           "note": "Illustrative equivalent. Imports, domain types, registered Activities, and surrounding error handling are omitted; this fragment is not the running implementation. Rust fragments follow the 1.1.2 SDK API pinned in these demos."
         },
         "python": {
-          "code": "# 3. Compose the strip, then the animated version.\ndate_label = workflow.now().strftime(\"%b %d, %Y\").upper()\ncompose = ComposeInput(session_dir, list(frames), \"TEMPORAL HOLODECK\", date_label)\nst = self._step(\"strip\")\nst.state = \"running\"\nstrip = await workflow.execute_activity(compose_strip, compose, activity_id=\"strip\",\n                                        start_to_close_timeout=timedelta(seconds=60),\n                                        retry_policy=PLUMBING_RETRY)\nst.state, st.url, s.strip_url = \"done\", strip.url, strip.url\n\nst = self._step(\"animate\")\nst.state = \"running\"\nanim = await workflow.execute_activity(make_animated_strip, compose, activity_id=\"animate\",\n                                       start_to_close_timeout=timedelta(seconds=120),\n                                       retry_policy=PLUMBING_RETRY)\nst.state, st.url, s.animated_url = \"done\", anim.url, anim.url\n\n# 4. Email it.\ns.stage = \"sending\"\nst = self._step(\"email\")\nst.state = \"running\"\nawait workflow.execute_activity(\n    send_email,\n    EmailMessage(to=inp.email, subject=\"Thanks for visiting Temporal's Photo Booth\",\n                 html=_email_html(),\n                 idempotency_key=f\"photobooth-{inp.session_id}\", attachments=[strip.path]),\n    activity_id=\"email\", start_to_close_timeout=timedelta(seconds=30),\n    schedule_to_close_timeout=timedelta(days=3), retry_policy=PLUMBING_RETRY)\nst.state, st.detail = \"done\", f\"Sent to {inp.email}\"\ns.stage = \"done\"\nreturn s",
+          "code": "frames = await asyncio.gather(*(render(i, sid) for i, sid in enumerate(scene_ids)))\n\n# 3. Compose the strip, then the animated version.\ndate_label = workflow.now().strftime(\"%b %d, %Y\").upper()\ncompose = ComposeInput(session_dir, list(frames), \"TEMPORAL HOLODECK\", date_label)\nst = self._step(\"strip\")\nst.state = \"running\"\nstrip = await workflow.execute_activity(compose_strip, compose, activity_id=\"strip\",\n                                        start_to_close_timeout=timedelta(seconds=60),\n                                        retry_policy=PLUMBING_RETRY)\nst.state, st.url, s.strip_url = \"done\", strip.url, strip.url\n\nst = self._step(\"animate\")\nst.state = \"running\"\nanim = await workflow.execute_activity(make_animated_strip, compose, activity_id=\"animate\",\n                                       start_to_close_timeout=timedelta(seconds=120),\n                                       retry_policy=PLUMBING_RETRY)\nst.state, st.url, s.animated_url = \"done\", anim.url, anim.url\n\n# Capture-first sessions can finish images while the visitor types.\nif inp.wait_for_email:\n    s.stage = \"awaiting_email\"\n    try:\n        await workflow.wait_condition(lambda: bool(self._recipient), timeout=timedelta(hours=24))\n    except TimeoutError:\n        s.stage = \"expired\"\n        return s\n    inp.email = self._recipient\n    s.email = self._recipient",
           "kind": "native-excerpt",
-          "note": "Curated native excerpt from the running implementation. Surrounding imports, setup, and other Workflow steps are omitted."
+          "note": "Literal Python excerpt: four parallel frames, strip composition, and a durable wait for the recipient. Lead capture and email delivery follow this excerpt."
         }
       }
     },

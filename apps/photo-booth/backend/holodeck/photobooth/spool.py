@@ -49,6 +49,33 @@ class Spool:
                     last_error TEXT)"""
             )
 
+            c.execute("""CREATE TABLE IF NOT EXISTS photobooth_recipients (
+                session_id TEXT PRIMARY KEY, email TEXT NOT NULL, delivered INTEGER NOT NULL DEFAULT 0)""")
+
+    def set_recipient(self, session_id: str, email: str) -> None:
+        """Persist delivery before signalling; reject changing an accepted address."""
+        with self._conn() as c:
+            c.execute("BEGIN IMMEDIATE")
+            row = c.execute("SELECT input FROM photobooth_spool WHERE session_id = ?", (session_id,)).fetchone()
+            if not row:
+                raise KeyError(session_id)
+            inp = json.loads(row[0])
+            if inp.get("email") and inp["email"] != email:
+                raise ValueError("recipient already saved")
+            inp["email"] = email
+            c.execute("UPDATE photobooth_spool SET input = ? WHERE session_id = ?", (json.dumps(inp), session_id))
+            c.execute("INSERT OR IGNORE INTO photobooth_recipients(session_id,email) VALUES (?,?)", (session_id, email))
+
+    async def deliver_recipients(self, deliver: Callable[[str, str], Awaitable[object]]) -> None:
+        with self._conn() as c:
+            rows = c.execute("""SELECT r.session_id, s.workflow_id, r.email FROM photobooth_recipients r
+                JOIN photobooth_spool s ON s.session_id=r.session_id
+                WHERE r.delivered=0 AND s.started_at IS NOT NULL""").fetchall()
+        for sid, workflow_id, email in rows:
+            await deliver(workflow_id, email)
+            with self._conn() as c:
+                c.execute("UPDATE photobooth_recipients SET delivered=1 WHERE session_id=?", (sid,))
+
     def _conn(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.db_path, timeout=10)
         conn.execute("PRAGMA journal_mode=WAL")
@@ -98,7 +125,8 @@ class Spool:
         self.mark_started(row.session_id)
         return True
 
-    async def drain_forever(self, start: StartFn, every: timedelta = timedelta(seconds=5)) -> None:
+    async def drain_forever(self, start: StartFn, every: timedelta = timedelta(seconds=5),
+                            deliver: Callable[[str, str], Awaitable[object]] | None = None) -> None:
         """Background loop: keep starting pending sessions until the network comes back."""
         while True:
             try:
@@ -107,6 +135,8 @@ class Spool:
                         log.info("spooled photo booth session %s started", row.session_id)
                     else:
                         break  # Temporal still unreachable; don't hammer it
+                if deliver:
+                    await self.deliver_recipients(deliver)
             except Exception:  # noqa: BLE001 - the loop must never die
                 log.exception("spool drain failed")
             await asyncio.sleep(every.total_seconds())

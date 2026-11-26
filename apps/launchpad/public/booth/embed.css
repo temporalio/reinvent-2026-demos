@@ -406,3 +406,8 @@ html[data-shared-stage=true][data-demo=agentcore-oncall] .scenario-grid {grid-te
 html[data-shared-stage=true][data-demo=agentcore-oncall] .button {border-radius:0;box-shadow:none;min-height:48px;white-space:normal;}
 html[data-shared-stage=true][data-demo=agentcore-oncall] .button.primary {background:var(--brand-highlight);border:1px solid var(--brand-highlight);color:var(--surface-page);}
 html[data-shared-stage=true][data-demo=agentcore-oncall] .button.secondary {background:var(--surface-page);border:1px solid var(--border-default);color:var(--text-primary);}
+
+/* The finished strip shares its iframe with an explanation above the common demo panel. */
+html[data-shared-stage=true][data-demo=photobooth] .pb-result {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:center;width:100%;}
+html[data-shared-stage=true][data-demo=photobooth] .pb-result .pb-strip {max-height:60vh;max-width:100%;justify-self:center;}
+html[data-shared-stage=true][data-demo=photobooth] .pb-recipient {min-width:0;}
