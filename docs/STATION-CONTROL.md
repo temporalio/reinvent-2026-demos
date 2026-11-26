@@ -38,19 +38,36 @@ A station On setting overrides global Off. Inherit removes that station override
 
 Select **All stations** to set the default demo-area width, height, horizontal and vertical position, content zoom, and Temporal UI zoom. Save once to update every station that inherits those fields.
 
-Size or position adjustments briefly show a red outline on the current screen at the draft panel’s actual coordinates. It disappears 1.5 seconds after the last adjustment; another adjustment restarts the timer. This works for global defaults and station overrides, stays fixed while the controls scroll, and lets clicks pass through. No settings are sent until Save. A remote station applies the same settings within its own viewport.
+On the control laptop, size, position and zoom changes preview on the selected
+booth within the half-second polling interval. **Save settings** keeps the layout;
+**Discard draft** restores its saved layout. The laptop shows no red outline.
+Unfinished previews expire after eight seconds if the editor disconnects and are
+never written to the booth's saved-settings cache. All-stations previews retain
+explicit per-station overrides.
+
+**Save control iframe defaults** saves the current settings and a reusable display
+preset on the controller. On a booth, unlock its local display controls and choose
+**Load control iframe default**. The booth applies the preset and stores a local
+copy; when the laptop is unavailable, the same button loads the last cached copy.
+Local display edits persist in that browser. A subsequent controller display save
+takes precedence, while unrelated availability changes retain the local layout.
+
+When adjusting geometry on the booth itself, the red outline flashes at the draft
+position for 1.5 seconds after the last adjustment. Local changes become permanent
+with **Save on this browser only**. Booths do not gain permission to edit the shared
+hub or issue machine commands.
 
 On a station tab, changing a field creates an override for that field. **Use global** removes it and resumes following the global value. **Use global geometry** clears width, height, position, and content-zoom overrides together; it keeps that station's Temporal UI zoom choice. An explicit station override stays fixed even if it currently equals the global value.
 
 Saved configurations from before global display settings retain non-default station values as overrides. Values that matched the original defaults now inherit. Existing demo availability and network overrides keep their current behavior.
 
-The laptop writes settings to the shared control hub over HTTP. Each station polls that hub every two seconds and applies its effective settings; this control path does not use Temporal Workflows or Activities.
+The laptop writes settings to the shared control hub over HTTP. Each station polls that hub every half second and applies its effective settings; this control path does not use Temporal Workflows or Activities.
 
 ## Temporal UI zoom
 
 On the laptop, open `/config`, unlock the controls, and select a specific Mac Mini. Under **Temporal UI zoom**, use the slider or − / percentage reset / + buttons, then **Save settings**. The range is 70–130%; reset is 100%.
 
-On a station tab, only that station's lower workflow panel changes. The All stations tab sets the inherited default. Its demo and workflow stay open while the setting updates through the existing two-second control-hub polling. This is separate from **Content zoom**, which scales the whole demo area. The attendee screen has no zoom controls.
+On a station tab, only that station's lower workflow panel changes. The All stations tab sets the inherited default. Its demo and workflow stay open while the setting updates through the existing half-second control-hub polling. This is separate from **Content zoom**, which scales the whole demo area. The attendee screen has no zoom controls.
 
 The setting persists with each station's configuration, including browser cache during a hub outage. Older saved configurations default to 100% without changing their geometry. Each station must already have its own station ID and use the same control hub as the laptop.
 

@@ -23,8 +23,10 @@ The same separation applies to legacy LAN-enabled startup. Localhost-only develo
 `up` still serves the normal demo UI on port 15101.
 
 The booth supervisor runs directly on macOS, outside Docker. Chrome keeps one
-loopback origin. The supervisor routes demo traffic to the hosted site or the local
-stack, and control traffic to the laptop. Browser station identity, camera permission
+loopback origin. The supervisor always serves the launchpad, navigation, settings UI and packaged
+media from the local stack. Demo/API traffic follows the hosted/local selection;
+runtime capabilities come from the selected backend, and control traffic goes to
+the laptop. This keeps booth controls current even if a hosted UI deployment lags. Browser station identity, camera permission
 and cached settings therefore remain on one origin when the backend changes.
 
 ## Network pairing
@@ -92,7 +94,7 @@ actual Mac Mini before removing the setup keyboard.
 ## Connectivity and recovery
 
 The supervisor polls the laptop every three seconds independently of Chrome.
-The browser reads settings every two seconds through its loopback gateway. It
+The browser reads settings every half second through its loopback gateway. It
 retains cached settings and its selected runtime while the laptop is absent;
 reconnection requires no operator action. Commands expire after two minutes and
 acknowledged command IDs are saved before acting.
@@ -102,6 +104,8 @@ against the configured hosted site chooses hosted or local. It does not ping
 Google. Losing internet during a demo updates the indicator rather than silently
 replacing the attendee's screen. Staff can switch from the laptop.
 
+The local launcher is prepared in either mode. In online mode, health recovery
+checks its gateway, frontend and local hub; offline mode checks demo services too.
 Docker restart policies recover exited services. Local health recovery runs every
 45 seconds, excludes intentionally completed setup jobs, and has retry bounds.
 The supervisor restarts only its own Chrome process group, including on a laptop

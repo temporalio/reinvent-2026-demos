@@ -52,6 +52,13 @@ cat tmp/station-pairing/operator.key
 
 Enter that key in **Station supervisor** on this laptop's admin page. Keep it here.
 
+## Adjust booth displays
+
+Open `http://localhost:15102/config`, unlock controls and select a station.
+Resize/move controls preview on that booth. **Save settings** keeps the change;
+**Discard draft** restores it. **Save control iframe defaults** also stores a
+preset that booths can load and cache locally.
+
 ## Restart services or check them
 
 ```bash

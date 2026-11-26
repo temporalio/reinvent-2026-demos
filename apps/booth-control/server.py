@@ -337,8 +337,27 @@ def validate_display(display, *, inherit=False):
             raise ApiError(422, 'invalid_settings', f'{key} must be a finite number between {low} and {high}.')
 
 
+def display_commit(config, body, stations):
+    if body.get('commit_display'):
+        generations = config.setdefault('display_generations', {})
+        for station in stations:
+            generations[station] = generations.get(station, 0) + 1
+    if 'iframe_defaults' in body:
+        config['iframe_defaults'] = dict(body['iframe_defaults'])
+
+
+def validate_display_commit(body):
+    if 'commit_display' in body and type(body['commit_display']) is not bool:
+        raise ApiError(422, 'invalid_settings', 'commit_display must be boolean.')
+    if 'iframe_defaults' in body:
+        validate_display(body['iframe_defaults'])
+        if set(body['iframe_defaults']) != set(DEFAULT_DISPLAY):
+            raise ApiError(422, 'invalid_settings', 'Provide all iframe default values.')
+
+
 def global_mutation(body):
-    object_fields(body, {'revision', 'settings'}, 'Request')
+    object_fields(body, {'revision', 'settings', 'iframe_defaults', 'commit_display'}, 'Request')
+    validate_display_commit(body)
     revision = revision_of(body)
     settings = body.get('settings')
     object_fields(settings, {'demo_enabled', 'network_mode', 'display'}, 'Global settings')
@@ -349,6 +368,7 @@ def global_mutation(body):
     if 'display' in settings:
         validate_display(settings['display'])
     def mutate(config):
+        display_commit(config, body, STATION_IDS)
         target = config['global']
         target['display'].update(settings.get('display', {}))
         if 'demo_enabled' in settings:
@@ -359,7 +379,8 @@ def global_mutation(body):
 
 
 def station_mutation(body, station):
-    object_fields(body, {'revision', 'overrides', 'display', 'label'}, 'Request')
+    object_fields(body, {'revision', 'overrides', 'display', 'label', 'iframe_defaults', 'commit_display'}, 'Request')
+    validate_display_commit(body)
     revision = revision_of(body)
     if not set(body) - {'revision'}:
         raise ApiError(422, 'invalid_settings', 'Provide station overrides, display settings, or a label.')
@@ -374,6 +395,7 @@ def station_mutation(body, station):
     display = body.get('display', {})
     validate_display(display, inherit=True)
     def mutate(config):
+        display_commit(config, body, (station,))
         target = config['stations'][station]
         if 'label' in body:
             target['label'] = body['label'].strip()
@@ -412,6 +434,8 @@ class ControlServer(ThreadingHTTPServer):
         self.store, self.clock = store, clock
         self.pin_timezone = ZoneInfo(timezone_name)
         self.pin_limiter = PinLimiter()
+        self.display_previews = {}
+        self.preview_lock = threading.RLock()
         self.machines = None
         if os.environ.get('CONTROL_MACHINE_CONTROL') == '1' and isinstance(store, Store):
             from machines import Machines
@@ -515,6 +539,10 @@ class Handler(BaseHTTPRequestHandler):
             if url.path in ('/healthz', '/control-api/healthz') and not url.query:
                 self.json_response(200, {'ok': True})
                 return
+            if url.path == '/control-api/iframe-defaults' and not url.query:
+                state = self.server.store.state('', self.server.clock())
+                self.json_response(200, {'display':state.get('iframe_defaults')})
+                return
             if url.path != '/control-api/state':
                 raise ApiError(404, 'not_found', 'Control route not found.')
             query = parse_qs(url.query, keep_blank_values=True)
@@ -524,6 +552,17 @@ class Handler(BaseHTTPRequestHandler):
             if station is not None and station not in STATION_IDS:
                 raise ApiError(422, 'invalid_station', 'Station must be 1, 2, 3, or 4.')
             state = self.server.store.state(self.session_token(), self.server.clock(), station)
+            now = self.server.clock()
+            previews = {}
+            with self.server.preview_lock:
+                self.server.display_previews = {key:value for key,value in self.server.display_previews.items() if value['expires'] > now}
+                for station in STATION_IDS:
+                    for target in ('global', station):
+                        preview = self.server.display_previews.get(target)
+                        if preview and preview['display'] is not None and preview['revision'] == state['revision']:
+                            previews[station] = {**preview['display'], **(state['stations'][station]['display_overrides'] if target=='global' else {})}
+            if previews:
+                state['display_previews'] = previews
             if self.headers.get('X-Booth-Read-Only') == '1':
                 state['authenticated'] = False
                 state['device_read_only'] = True
@@ -605,6 +644,28 @@ class Handler(BaseHTTPRequestHandler):
                 object_fields(body, set(), 'Logout')
                 state = self.server.store.logout(token, now)
                 self.json_response(200, state, cookie=f'{COOKIE_NAME}=; Path=/control-api; HttpOnly; SameSite=Strict; Max-Age=0' + ('; Secure' if scheme == 'https' else ''))
+                return
+            if method == 'POST' and path.path == '/control-api/display-preview':
+                object_fields(body, {'target','editor','sequence','display','revision'}, 'Preview')
+                target,editor,sequence = body.get('target'),body.get('editor'),body.get('sequence')
+                if target not in ('global', *STATION_IDS) or not isinstance(editor,str) or not re.fullmatch('[a-zA-Z0-9-]{1,80}',editor) or type(sequence) is not int or not 0 <= sequence <= 9007199254740991:
+                    raise ApiError(422,'invalid_preview','Invalid preview target or editor.')
+                state = self.server.store.state(token,now)
+                if not state['authenticated']:
+                    raise ApiError(401,'authentication_required','Unlock the controller before previewing.')
+                display = body.get('display')
+                if display is not None:
+                    validate_display(display)
+                    if set(display) != set(DEFAULT_DISPLAY):
+                        raise ApiError(422,'invalid_preview','Provide all display values.')
+                    if revision_of(body) != state['revision']:
+                        raise ApiError(409,'stale_revision','Saved settings changed. Reload before previewing.')
+                owner = (token_hash(token), editor)
+                with self.server.preview_lock:
+                    previous = self.server.display_previews.get(target)
+                    if not previous or previous['expires'] <= now or (previous['owner']==owner and sequence>previous['sequence']) or (display is not None and previous['owner']!=owner):
+                        self.server.display_previews[target] = dict(owner=owner,sequence=sequence,display=display,revision=state['revision'],expires=now+8)
+                self.json_response(200, {'ok':True})
                 return
             if method == 'PATCH' and path.path == '/control-api/global':
                 revision, mutate = global_mutation(body)

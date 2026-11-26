@@ -61,11 +61,14 @@ func TestGatewayKeepsControlOnLaptopInBothModes(t *testing.T) {
 	a := &Agent{cfg: Config{Hosted: online.URL, Local: local.URL, Hub: hub.URL, Listen: "127.0.0.1:15103"}}
 	for _, mode := range []string{"online", "offline"} {
 		a.status.Mode = mode
-		for _, path := range []string{"/demo/", "/control-api/state"} {
+		for _, path := range []string{"/demo/", "/banking/assets/index.js", "/control-api/state", "/assets/index.js", "/screensaver/index.html", "/booth/keyboard.css", "/brand/temporal-mark.svg", "/shots/example.jpg", "/favicon.svg", "/runtime-config.json"} {
 			r := httptest.NewRequest("GET", "http://127.0.0.1:15103"+path, nil)
 			w := httptest.NewRecorder()
 			a.handler().ServeHTTP(w, r)
 			want := map[string]string{"online": "hosted", "offline": "local"}[mode]
+			if localLaunchpadPath(path) {
+				want = "local"
+			}
 			if strings.HasPrefix(path, "/control-api") {
 				want = "laptop"
 			}
@@ -106,5 +109,19 @@ func TestComposeHealthVersions(t *testing.T) {
 	}
 	if _, err := composeServices([]byte("not-json")); err == nil {
 		t.Fatal("ignored invalid service status")
+	}
+}
+
+func TestOnlineBootChecksLocalLauncher(t *testing.T) {
+	hosted := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, `{"mode":"hosted"}`) }))
+	defer hosted.Close()
+	local := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, `{"mode":"local"}`) }))
+	defer local.Close()
+	a := &Agent{cfg: Config{Hosted: hosted.URL, Local: local.URL}, client: hosted.Client(), simulate: true}
+	if err := a.apply("online", true); err != nil {
+		t.Fatal(err)
+	}
+	if !a.snapshot().LocalReady || a.snapshot().Mode != "online" {
+		t.Fatal("online mode did not prepare the local launcher")
 	}
 }

@@ -31,8 +31,14 @@ const choiceValue=(choice:Choice)=>choice==='inherit'?null:choice==='on'
 
 export default function StationControl({onExit}:{onExit?:()=>void}={}){
   const control=useStationControl()
+  const controlRef=useRef(control);controlRef.current=control
+  const editor=useRef('editor-'+Date.now()+'-'+Math.random().toString(36).slice(2))
+  const previewSequence=useRef(0)
+  const [displayDirty,setDisplayDirty]=useState(false)
+  const effectiveDisplayKey=JSON.stringify(control.effective.display)
+  const draftFromState=(state:ControlState,next:Target)=>{const value=fromState(state,next);return control.isController?value:{...value,display:{...control.effective.display}}}
   const [target,setTarget]=useState<Target>(control.stationId)
-  const [draft,setDraft]=useState(()=>fromState(control.state,control.stationId))
+  const [draft,setDraft]=useState(()=>draftFromState(control.state,control.stationId))
   const [dirty,setDirty]=useState(false)
   const [pin,setPin]=useState('')
   const [busy,setBusy]=useState(false)
@@ -49,8 +55,8 @@ export default function StationControl({onExit}:{onExit?:()=>void}={}){
   const [pendingExit,setPendingExit]=useState(false)
   const confirmDialog=useRef<HTMLDialogElement>(null)
   const [setupStation,setSetupStation]=useState<StationId>(control.stationId)
-  const allowed=control.authenticated||(!control.reachable&&deviceUnlocked)
-  const fallback=!control.reachable
+  const allowed=control.isController?control.authenticated:deviceUnlocked
+  const fallback=!control.isController
   const wrongDevice=fallback&&target!==control.stationId
   const changedElsewhere=dirty&&control.reachable&&draft.revision!==control.state.revision
   const invalidLabel=target!=='global'&&!draft.label.trim()
@@ -58,9 +64,9 @@ export default function StationControl({onExit}:{onExit?:()=>void}={}){
   const effective=target==='global'?null:resolveStationSettings(control.state,target)
 
   useEffect(()=>{
-    if(!dirty){setDraft(fromState(control.state,target));setConflict(false)}
-  },[control.state,target,dirty])
-  useEffect(()=>{if(control.reachable)setDeviceUnlocked(false)},[control.reachable])
+    if(!dirty){setDraft(draftFromState(control.state,target));setConflict(false)}
+  },[control.state,target,dirty,effectiveDisplayKey])
+  useEffect(()=>{if(control.isController&&control.reachable)setDeviceUnlocked(false)},[control.reachable,control.isController])
   useEffect(()=>setSetupStation(control.stationId),[control.stationId])
   useEffect(()=>{
     setOutlineVisible(false)
@@ -69,27 +75,46 @@ export default function StationControl({onExit}:{onExit?:()=>void}={}){
 
   useEffect(()=>{const dialog=confirmDialog.current;if(!dialog)return;if(pendingTarget!==null||pendingExit){if(!dialog.open)dialog.showModal()}else if(dialog.open)dialog.close()},[pendingTarget,pendingExit])
 
+  useEffect(()=>{
+    if(!control.isController||!allowed)return
+    const send=(display:DisplaySettings|null)=>controlRef.current.previewDisplay({target,editor:editor.current,sequence:++previewSequence.current,display,revision:draft.revision})
+    if(!displayDirty){void send(null).catch(()=>{});return}
+    let active=true
+    const transmit=()=>{void send({...draft.display}).catch(cause=>{if(active)setError(cause instanceof Error?cause.message:'Live preview unavailable.')})}
+    const debounce=setTimeout(transmit,120)
+    const heartbeat=setInterval(transmit,2000)
+    return()=>{active=false;clearTimeout(debounce);clearInterval(heartbeat)}
+  },[control.isController,allowed,target,displayDirty,JSON.stringify(draft.display),draft.revision])
+  useEffect(()=>()=>{
+    if(controlRef.current.isController)void controlRef.current.previewDisplay({target,editor:editor.current,sequence:++previewSequence.current,display:null,revision:controlRef.current.state.revision}).catch(()=>{})
+  },[target])
+
   function update(patch:Partial<Draft>|((previous:Draft)=>Partial<Draft>)){setDraft(previous=>({...previous,...(typeof patch==='function'?patch(previous):patch)}));setDirty(true);setMessage(null);setError(null)}
   function flashOutline(){
+    if(control.isController)return
+    setDisplayDirty(true)
     if(outlineTimer.current!==null)clearTimeout(outlineTimer.current)
     setOutlineVisible(true)
     outlineTimer.current=setTimeout(()=>{setOutlineVisible(false);outlineTimer.current=null},1500)
   }
   function geometry(key:keyof DisplaySettings,value:number){
+    setDisplayDirty(true)
     if(['width','height','x','y'].includes(key))flashOutline()
     const [min,max]=DISPLAY_LIMITS[key],next=Math.max(min,Math.min(max,value))
     update(previous=>({display:{...previous.display,[key]:next},...(target==='global'?{}:{display_overrides:{...previous.display_overrides,[key]:next}})}))
   }
   function inheritDisplay(key:keyof DisplaySettings){
+    setDisplayDirty(true)
     if(['width','height','x','y'].includes(key))flashOutline()
     update(previous=>{const inherited={...previous.display_overrides};delete inherited[key];return {display:{...previous.display,[key]:control.state.global.display[key]},display_overrides:inherited}})
   }
   function displayScope(key:keyof DisplaySettings,label:string){
-    if(target==='global')return null
+    if(target==='global'||!control.isController)return null
     const overridden=draft.display_overrides[key]!==undefined
     return <div className="control-inheritance"><span>{label}: {overridden?'Station override':'Using global default'}</span><button type="button" disabled={!overridden} aria-label={'Use global '+label} onClick={()=>inheritDisplay(key)}>Use global</button></div>
   }
   function resetGeometry(){
+    setDisplayDirty(true)
     flashOutline()
     const inherited={...draft.display_overrides}
     for(const key of ['width','height','x','y','zoom'] as const)delete inherited[key]
@@ -97,7 +122,7 @@ export default function StationControl({onExit}:{onExit?:()=>void}={}){
   }
   function exit(){if(onExit)onExit();else window.location.assign('/?station='+control.stationId)}
   function selectTarget(next:Target){if(next===target)return;if(dirty){setPendingTarget(next);return}setTarget(next);setError(null);setMessage(null);setKeyboard(false)}
-  function discard(){setDirty(false);setConflict(false);setError(null);setMessage(null);void control.refresh()}
+  function discard(){setDisplayDirty(false);setDirty(false);setConflict(false);setError(null);setMessage(null);void control.refresh()}
   async function unlock(event:FormEvent){
     event.preventDefault();setBusy(true);setError(null);setMessage(null)
     try {
@@ -106,19 +131,25 @@ export default function StationControl({onExit}:{onExit?:()=>void}={}){
     }catch(cause){setError(cause instanceof Error?cause.message:'Controls could not be unlocked.')}
     finally{setPin('');setBusy(false)}
   }
-  async function save(){
+  async function save(saveDefaults=false){
     if(wrongDevice)return
     setBusy(true);setError(null);setMessage(null)
     try {
       const demos=Object.fromEntries(Object.entries(draft.demo_enabled).map(([id,value])=>[id,choiceValue(value)]))
-      if(target==='global')await control.saveGlobal({demo_enabled:demos,network_mode:draft.network_mode as NetworkMode,display:{...draft.display}},draft.revision)
+      if(fallback)control.saveLocalDisplay(draft.display)
+      else if(target==='global')await control.saveGlobal({demo_enabled:demos,network_mode:draft.network_mode as NetworkMode,display:{...draft.display}},draft.revision,saveDefaults?draft.display:undefined,displayDirty||saveDefaults)
       else {
         const patch:StationPatch={label:draft.label.trim(),display:Object.fromEntries(Object.keys(DEFAULT_DISPLAY).map(key=>[key,draft.display_overrides[key as keyof DisplaySettings]??null])),overrides:{demo_enabled:demos,network_mode:draft.network_mode==='inherit'?null:draft.network_mode}}
-        if(fallback)control.saveDeviceFallback(target,patch)
-        else await control.saveStation(target,patch,draft.revision)
+        await control.saveStation(target,patch,draft.revision,saveDefaults?draft.display:undefined,displayDirty||saveDefaults)
       }
-      setDirty(false);setConflict(false);setMessage(fallback?'Saved on this browser only. The hub’s settings will replace these when it reconnects.':'Saved. Connected stations will pick up the change shortly.')
+      setDisplayDirty(false);setDirty(false);setConflict(false);setMessage(fallback?'Saved locally on this booth.':saveDefaults?'Controller iframe defaults and settings saved.':'Saved. The live station layout is now permanent.')
     }catch(cause){setConflict(cause instanceof ControlConflictError);setError(cause instanceof Error?cause.message:'Settings could not be saved.')}
+    finally{setBusy(false)}
+  }
+  async function loadDefaults(){
+    setBusy(true);setError(null)
+    try{const cached=await control.loadIframeDefaults();setDisplayDirty(false);setDirty(false);setMessage(cached?'Loaded the last controller defaults saved locally.':'Loaded controller iframe defaults and saved them locally.')}
+    catch(cause){setError(cause instanceof Error?cause.message:'Defaults could not be loaded.')}
     finally{setBusy(false)}
   }
   async function lock(){setPin('');setDeviceUnlocked(false);setError(null);try{await control.logout()}catch(cause){setError(cause instanceof Error?cause.message:'Controls are locked locally.')}}
@@ -127,28 +158,28 @@ export default function StationControl({onExit}:{onExit?:()=>void}={}){
 
   return <div className="station-control">
     <header className="control-header"><div><p className="eyebrow">STAFF / BOOTH CONTROLS</p><h1>Mission control</h1></div><button type="button" onClick={()=>dirty?setPendingExit(true):exit()}>Back to launchpad</button></header>
-    <div className="control-connection" data-source={control.source} role="status"><strong>{!control.ready?'Connecting to control hub…':control.reachable?'Hub connected':control.source==='cache'?'Using cached hub settings':'Using default settings'}</strong><span>{!control.ready?'Loading the saved station settings.':control.reachable?'Changes can reach all four stations.':'The hub is unavailable. Recovery edits apply only to this browser.'}</span>{control.error&&<span>{control.error}</span>}</div>
-    {allowed&&outlineVisible&&<DisplayOutline display={draft.display} label={draft.label}/>}
+    <div className="control-connection" data-source={control.source} role="status"><strong>{!control.ready?'Connecting to control hub…':control.reachable?'Hub connected':control.source==='cache'?'Using cached hub settings':'Using default settings'}</strong><span>{!control.ready?'Loading the saved station settings.':control.reachable?'Changes can reach all four stations.':'The hub is unavailable. Saved local layouts remain available.'}</span>{control.error&&<span>{control.error}</span>}</div>
+    {!control.isController&&allowed&&outlineVisible&&<DisplayOutline display={draft.display} label={draft.label}/>}
     {allowed&&<details className="control-setup"><summary>This browser: station {control.stationId} · station setup</summary><p>Use this only to identify a station browser. The tabs below manage stations without changing this browser’s identity.</p><label>Station identity<select value={setupStation} onChange={event=>setSetupStation(event.target.value as StationId)}>{STATION_IDS.map(id=><option key={id} value={id}>Station {id} · {control.state.stations[id].label}</option>)}</select></label><button type="button" onClick={()=>{control.setStationId(setupStation);setMessage('This browser is now station '+setupStation+'.')}}>Use station {setupStation} on this browser</button></details>}
     {error&&<p className="control-error" role="alert">{error}</p>}
     {message&&<p className="control-message" role="status">{message}</p>}
-    {!allowed&&control.reachable&&control.state.device_read_only?<section className="control-unlock"><h2>Use the control laptop</h2><p>Shared station settings are read-only on booth machines. Open the private admin address printed by the controller’s startup command on the control laptop.</p></section>:!allowed?<section className="control-unlock" aria-labelledby="control-unlock-title"><h2 id="control-unlock-title">{fallback?'Device-only recovery':'Unlock station controls'}</h2><p>{fallback?'Enter today’s date PIN to edit this browser’s station. This does not sign in to the hub. Temporary settings are replaced when the hub returns.':'Enter the four-digit staff PIN. The default uses the booth date: month, then day.'}</p><form onSubmit={unlock}><label htmlFor="control-pin">Staff PIN</label><input id="control-pin" type="password" inputMode="numeric" autoComplete="off" value={pin} maxLength={4} onChange={event=>setPin(event.target.value.replace(/\D/g,'').slice(0,4))} aria-describedby="control-pin-note"/><div className="control-pinpad" aria-label="PIN keypad">{['1','2','3','4','5','6','7','8','9','clear','0','back'].map(value=><button type="button" key={value} disabled={busy} aria-label={value==='back'?'Delete last PIN digit':value==='clear'?'Clear PIN':'PIN digit '+value} onClick={()=>setPin(previous=>value==='clear'?'':value==='back'?previous.slice(0,-1):(previous+value).slice(0,4))}>{value==='back'?'⌫':value==='clear'?'Clear':value}</button>)}</div><button className="control-primary" type="submit" disabled={busy||pin.length!==4||!control.ready}>{busy?'Checking…':fallback?'Unlock device-only controls':'Unlock controls'}</button><p id="control-pin-note" className="control-muted">Your PIN is not saved by this app.</p></form></section>:<>
-      <nav className="control-targets" aria-label="Configuration target"><button type="button" aria-current={target==='global'?'page':undefined} disabled={busy||(fallback&&target!=='global')} onClick={()=>selectTarget('global')}>All stations</button>{STATION_IDS.map(id=><button type="button" key={id} aria-current={target===id?'page':undefined} disabled={busy||(fallback&&id!==control.stationId)} onClick={()=>selectTarget(id)}><strong>Station {id}</strong><span>{control.state.stations[id].label}</span><small>{presence(control.state.stations[id].last_seen,Date.now())}</small></button>)}</nav>
+    {!allowed?<section className="control-unlock" aria-labelledby="control-unlock-title"><h2 id="control-unlock-title">{fallback?'Booth display controls':'Unlock station controls'}</h2><p>{fallback?'Enter today’s date PIN to adjust this booth’s display or load controller defaults. These actions affect only this browser.':'Enter the four-digit staff PIN. The default uses the booth date: month, then day.'}</p><form onSubmit={unlock}><label htmlFor="control-pin">Staff PIN</label><input id="control-pin" type="password" inputMode="numeric" autoComplete="off" value={pin} maxLength={4} onChange={event=>setPin(event.target.value.replace(/\D/g,'').slice(0,4))} aria-describedby="control-pin-note"/><div className="control-pinpad" aria-label="PIN keypad">{['1','2','3','4','5','6','7','8','9','clear','0','back'].map(value=><button type="button" key={value} disabled={busy} aria-label={value==='back'?'Delete last PIN digit':value==='clear'?'Clear PIN':'PIN digit '+value} onClick={()=>setPin(previous=>value==='clear'?'':value==='back'?previous.slice(0,-1):(previous+value).slice(0,4))}>{value==='back'?'⌫':value==='clear'?'Clear':value}</button>)}</div><button className="control-primary" type="submit" disabled={busy||pin.length!==4||!control.ready}>{busy?'Checking…':fallback?'Unlock device-only controls':'Unlock controls'}</button><p id="control-pin-note" className="control-muted">Your PIN is not saved by this app.</p></form></section>:<>
+      {control.isController&&<nav className="control-targets" aria-label="Configuration target"><button type="button" aria-current={target==='global'?'page':undefined} disabled={busy||(fallback&&target!=='global')} onClick={()=>selectTarget('global')}>All stations</button>{STATION_IDS.map(id=><button type="button" key={id} aria-current={target===id?'page':undefined} disabled={busy||(fallback&&id!==control.stationId)} onClick={()=>selectTarget(id)}><strong>Station {id}</strong><span>{control.state.stations[id].label}</span><small>{presence(control.state.stations[id].last_seen,Date.now())}</small></button>)}</nav>}
       <section className="control-target-heading"><div><p className="eyebrow">{target==='global'?'GLOBAL DEFAULTS':`STATION ${target} / ${station?.label}`}</p><h2>{target==='global'?'Defaults for every station':fallback?'Device-only station settings':'Station settings'}</h2></div><button type="button" onClick={()=>void lock()}>Lock controls</button></section>
-      {fallback&&<aside className="control-warning" role="status">Device-only recovery. Only station {control.stationId} on this browser can be changed. These values do not update other screens and are discarded when the hub reconnects.</aside>}
+      {fallback&&<aside className="control-warning" role="status">Device-only recovery. Only station {control.stationId} on this browser can be changed. Layouts are saved locally and survive a refresh or hub outage. A later saved controller layout takes precedence.</aside>}
       {wrongDevice&&<p className="control-warning">This draft belongs to another target. Reconnect to save it, or discard it and select this browser’s station.</p>}
       {(changedElsewhere||conflict)&&<aside className="control-warning" role="alert"><p>Saved settings changed while you were editing. Your draft has been kept. Reload the saved settings before saving again.</p><button type="button" onClick={discard}>Discard draft & reload saved settings</button></aside>}
-      <MachineControls target={target}/>
+      {control.isController&&<MachineControls target={target}/>}
       <fieldset className="control-fields" disabled={busy||wrongDevice}>
-        {target!=='global'&&<section className="control-card"><h3>Station label</h3><label htmlFor="control-label">Label<input id="control-label" type="text" onFocus={()=>setKeyboard(true)} value={draft.label} maxLength={64} onChange={event=>update({label:event.target.value})}/></label>{invalidLabel&&<p className="control-error">Enter a station label.</p>}<button type="button" aria-expanded={keyboard} onClick={()=>setKeyboard(!keyboard)}>Touch keyboard</button>{keyboard&&<OnScreenKeyboard value={draft.label} onChange={label=>update({label})} maxLength={64} onDone={()=>setKeyboard(false)} /> }</section>}
-        <section className="control-card"><h3>Demo availability</h3><p className="control-muted">{target==='global'?'These defaults apply wherever a station inherits its setting.':'On and Off override the global default. Inherit follows it. Existing demos keep running; changes affect new launches.'}</p><div className="control-demo-list">{catalog.map(demo=><div className="control-demo-row" key={demo.id}><div><strong>{demo.title}</strong>{demo.kind==='coming-soon'&&<small>Coming soon — integration pending</small>}{target!=='global'&&<small>Global: {(control.state.global.demo_enabled[demo.id]??true)?'On':'Off'} · Effective: {(draft.demo_enabled[demo.id]==='inherit'?(control.state.global.demo_enabled[demo.id]??true):draft.demo_enabled[demo.id]==='on')?'On':'Off'}</small>}</div><div className="control-choice" role="group" aria-label={demo.title+' availability'}>{(target==='global'?['on','off']:['on','off','inherit']).map(value=><button type="button" key={value} aria-pressed={draft.demo_enabled[demo.id]===value} onClick={()=>update({demo_enabled:{...draft.demo_enabled,[demo.id]:value as Choice}})}>{value==='inherit'?'Inherit':value==='on'?'On':'Off'}</button>)}</div></div>)}</div></section>
-        <section className="control-card"><h3>Launch restrictions only</h3><div className="control-choice" role="group" aria-label="Network mode">{(target==='global'?['online','offline']:['online','offline','inherit']).map(value=><button type="button" key={value} aria-pressed={draft.network_mode===value} onClick={()=>update({network_mode:value as Draft['network_mode']})}>{value==='inherit'?'Inherit':value==='online'?'Online':'Offline'}</button>)}</div><p className="control-muted">This legacy policy only restricts launches. Use Station supervisor above to switch a prepared Mac between the hosted and local runtimes. Managed station browsers follow their actual runtime instead of this restriction.{effective&&` Current station policy: ${effective.network_mode}.`}</p></section>
+        {control.isController&&target!=='global'&&<section className="control-card"><h3>Station label</h3><label htmlFor="control-label">Label<input id="control-label" type="text" onFocus={()=>setKeyboard(true)} value={draft.label} maxLength={64} onChange={event=>update({label:event.target.value})}/></label>{invalidLabel&&<p className="control-error">Enter a station label.</p>}<button type="button" aria-expanded={keyboard} onClick={()=>setKeyboard(!keyboard)}>Touch keyboard</button>{keyboard&&<OnScreenKeyboard value={draft.label} onChange={label=>update({label})} maxLength={64} onDone={()=>setKeyboard(false)} /> }</section>}
+        {control.isController&&<section className="control-card"><h3>Demo availability</h3><p className="control-muted">{target==='global'?'These defaults apply wherever a station inherits its setting.':'On and Off override the global default. Inherit follows it. Existing demos keep running; changes affect new launches.'}</p><div className="control-demo-list">{catalog.map(demo=><div className="control-demo-row" key={demo.id}><div><strong>{demo.title}</strong>{demo.kind==='coming-soon'&&<small>Coming soon — integration pending</small>}{target!=='global'&&<small>Global: {(control.state.global.demo_enabled[demo.id]??true)?'On':'Off'} · Effective: {(draft.demo_enabled[demo.id]==='inherit'?(control.state.global.demo_enabled[demo.id]??true):draft.demo_enabled[demo.id]==='on')?'On':'Off'}</small>}</div><div className="control-choice" role="group" aria-label={demo.title+' availability'}>{(target==='global'?['on','off']:['on','off','inherit']).map(value=><button type="button" key={value} aria-pressed={draft.demo_enabled[demo.id]===value} onClick={()=>update({demo_enabled:{...draft.demo_enabled,[demo.id]:value as Choice}})}>{value==='inherit'?'Inherit':value==='on'?'On':'Off'}</button>)}</div></div>)}</div></section>}
+        {control.isController&&<section className="control-card"><h3>Launch restrictions only</h3><div className="control-choice" role="group" aria-label="Network mode">{(target==='global'?['online','offline']:['online','offline','inherit']).map(value=><button type="button" key={value} aria-pressed={draft.network_mode===value} onClick={()=>update({network_mode:value as Draft['network_mode']})}>{value==='inherit'?'Inherit':value==='online'?'Online':'Offline'}</button>)}</div><p className="control-muted">This legacy policy only restricts launches. Use Station supervisor above to switch a prepared Mac between the hosted and local runtimes. Managed station browsers follow their actual runtime instead of this restriction.{effective&&` Current station policy: ${effective.network_mode}.`}</p></section>}
         <section className="control-card"><h3>Temporal UI zoom</h3><p className="control-muted">{target==='global'?'Default for every station’s lower workflow panel. Each station can override it.':`Resize only the lower workflow panel on ${draft.label}. Saving updates this station without reloading its demo.`}</p><div className="control-workflow-zoom"><label htmlFor="control-temporal-ui-zoom">Workflow panel zoom <output>{draft.display.temporal_ui_zoom}%</output></label><input id="control-temporal-ui-zoom" type="range" min={70} max={130} step={10} value={draft.display.temporal_ui_zoom} onChange={event=>geometry('temporal_ui_zoom',Number(event.target.value))}/><div className="control-choice" role="group" aria-label="Temporal UI zoom"><button type="button" aria-label="Decrease Temporal UI zoom" disabled={draft.display.temporal_ui_zoom<=70} onClick={()=>geometry('temporal_ui_zoom',draft.display.temporal_ui_zoom-10)}>−</button><button type="button" aria-label="Reset Temporal UI zoom to 100%" onClick={()=>geometry('temporal_ui_zoom',100)}>{draft.display.temporal_ui_zoom}%</button><button type="button" aria-label="Increase Temporal UI zoom" disabled={draft.display.temporal_ui_zoom>=130} onClick={()=>geometry('temporal_ui_zoom',draft.display.temporal_ui_zoom+10)}>+</button></div>{displayScope('temporal_ui_zoom','Temporal UI zoom')}</div></section>
-        <section className="control-card"><h3>Demo area</h3><div className="control-sliders">{(['width','height','zoom'] as const).map(key=><div key={key}><label htmlFor={'control-'+key}><span>{key==='zoom'?'Content zoom':key==='width'?'Area width':'Area height'}<output>{draft.display[key]}%</output></span><input id={'control-'+key} type="range" min={DISPLAY_LIMITS[key][0]} max={DISPLAY_LIMITS[key][1]} step={1} value={draft.display[key]} onChange={event=>geometry(key,Number(event.target.value))}/><div className="control-step-buttons"><button type="button" aria-label={'Decrease '+key} onClick={()=>geometry(key,draft.display[key]-1)}>−</button><button type="button" aria-label={'Increase '+key} onClick={()=>geometry(key,draft.display[key]+1)}>+</button></div></label>{displayScope(key,key==='zoom'?'content zoom':key==='width'?'area width':'area height')}</div>)}</div><div className="control-position"><div><p>Move the demo area</p><div className="control-choice" role="group" aria-label="Movement step">{[5,10,25,50].map(value=><button type="button" key={value} aria-pressed={step===value} onClick={()=>setStep(value)}>{value}px</button>)}</div><p className="control-position-readout">Horizontal: {draft.display.x}px · Vertical: {draft.display.y}px</p>{displayScope('x','horizontal position')}{displayScope('y','vertical position')}</div><div className="control-dpad" role="group" aria-label="Move demo area"><button type="button" className="control-up" aria-label="Move demo area up" onClick={()=>geometry('y',draft.display.y-step)}>↑</button><button type="button" className="control-left" aria-label="Move demo area left" onClick={()=>geometry('x',draft.display.x-step)}>←</button><button type="button" className="control-center" aria-label="Center demo area" onClick={()=>{flashOutline();update({display:{...draft.display,x:0,y:0},...(target==='global'?{}:{display_overrides:{...draft.display_overrides,x:0,y:0}})})}}>Center</button><button type="button" className="control-right" aria-label="Move demo area right" onClick={()=>geometry('x',draft.display.x+step)}>→</button><button type="button" className="control-down" aria-label="Move demo area down" onClick={()=>geometry('y',draft.display.y+step)}>↓</button></div></div><p className="control-muted">Width and height use the space between the screen’s header and navigation. Movement is clamped at its edges; a 100% wide area cannot move sideways. Saved offsets are retained if the viewport changes.</p><button type="button" onClick={resetGeometry}>{target==='global'?'Reset geometry':'Use global geometry'}</button><p className="control-muted">Reset fills the default values. Save applies them.</p><div className="control-preview-action"><button type="button" className="control-primary" onClick={()=>setPreview(true)}>Preview position</button><p className="control-muted">Preview uses this browser’s viewport. Check placement on the station before saving. Your draft stays unsaved until you choose Save settings.</p></div></section>
+        <section className="control-card"><h3>Demo area</h3>{control.isController?<><p className="control-muted">Adjustments preview live on the selected booth. Save keeps the layout; Discard restores it. All stations previews respect per-station overrides.</p><button type="button" onClick={()=>void save(true)} disabled={busy||changedElsewhere||conflict||invalidLabel}>Save control iframe defaults</button></>:<><button type="button" onClick={()=>void loadDefaults()} disabled={busy}>Load control iframe default</button><p className="control-muted">Fetch the laptop preset and keep a local copy. If the laptop is offline, use the last copy saved here.</p></>}<div className="control-sliders">{(['width','height','zoom'] as const).map(key=><div key={key}><label htmlFor={'control-'+key}><span>{key==='zoom'?'Content zoom':key==='width'?'Area width':'Area height'}<output>{draft.display[key]}%</output></span><input id={'control-'+key} type="range" min={DISPLAY_LIMITS[key][0]} max={DISPLAY_LIMITS[key][1]} step={1} value={draft.display[key]} onChange={event=>geometry(key,Number(event.target.value))}/><div className="control-step-buttons"><button type="button" aria-label={'Decrease '+key} onClick={()=>geometry(key,draft.display[key]-1)}>−</button><button type="button" aria-label={'Increase '+key} onClick={()=>geometry(key,draft.display[key]+1)}>+</button></div></label>{displayScope(key,key==='zoom'?'content zoom':key==='width'?'area width':'area height')}</div>)}</div><div className="control-position"><div><p>Move the demo area</p><div className="control-choice" role="group" aria-label="Movement step">{[5,10,25,50].map(value=><button type="button" key={value} aria-pressed={step===value} onClick={()=>setStep(value)}>{value}px</button>)}</div><p className="control-position-readout">Horizontal: {draft.display.x}px · Vertical: {draft.display.y}px</p>{displayScope('x','horizontal position')}{displayScope('y','vertical position')}</div><div className="control-dpad" role="group" aria-label="Move demo area"><button type="button" className="control-up" aria-label="Move demo area up" onClick={()=>geometry('y',draft.display.y-step)}>↑</button><button type="button" className="control-left" aria-label="Move demo area left" onClick={()=>geometry('x',draft.display.x-step)}>←</button><button type="button" className="control-center" aria-label="Center demo area" onClick={()=>{setDisplayDirty(true);flashOutline();update({display:{...draft.display,x:0,y:0},...(target==='global'?{}:{display_overrides:{...draft.display_overrides,x:0,y:0}})})}}>Center</button><button type="button" className="control-right" aria-label="Move demo area right" onClick={()=>geometry('x',draft.display.x+step)}>→</button><button type="button" className="control-down" aria-label="Move demo area down" onClick={()=>geometry('y',draft.display.y+step)}>↓</button></div></div><p className="control-muted">Width and height use the space between the screen’s header and navigation. Movement is clamped at its edges; a 100% wide area cannot move sideways. Saved offsets are retained if the viewport changes.</p><button type="button" onClick={resetGeometry}>{!control.isController?'Reset local geometry':target==='global'?'Reset geometry':'Use global geometry'}</button><p className="control-muted">Reset fills the default values. Save applies them.</p>{!control.isController&&<div className="control-preview-action"><button type="button" className="control-primary" onClick={()=>setPreview(true)}>Preview position</button><p className="control-muted">Preview uses this browser’s viewport. Check placement on the station before saving. Your draft stays unsaved until you choose Save settings.</p></div>}</section>
       </fieldset>
       <div className="control-savebar"><span>{dirty?'Unsaved changes':fallback?'Device recovery settings':'Saved settings'} · revision {draft.revision}</span><button type="button" disabled={busy||!dirty} onClick={discard}>Discard draft</button><button type="button" className="control-primary" disabled={busy||!dirty||wrongDevice||invalidLabel||changedElsewhere||conflict} onClick={()=>void save()}>{busy?'Saving…':fallback?'Save on this browser only':'Save settings'}</button></div>
     </>}
-    <dialog ref={confirmDialog} className="control-confirm" aria-labelledby="control-discard-title" onCancel={event=>{event.preventDefault();setPendingTarget(null);setPendingExit(false)}}><h2 id="control-discard-title">Discard unsaved changes?</h2><p>The current draft has not been saved.</p><button type="button" onClick={()=>{setPendingTarget(null);setPendingExit(false)}}>Keep editing</button><button type="button" className="control-primary" onClick={()=>{setDirty(false);setConflict(false);setError(null);if(pendingExit)exit();else if(pendingTarget!==null)setTarget(pendingTarget);setPendingExit(false);setPendingTarget(null)}}>Discard & {pendingExit?'exit':'switch'}</button></dialog>
+    <dialog ref={confirmDialog} className="control-confirm" aria-labelledby="control-discard-title" onCancel={event=>{event.preventDefault();setPendingTarget(null);setPendingExit(false)}}><h2 id="control-discard-title">Discard unsaved changes?</h2><p>The current draft has not been saved.</p><button type="button" onClick={()=>{setPendingTarget(null);setPendingExit(false)}}>Keep editing</button><button type="button" className="control-primary" onClick={()=>{setDisplayDirty(false);setDirty(false);setConflict(false);setError(null);if(pendingExit)exit();else if(pendingTarget!==null)setTarget(pendingTarget);setPendingExit(false);setPendingTarget(null)}}>Discard & {pendingExit?'exit':'switch'}</button></dialog>
   </div>
 }
 export {StationControl}

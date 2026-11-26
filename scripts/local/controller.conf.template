@@ -14,7 +14,7 @@ server {
   limit_req zone=booth_devices burst=30 nodelay;
   limit_req_status 429;
   default_type application/json;
-  location ~ ^/control-api/(healthz|state)$ {
+  location ~ ^/control-api/(healthz|state|iframe-defaults)$ {
     limit_except GET { deny all; }
     set $controller "${CONTROL_HUB_URL}";
     proxy_set_header Cookie "";

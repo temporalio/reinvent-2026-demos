@@ -28,7 +28,7 @@ import (
 	"time"
 )
 
-const version = "1"
+const version = "2"
 
 type Config struct {
 	Station string `json:"station"`
@@ -277,15 +277,13 @@ func (a *Agent) apply(preference string, boot bool) error {
 	if !boot && preference == "online" && !internet {
 		return errors.New("hosted demo is unreachable; keeping the current mode")
 	}
-	if target == "offline" {
-		a.setError("Preparing local runtime")
-		if err := a.ensureLocal(); err != nil {
-			return err
-		}
+	a.setError("Preparing station launcher")
+	if err := a.ensureLocal(); err != nil {
+		return err
 	}
 	a.mu.Lock()
 	a.status.Mode = target
-	a.status.LocalReady = target == "offline"
+	a.status.LocalReady = true
 	a.status.Error = ""
 	a.mu.Unlock()
 	// Restart the dedicated profile on a mode change so no iframe retains its old backend.
@@ -412,6 +410,13 @@ func proxy(target string) http.Handler {
 	}
 	return p
 }
+func localLaunchpadPath(path string) bool {
+	return path == "/" || path == "/index.html" || path == "/config" ||
+		strings.HasPrefix(path, "/assets/") || strings.HasPrefix(path, "/screensaver/") ||
+		strings.HasPrefix(path, "/booth/") || strings.HasPrefix(path, "/agentcore-video/") ||
+		strings.HasPrefix(path, "/brand/") || strings.HasPrefix(path, "/shots/") || path == "/favicon.svg"
+}
+
 func (a *Agent) handler() http.Handler {
 	online, local := proxy(a.cfg.Hosted), proxy(a.cfg.Local)
 	hubURL, _ := url.Parse(a.cfg.Hub)
@@ -467,7 +472,9 @@ func (a *Agent) handler() http.Handler {
 			io.WriteString(w, `<!doctype html><meta http-equiv="refresh" content="10"><title>Preparing booth station</title><body style="background:#131313;color:#f4f4f4;font:24px monospace;padding:5rem"><h1>Preparing your station</h1><p>Checking the hosted demo and local runtime. This page will retry automatically.</p></body>`)
 			return
 		}
-		if a.snapshot().Mode == "offline" {
+		// Keep station navigation and controls at the checked-out version in
+		// either mode. Demo/API paths and runtime capabilities follow the mode.
+		if a.snapshot().Mode == "offline" || localLaunchpadPath(r.URL.Path) {
 			local.ServeHTTP(w, r)
 		} else {
 			online.ServeHTTP(w, r)
@@ -498,7 +505,7 @@ func composeServices(output []byte) ([]composeService, error) {
 func (a *Agent) maintain() {
 	// Docker's restart policy handles exits; check health too, because Docker
 	// doesn't restart a container merely for becoming unhealthy.
-	if a.snapshot().Mode != "offline" || a.simulate {
+	if a.simulate {
 		return
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
@@ -536,6 +543,9 @@ func (a *Agent) maintain() {
 	}
 	// Compose versions emit either JSON lines or an array. Exclude completed setup jobs.
 	for _, row := range rows {
+		if a.snapshot().Mode == "online" && row.Service != "gateway" && row.Service != "launchpad" && row.Service != "control-hub" {
+			continue
+		}
 		if row.Service == "aws-seed" || row.Service == "temporal-init" || row.Service == "no-roads-deployment-init" {
 			continue
 		}
