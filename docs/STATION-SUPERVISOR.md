@@ -38,7 +38,7 @@ python3 scripts/setup/export-station-pairing.py \
   --station 3 --hub http://192.168.50.10:15101
 ```
 
-Use your laptop's reserved private LAN address. Allow its gateway port through the
+Startup prints the active LAN addresses and a copyable `CONTROL_HUB_URL` setting when bound to `0.0.0.0`. Use your laptop's reserved private LAN address. Allow its gateway port through the
 firewall on that private network only. The exporter saves two ignored files under
 `tmp/station-pairing`: the station's JSON pairing file, and `operator.key` for the
 laptop. Transfer **only** `station-3.json` to station 3. Repeat for 1, 2, and 4.

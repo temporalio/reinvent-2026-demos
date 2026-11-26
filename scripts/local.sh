@@ -19,7 +19,7 @@ if [[ "$command" == station ]]; then
 fi
 compose=(docker compose -p reinvent-2026-local -f "$ROOT/tmp/local/compose.yaml")
 case "$command" in
-  up) "${compose[@]}" up -d --build --remove-orphans --wait --wait-timeout 180; "$PYTHON" -c 'import yaml; s=yaml.safe_load(open("tmp/local/compose.yaml")); print("Local booth: http://localhost:"+s["services"]["gateway"]["ports"][0].split(":")[1])'  ;;
+  up) "${compose[@]}" up -d --build --remove-orphans --wait --wait-timeout 180; "$PYTHON" scripts/local/addresses.py tmp/local/compose.yaml  ;;
   render) "${compose[@]}" config --quiet ;;
   down) "${compose[@]}" down ;;
   status) "${compose[@]}" ps -a ;;
