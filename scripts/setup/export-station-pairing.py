@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run on the laptop: export only one Mini's temporary pairing credential."""
+"""Run on the laptop: issue a one-time code for one booth."""
 import argparse
 import hashlib
 import hmac
@@ -7,6 +7,9 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import time
+import secrets
+import urllib.request
 from urllib.parse import urlsplit
 
 parser = argparse.ArgumentParser()
@@ -42,9 +45,32 @@ if len(key) != 64:
 os.umask(0o077)
 output = root/'tmp/station-pairing'
 output.mkdir(parents=True, exist_ok=True)
-station_key = hmac.new(bytes.fromhex(key), ('station:'+args.station).encode(), hashlib.sha256).hexdigest()
-pairing = output/f'station-{args.station}.json'
-pairing.write_text(json.dumps({'station':args.station, 'hub':args.hub.rstrip('/'), 'key':station_key}, indent=2)+'\n')
+# Issue through the signed operator endpoint, reachable only on the local admin listener.
+import yaml
+compose = yaml.safe_load((root/'tmp/local/compose.yaml').read_text())
+ports = compose['services']['gateway']['ports']
+if len(ports)<2:
+    raise SystemExit('Start ./scripts/local.sh control first to enable the private admin listener.')
+admin_port = ports[1].split(':')[1]
+base = f'http://127.0.0.1:{admin_port}'
+path = '/control-api/machines/operator'
+at, nonce = int(time.time()), secrets.token_hex(16)
+payload = json.dumps({'action':'download','station':args.station,'hub':args.hub.rstrip('/')},separators=(',',':'))
+def sign(verb, at, content):
+    return hmac.new(bytes.fromhex(key),f'{verb}\n{path}\n{at}\n{nonce}\n{content}'.encode(),hashlib.sha256).hexdigest()
+envelope = {'time':at,'nonce':nonce,'payload':payload,'signature':sign('POST',at,payload)}
+request = urllib.request.Request(base+path,data=json.dumps(envelope).encode(),headers={'Content-Type':'application/json','Origin':base})
+opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+with opener.open(request,timeout=5) as response:
+    reply = json.load(response)
+if reply.get('nonce')!=nonce or not hmac.compare_digest(sign('REPLY',reply['time'],reply['payload']),reply['signature']):
+    raise SystemExit('Controller response signature did not verify.')
+result = json.loads(reply['payload'])
+code = '-'.join(result['code'][i:i+4] for i in range(0,32,4))
 operator = output/'operator.key'
 operator.write_text(key+'\n')
-print(f'Station pairing file: {pairing}\nCopy only that station file to the Mini.\nLaptop-only operator key: {operator}\nNever copy the operator key to a station or commit these files.')
+print(f'Booth {args.station} one-time pairing code (expires in 10 minutes): {code}')
+target = u.hostname if u.scheme=='http' and u.port==15101 and ':' not in u.hostname else args.hub.rstrip('/')
+print(f'On that booth run: ./scripts/fetch-booth-config.sh {target} {args.station}')
+print('Enter the code when prompted. It works once; re-pairing revokes the previous station key.')
+print(f'Laptop-only operator key: {operator}. Keep it on this laptop.')

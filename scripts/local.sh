@@ -4,15 +4,19 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 usage() {
   cat <<'HELP'
-Usage: ./scripts/local.sh COMMAND [OPTIONS]
+Usage: ./scripts/local.sh [COMMAND] [OPTIONS]
+
+With no command, use ROLE=control or ROLE=booth from .env.
+Booths also use CONTROL_IP and BOOTH=1|2|3|4.
+Run ./scripts/local.sh --test for a foreground booth rehearsal.
 
 Control laptop:
-  control [--port 15101]          Start services with LAN access; print control URLs.
-  pair --station 1|2|3|4          Export that station's temporary pairing file.
+  control [--port 15101] [--admin-port 15102]          Start services with LAN access; print control URLs.
+  pair --station 1|2|3|4          Show a one-time network pairing code.
        [--hub http://IP:15101]    Auto-detect the laptop LAN address when omitted.
 
 Booth Mac Mini / personal MacBook:
-  booth --station 1|2|3|4 --pairing-file /path/station-N.json [--test]
+  booth --station 1|2|3|4 [--test] [--pairing-file FILE]
                                  Prepare containers, then launch Chrome in kiosk mode.
                                  --test: foreground, isolated profile, no login item.
                                  Without --test: install automatic startup at login.
@@ -26,14 +30,23 @@ Other commands:
   down | status | logs [SERVICE]
   --help                         Show this help without installing anything.
 
-Copy only station-N.json from the control laptop to that booth machine.
-The laptop-only operator.key must never be copied to a station.
+On a booth, first run: ./scripts/fetch-booth-config.sh CONTROLLER-IP STATION
+Enter the one-time code from `pair`. No USB or file sharing is needed.
+The laptop-only operator.key must never leave the control laptop.
 BOOTH_BIND_ADDRESS=0.0.0.0 enables LAN access for plain `up`.
 CONTROL_HUB_URL=http://IP:15101 selects a laptop hub for plain `up`.
 HELP
 }
-command="${1:-up}"
-if [[ $# -gt 0 ]];then shift;fi
+# Help must work before parsing local configuration or installing tools.
+for arg in "$@";do if [[ "$arg" == --help || "$arg" == -h || "$arg" == help ]];then usage;exit 0;fi;done
+if [[ "${BOOTH_ENV_LOADED:-}" != 1 ]];then exec python3 "$ROOT/scripts/local/env_defaults.py" "$@";fi
+command="${1:-}"
+if [[ -z "$command" || "$command" == --* ]];then
+  command="${ROLE:-up}"
+  [[ "$command" == booth || "$command" == control || "$command" == up ]]||{ echo 'ROLE must be booth or control.' >&2;exit 2; }
+else
+  shift
+fi
 if [[ "$command" == -h || "$command" == --help || "$command" == help ]];then usage;exit 0;fi
 for arg in "$@";do if [[ "$arg" == --help || "$arg" == -h ]];then usage;exit 0;fi;done
 if ! command -v docker >/dev/null 2>&1 && [[ -x "$HOME/.docker/bin/docker" ]];then export PATH="$HOME/.docker/bin:$PATH";fi
@@ -48,14 +61,16 @@ case "$command" in
   control)
     export BOOTH_BIND_ADDRESS=0.0.0.0
     export CONTROL_HUB_URL=http://control-hub:8090
-    command=up;;
+    command=up
+    set -- --controller "$@";;
   pair)
     prepare_tools
     exec "$PYTHON" "$ROOT/scripts/setup/export-station-pairing.py" "$@";;
   station)
     exec "$ROOT/scripts/setup/install-mac-station.sh" "$@";;
   booth)
-    booth_station='';booth_pair='';booth_dry=false
+    booth_station="${BOOTH:-}";booth_pair='';booth_dry=false
+    if [[ -n "$booth_station" ]];then set -- --station "$booth_station" "$@";fi
     booth_original=("$@")
     while [[ $# -gt 0 ]];do
       case "$1" in
@@ -69,7 +84,13 @@ case "$command" in
       esac
     done
     [[ "$booth_station" =~ ^[1-4]$ ]]||{ echo 'Choose the booth machine with --station 1, 2, 3, or 4.' >&2;exit 2; }
-    [[ -f "$booth_pair" ]]||{ echo "Pair this machine first. On the control laptop run: ./scripts/local.sh pair --station $booth_station" >&2;echo "Copy station-$booth_station.json here, then supply --pairing-file /path/station-$booth_station.json." >&2;exit 2; }
+    if [[ -z "$booth_pair" && -f "$ROOT/tmp/booth-config/station-$booth_station.json" ]];then booth_pair="$ROOT/tmp/booth-config/station-$booth_station.json";booth_original+=(--pairing-file "$booth_pair");fi
+    if [[ -z "$booth_pair" && -n "${CONTROL_IP:-}" ]] && ! "$booth_dry";then
+      "$ROOT/scripts/fetch-booth-config.sh" "$CONTROL_IP" "$booth_station"
+      booth_pair="$ROOT/tmp/booth-config/station-$booth_station.json"
+      booth_original+=(--pairing-file "$booth_pair")
+    fi
+    [[ -f "$booth_pair" ]]||{ echo "Pair this machine first. On the control laptop run: ./scripts/local.sh pair --station $booth_station" >&2;echo "Then run: ./scripts/fetch-booth-config.sh CONTROLLER-IP $booth_station" >&2;exit 2; }
     booth_hub="$(python3 - "$booth_pair" "$booth_station" <<'PY'
 import json,re,sys
 from pathlib import Path
@@ -94,6 +115,22 @@ PY
   *)usage >&2;exit 2;;
 esac
 prepare_tools
+if [[ "$command" == up ]];then
+  command -v docker >/dev/null 2>&1||{ echo 'Install Docker Desktop first, then rerun this command.' >&2;exit 1; }
+  if ! "$PYTHON" -c 'import subprocess,sys
+try: sys.exit(subprocess.run(["docker","info"],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=5).returncode)
+except (OSError,subprocess.TimeoutExpired): sys.exit(1)';then
+    if [[ "$(uname -s)" == Darwin ]];then /usr/bin/open -gja Docker;fi
+    echo 'Waiting for Docker Desktop. Complete any first-run prompts in Docker.'
+    booth_deadline=$((SECONDS+120))
+    until "$PYTHON" -c 'import subprocess,sys
+try: sys.exit(subprocess.run(["docker","info"],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=5).returncode)
+except (OSError,subprocess.TimeoutExpired): sys.exit(1)';do
+      if ((SECONDS>=booth_deadline));then echo 'Docker is not ready. Open Docker Desktop, finish its setup, then rerun.' >&2;exit 1;fi
+      sleep 3
+    done
+  fi
+fi
 if [[ "$command" == up || "$command" == render ]];then
   "$PYTHON" scripts/local/compose.py --bind-address "${BOOTH_BIND_ADDRESS:-127.0.0.1}" --control-hub-url "${CONTROL_HUB_URL:-http://control-hub:8090}" "$@"
 fi

@@ -1,0 +1,44 @@
+limit_req_zone $binary_remote_addr zone=booth_devices:1m rate=10r/s;
+
+# LAN entry point: no admin UI, login, operator commands, demo APIs or files.
+server {
+  listen 8080;
+  resolver ${DNS_RESOLVER} valid=10s ipv6=off;
+  client_max_body_size 16k;
+  proxy_connect_timeout 2s;
+  proxy_read_timeout 5s;
+  access_log off;
+  client_header_timeout 5s;
+  client_body_timeout 5s;
+  keepalive_timeout 15s;
+  limit_req zone=booth_devices burst=30 nodelay;
+  limit_req_status 429;
+  default_type application/json;
+  location ~ ^/control-api/(healthz|state)$ {
+    limit_except GET { deny all; }
+    set $controller "${CONTROL_HUB_URL}";
+    proxy_set_header Cookie "";
+    proxy_set_header X-Booth-Read-Only 1;
+    proxy_set_header Host $http_host;
+    proxy_pass $controller$request_uri;
+  }
+  location ~ ^/control-api/machines/[1-4]$ {
+    limit_except POST { deny all; }
+    set $controller "${CONTROL_HUB_URL}";
+    proxy_set_header Cookie "";
+    proxy_set_header X-Booth-Read-Only 1;
+    proxy_set_header Host $http_host;
+    proxy_pass $controller$request_uri;
+  }
+  location ~ "^/control-api/booth-config/[a-f0-9]{64}$" {
+    limit_except GET { deny all; }
+    set $controller "${CONTROL_HUB_URL}";
+    proxy_set_header Cookie "";
+    proxy_set_header X-Booth-Read-Only 1;
+    proxy_set_header Host $http_host;
+    proxy_pass $controller$request_uri;
+  }
+  location / {
+    return 403 '{"error":"controller_private","message":"Use the controller laptop localhost admin address. This LAN port accepts station requests only."}';
+  }
+}

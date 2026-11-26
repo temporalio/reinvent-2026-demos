@@ -46,10 +46,16 @@ class Machines:
         self.lock = threading.RLock()
         with closing(sqlite3.connect(self.filename)) as db:
             db.execute('CREATE TABLE IF NOT EXISTS machines (station TEXT PRIMARY KEY, status TEXT, last_seen REAL, command TEXT)')
+            db.execute('CREATE TABLE IF NOT EXISTS credentials (station TEXT PRIMARY KEY, secret TEXT NOT NULL)')
+            db.execute('CREATE TABLE IF NOT EXISTS downloads (ticket TEXT PRIMARY KEY, station TEXT NOT NULL, hub TEXT NOT NULL, code TEXT NOT NULL, expires REAL NOT NULL)')
             db.execute('CREATE TABLE IF NOT EXISTS nonces (principal TEXT, nonce TEXT, expires REAL, PRIMARY KEY(principal,nonce))')
             db.commit()
 
     def station_key(self, station):
+        with closing(sqlite3.connect(self.filename)) as db:
+            row = db.execute('SELECT secret FROM credentials WHERE station=?', (station,)).fetchone()
+        if row:
+            return row[0]
         return hmac.new(bytes.fromhex(self.key), ('station:' + station).encode(), hashlib.sha256).hexdigest()
 
     def handle(self, path, envelope, now):
@@ -89,6 +95,23 @@ class Machines:
 
     def operator(self, db, request, now):
         action = request.get('action')
+        if action == 'download' and request.get('station') in ('1', '2', '3', '4'):
+            from urllib.parse import urlsplit
+            hub = request.get('hub', '')
+            if not isinstance(hub, str):
+                raise MachineError(422, 'Invalid download hub origin.')
+            try:
+                u = urlsplit(hub)
+                if u.scheme not in ('http', 'https') or not u.hostname or u.username or u.password or u.path not in ('', '/') or u.query or u.fragment:
+                    raise ValueError()
+                _ = u.port
+            except ValueError:
+                raise MachineError(422, 'Invalid download hub origin.') from None
+            code = secrets.token_hex(16)
+            ticket = hashlib.sha256(bytes.fromhex(code)).hexdigest()
+            db.execute('DELETE FROM downloads WHERE station=? OR expires<?', (request['station'], now))
+            db.execute('INSERT INTO downloads VALUES (?,?,?,?,?)', (ticket, request['station'], hub.rstrip('/'), code, now+600))
+            return {'code': code, 'expires': int(now)+600, 'station': request['station']}
         if action == 'pair' and request.get('station') in ('1', '2', '3', '4'):
             station = request['station']
             return {'station': station, 'key': self.station_key(station)}
@@ -106,6 +129,31 @@ class Machines:
             rows[station] = {'status': json.loads(status) if status else None, 'last_seen': seen,
                              'command': json.loads(command) if command else None}
         return {'stations': rows, 'server_time': int(now)}
+
+    def download(self, ticket, station, nonce, proof, now):
+        if (station not in ('1','2','3','4') or not re.fullmatch('[a-f0-9]{64}', ticket)
+                or not isinstance(nonce, str) or not re.fullmatch('[a-f0-9]{32}', nonce)
+                or not isinstance(proof, str) or not re.fullmatch('[a-f0-9]{64}', proof)):
+            raise MachineError(401, 'Pairing proof was not accepted.')
+        with self.lock, closing(sqlite3.connect(self.filename)) as db:
+            db.execute('BEGIN IMMEDIATE')
+            row = db.execute('SELECT hub,code,expires FROM downloads WHERE ticket=? AND station=?', (ticket,station)).fetchone()
+            if not row or row[2] < now:
+                raise MachineError(404, 'Pairing code expired or was used. Generate a new code on the controller.')
+            hub, code, _ = row
+            secret = bytes.fromhex(code)
+            expected = hmac.new(secret, f'CONFIG-REQUEST\n{station}\n{nonce}\n{ticket}'.encode(), hashlib.sha256).hexdigest()
+            if not hmac.compare_digest(expected, proof):
+                raise MachineError(401, 'Pairing proof was not accepted.')
+            key = hmac.new(secret, f'STATION-KEY\n{station}\n{nonce}'.encode(), hashlib.sha256).hexdigest()
+            db.execute('INSERT INTO credentials VALUES (?,?) ON CONFLICT(station) DO UPDATE SET secret=excluded.secret', (station,key))
+            db.execute('DELETE FROM downloads WHERE ticket=?', (ticket,))
+            db.commit()
+        # The station derives its key locally. Neither the code nor the key is
+        # transmitted over the LAN, even when the endpoint uses plain HTTP.
+        payload = json.dumps({'station':station,'hub':hub}, separators=(',',':'))
+        signed = hmac.new(secret, f'CONFIG-REPLY\n{nonce}\n{payload}'.encode(), hashlib.sha256).hexdigest()
+        return {'nonce':nonce,'payload':payload,'signature':signed}
 
     def poll(self, db, station, request, now):
         # Keep a small, typed status record. Never persist arbitrary host details.
