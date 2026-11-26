@@ -74,9 +74,9 @@
           <th scope="col">Flight</th>
           <th scope="col">Route</th>
           <th scope="col">Date</th>
-          <th scope="col">Seat</th>
+          <th scope="col" class="seat">Seat</th>
           <th scope="col">Status</th>
-          <th scope="col">Conf</th>
+          <th scope="col" class="code">Conf</th>
         </tr>
       </thead>
       <tbody>
@@ -125,10 +125,20 @@
 </section>
 
 <style>
-  .departures { display: flex; flex-direction: column; gap: .8rem; min-height: 0; overflow: auto; }
+  /* The board sizes itself to its card: split-flap cells are fixed-width characters, so the
+     text shrinks with the card's width, and a narrow card drops the seat and confirmation
+     columns (the seat also shows on the approval card) rather than scrolling sideways. */
+  .departures { display: flex; flex-direction: column; gap: .8rem; min-height: 0; overflow: auto; container-type: inline-size; }
   .empty { margin: auto; display: grid; justify-items: center; gap: .8rem; text-align: center; font-size: 1.2rem; }
   .empty p { font-size: .8rem; max-width: 22rem; margin: 0; }
-  table { border-collapse: separate; border-spacing: 0 .35rem; font-size: .82rem; }
+  table { border-collapse: separate; border-spacing: 0 .35rem; font-size: clamp(.62rem, calc((100cqi - 7rem) / 50), .82rem); }
+  @container (max-width: 44rem) {
+    table { font-size: clamp(.55rem, calc(100cqi / 46), .82rem); }
+    .seat, .code { display: none; }
+    td { padding-right: .4rem; }
+    table :global(.cell) { width: .88em; }
+    table :global(.flap) { gap: 1px; }
+  }
   th { text-align: left; font-weight: 500; padding: 0 .6rem .2rem 0; }
   td { padding: 0 .6rem 0 0; color: var(--yellow); vertical-align: middle; white-space: nowrap; }
   td.status.green { color: var(--green); }

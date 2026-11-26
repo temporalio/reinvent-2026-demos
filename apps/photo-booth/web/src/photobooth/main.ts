@@ -1,7 +1,7 @@
 import '../shared/theme.css';
 import './photobooth.css';
 import { h, mount, sleep } from '../shared/dom';
-import { api, poll } from '../shared/api';
+import { api, poll, withBase } from '../shared/api';
 import { installChrome } from '../shared/chrome';
 import { onScreenKeyboard } from '../shared/keyboard';
 import { CONSENT_TEXT_VERSION, consentNote } from '../shared/consent';
@@ -24,13 +24,20 @@ interface Step {
 interface Status {
   session_id: string;
   workflow_id: string;
+  temporal_ui_url?: string | null;
   stage: 'spooled' | 'unreachable' | 'starting' | 'processing' | 'sending' | 'done';
   steps: Step[];
   strip_url?: string | null;
   animated_url?: string | null;
   email: string;
 }
-interface Started { session_id: string; workflow_id: string; spooled: boolean; provider: string }
+interface Started { session_id: string; workflow_id: string; spooled: boolean; provider: string; temporal_ui_url: string | null }
+
+/** The workflow ID, linked when the server knows a Temporal UI (the booth's lower panel follows the link). */
+function workflowRef(id: string, url: string | null | undefined): HTMLElement {
+  const label = h('b', {}, id);
+  return url ? h('a', { href: url, target: '_blank', rel: 'noopener' }, label) : label;
+}
 
 const STALL_MS = 45_000; // no visible progress for this long → "we'll email it"
 
@@ -41,6 +48,12 @@ let retakesLeft = 1;
 let photo = '';
 let email = '';
 let cleanups: (() => void)[] = [];
+let disposed=false;
+window.addEventListener('pagehide',()=>{
+  disposed=true;
+  cleanups.splice(0).forEach(cleanup=>cleanup());
+  camera?.stop();camera=null;photo='';email='';
+},{once:true});
 
 installChrome();
 
@@ -77,7 +90,13 @@ function header(title: string, sub?: string): HTMLElement {
 
 // ---------- 1. Attract ----------
 async function attract(): Promise<void> {
-  camera ??= await openCamera();
+  if (!camera) {
+    let preferred: string | undefined;
+    try { preferred = localStorage.getItem('holodeck.camera') || undefined; } catch { /* Use the default camera. */ }
+    camera = await openCamera(preferred);
+    if(disposed){camera.stop();camera=null;return;}
+    if (!camera.live && preferred) { camera.stop(); camera = await openCamera();if(disposed){camera.stop();camera=null;return;} }
+  }
   screen(
     header('Holo-Booth', 'Step into the frame. Our AI will beam you across the galaxy.'),
     h('div', { class: 'pb-split' },
@@ -86,11 +105,43 @@ async function attract(): Promise<void> {
         h('div', { class: 'panel' },
           h('span', { class: 'panel-tab' }, 'How it works'),
           h('p', { style: 'margin:0' }, 'One photo. Four AI-generated frames: become an alien, fly a starship, explore a strange new world. We email you the strip.')),
-        !camera.live ? h('p', { class: 'dim' }, 'No camera found, so we’ll use our test visitor.') : null,
+        h('div', {class:'pb-camera-slot'}),
         h('button', { class: 'btn mint big', onclick: emailScreen }, 'Start'),
       ),
     ),
   );
+  root.querySelector('.pb-camera-slot')?.append(cameraControls());
+}
+
+/** Camera choice is local to this browser; only the captured portrait is submitted. */
+function cameraControls(): HTMLElement {
+  const controls = h('div', { class:'pb-camera-controls' });
+  if (new URLSearchParams(location.search).has('testcam')) return controls;
+  const status = h('p', { class:'dim', role:'status' }, camera?.error ?? '');
+  const select = h('select', { 'aria-label':'Camera' }, h('option', { value:'' }, 'Default camera'));
+  const retry = h('button', { class:'btn ghost', onclick:() => void change(select.value) }, camera?.live ? 'Reconnect camera' : 'Enable camera');
+  async function devices(): Promise<void> {
+    try {
+      const cameras = (await navigator.mediaDevices.enumerateDevices()).filter(device => device.kind==='videoinput' && device.deviceId);
+      select.replaceChildren(h('option', {value:''}, 'Default camera'), ...cameras.map((device,index) => h('option', {value:device.deviceId}, device.label || `Camera ${index+1}`)));
+      select.value = camera?.deviceId ?? '';
+    } catch { status.textContent = 'Allow camera access to see available cameras.'; }
+  }
+  async function change(deviceId: string): Promise<void> {
+    select.disabled = retry.disabled = true;
+    camera?.stop();
+    camera = await openCamera(deviceId || undefined);
+    if(disposed){camera.stop();camera=null;return;}
+    if (camera.live && camera.deviceId) { try { localStorage.setItem('holodeck.camera',camera.deviceId); } catch { /* Browser storage may be disabled. */ } }
+    await attract();
+  }
+  select.addEventListener('change', () => void change(select.value));
+  controls.append(h('label', {}, 'Camera', select), retry, status);
+  const deviceChange = () => void devices();
+  navigator.mediaDevices?.addEventListener('devicechange', deviceChange);
+  cleanups.push(() => navigator.mediaDevices?.removeEventListener('devicechange', deviceChange));
+  void devices();
+  return controls;
 }
 
 // ---------- 2. Email (required) ----------
@@ -135,6 +186,7 @@ async function countdown(): Promise<void> {
     count.replaceChildren(h('span', {}, String(n)));
     tick(n === 1 ? 1320 : 880);
     await sleep(1000);
+    if(disposed)return;
   }
   count.replaceChildren();
   shutter();
@@ -156,12 +208,10 @@ function hintFor(reason = ''): string {
 }
 
 async function quickCheck(image: string): Promise<QuickCheck | null> {
-  const timeout = new Promise<null>((r) => setTimeout(() => r(null), 4000));
   try {
-    return await Promise.race([api<QuickCheck>('/photobooth/analyze', { image }), timeout]);
-  } catch {
-    return null; // network down or server busy: skip silently, the workflow copes
-  }
+    return await api<QuickCheck>('/photobooth/analyze',{image},undefined,AbortSignal.timeout(4000));
+  }catch{return null;}
+
 }
 
 function review(): void {
@@ -189,7 +239,7 @@ function review(): void {
     ),
   );
   void quickCheck(shot).then((r) => {
-    if (photo !== shot || !r?.checked || r.usable !== false) return;
+    if (disposed || !hint.isConnected || photo !== shot || !r?.checked || r.usable !== false) return;
     // An unusable photo doesn't use up the visitor's one retake.
     const title = root.querySelector('h1');
     if (title) title.textContent = 'Almost!';
@@ -234,7 +284,7 @@ function fillThumbs(thumbs: HTMLElement, st: Status): void {
   st.steps.filter((s) => s.key.startsWith('render-')).forEach((r, i) => {
     const slot = thumbs.children[i] as HTMLElement | undefined;
     if (slot && r.url && !slot.querySelector('img')) {
-      slot.replaceChildren(h('img', { src: r.url, alt: r.label }));
+      slot.replaceChildren(h('img', { src: withBase(r.url), alt: r.label })); // /media/... from the backend
       slot.style.animation = 'none';
     }
   });
@@ -262,11 +312,11 @@ function processing(s: Started): void {
       h('div', { class: 'pb-side' },
         h('button', { class: 'btn mint big', onclick: reset }, 'Done — we’ll email it'),
         h('div', { class: 'panel' }, h('span', { class: 'panel-tab' }, 'Workflow'), steps),
-        h('p', { class: 'pb-wfid' }, 'Powered by Temporal · workflow ', h('b', {}, s.workflow_id)))),
+        h('p', { class: 'pb-wfid' }, 'Powered by Temporal · workflow ', workflowRef(s.workflow_id, s.temporal_ui_url)))),
   );
   let fingerprint = '';
   let lastChange = Date.now();
-  const stop = poll(() => api<Status>(`/photobooth/sessions/${s.session_id}`), (st) => {
+  const stop = poll(signal => api<Status>(`/photobooth/sessions/${s.session_id}`,undefined,undefined,signal), (st) => {
     if (st.stage === 'spooled' || st.stage === 'unreachable') { saved(); return true; }
     const fp = st.steps.map((x) => `${x.state}${x.attempts}`).join();
     if (fp !== fingerprint) { fingerprint = fp; lastChange = Date.now(); }
@@ -281,11 +331,12 @@ function processing(s: Started): void {
 // ---------- 7. Result ----------
 function result(st: Status): void {
   let animated = !!st.animated_url;
-  const img = h('img', { class: 'pb-strip', src: (animated ? st.animated_url : st.strip_url) ?? '', alt: 'Your photo strip' });
+  // The backend returns /media/... URLs, relative to the app's own prefix.
+  const img = h('img', { class: 'pb-strip', src: withBase((animated ? st.animated_url : st.strip_url) ?? ''), alt: 'Your photo strip' });
   const toggle = st.animated_url
     ? h('button', { class: 'btn ghost', onclick: () => {
         animated = !animated;
-        img.src = (animated ? st.animated_url : st.strip_url)!;
+        img.src = withBase((animated ? st.animated_url : st.strip_url)!);
         toggle!.textContent = animated ? 'Show still' : 'Show animated';
       } }, 'Show still')
     : null;
@@ -298,7 +349,7 @@ function result(st: Status): void {
           h('span', { class: 'panel-tab' }, 'What just happened'),
           h('p', { style: 'margin:0' },
             'A Temporal workflow ran four AI image generations in parallel, retried the ones that failed, composed the strip, and emailed it. If the network had dropped, it would have picked up where it left off.')),
-        h('p', { class: 'pb-wfid' }, 'workflow ', h('b', {}, st.workflow_id)),
+        h('p', { class: 'pb-wfid' }, 'workflow ', workflowRef(st.workflow_id, st.temporal_ui_url)),
         h('div', { class: 'row', style: 'flex-wrap:nowrap' },
           toggle,
           h('button', { class: 'btn mint big', style: 'flex:1', onclick: reset }, 'Done')),

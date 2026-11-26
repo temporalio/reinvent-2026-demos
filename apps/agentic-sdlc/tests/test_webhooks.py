@@ -409,9 +409,9 @@ def starting(slot_queue: str, number: int = 13, created_at: str = OPENED) -> lis
 async def test_a_redelivered_pr_event_starts_one_run_and_comments_reach_it(temporal, copy):
     async with leased_slots(temporal, copy, 1) as [slot]:
         start = starting(slot)
-        assert await webhooks.handle(temporal, start, defaults) == [f"started {slot}.gh.review-13"]
-        assert await webhooks.handle(temporal, start, defaults) == [f"started {slot}.gh.review-13"]  # same run, not a second
-        handle = temporal.get_workflow_handle(f"{slot}.gh.review-13")
+        assert await webhooks.handle(temporal, start, defaults) == [f"started agenticsdlc-{slot}.gh.review-13"]
+        assert await webhooks.handle(temporal, start, defaults) == [f"started agenticsdlc-{slot}.gh.review-13"]  # same run, not a second
+        handle = temporal.get_workflow_handle(f"agenticsdlc-{slot}.gh.review-13")
         await _until_visible(temporal, "pr:13")
         await webhooks.handle(temporal, webhooks.route("issue_comment", comment_event("Fix the rounding", on_pr=True, number=13)),
                              defaults)
@@ -426,7 +426,7 @@ async def test_a_run_started_with_no_worker_is_listed_and_reachable(temporal, co
     async with leased_slots(temporal, copy, 1) as [slot]:
         await webhooks.handle(temporal, [StartRun("issue", slot, 12, "Free shipping", "", created_at=OPENED)], defaults)
         await _until_visible(temporal, "issue:12", slot)
-        handle = temporal.get_workflow_handle(f"{slot}.gh.issue-12")
+        handle = temporal.get_workflow_handle(f"agenticsdlc-{slot}.gh.issue-12")
         run = await (await handle.describe()).memo_value("run")
         assert (run["run_id"], run["kind"], run["title"]) == ("issue-12", "issue", "Free shipping")
         await handle.terminate()
@@ -447,7 +447,7 @@ async def test_an_item_opened_before_the_current_session_started_nothing(tempora
         # An item opened just before the claim, within GitHub's one second resolution, still counts.
         just_before = "2026-10-28T11:59:00Z"  # the claim was 60 seconds before OPENED
         assert (await webhooks.handle(temporal, starting(slot, created_at=just_before), defaults))[0].startswith("started")
-        await temporal.get_workflow_handle(f"{slot}.gh.review-13").terminate()
+        await temporal.get_workflow_handle(f"agenticsdlc-{slot}.gh.review-13").terminate()
 
 
 async def test_github_activity_on_a_run_keeps_its_slots_lease_alive(temporal, copy):
@@ -458,7 +458,7 @@ async def test_github_activity_on_a_run_keeps_its_slots_lease_alive(temporal, co
         await _until_visible(temporal, "pr:13", slot)
         await webhooks.handle(temporal, webhooks.route("issue_comment", comment_event("Hi", on_pr=True, number=13)), defaults)
         assert await slot_handle.query(FakeSlot.seen_activity) == 2
-        await temporal.get_workflow_handle(f"{slot}.gh.review-13").terminate()
+        await temporal.get_workflow_handle(f"agenticsdlc-{slot}.gh.review-13").terminate()
 
 
 async def test_over_the_slots_run_cap_nothing_starts_and_the_agent_says_so(temporal, copy, monkeypatch):
@@ -475,9 +475,9 @@ async def test_over_the_slots_run_cap_nothing_starts_and_the_agent_says_so(tempo
         result = await webhooks.handle(temporal, starting(slot, 14), defaults)
         assert result == ["skipped review-14: 1 runs active in the slot, 1 in all"]
         # The comment runs on the copy's own queue, so it is said even while the slot's Workers are down.
-        await temporal.get_activity_handle(f"{slot}.gh.busy-review-14").result()
+        await temporal.get_activity_handle(f"agenticsdlc-{slot}.gh.busy-review-14").result()
         assert said[0].issue_number == 14 and "too many" in said[0].body
-        await temporal.get_workflow_handle(f"{slot}.gh.review-13").terminate()
+        await temporal.get_workflow_handle(f"agenticsdlc-{slot}.gh.review-13").terminate()
 
 
 async def test_the_copy_as_a_whole_is_capped_across_its_slots(temporal, copy, monkeypatch):
@@ -492,12 +492,12 @@ async def test_the_copy_as_a_whole_is_capped_across_its_slots(temporal, copy, mo
         await _until_visible(temporal, "pr:13", first)
         result = await webhooks.handle(temporal, starting(second, 14), defaults)
         assert result == ["skipped review-14: 0 runs active in the slot, 1 in all"]
-        await temporal.get_workflow_handle(f"{first}.gh.review-13").terminate()
+        await temporal.get_workflow_handle(f"agenticsdlc-{first}.gh.review-13").terminate()
 
 
 async def _until_visible(temporal, ref: str, queue: str | None = None) -> None:
     """Visibility is eventually consistent; wait until the webhook's query can see the run."""
-    query = f"AgenticSdlcGitHubRefs = '{ref}'" + (f" AND WorkflowId STARTS_WITH '{queue}.gh.'" if queue else "")
+    query = f"AgenticSdlcGitHubRefs = '{ref}'" + (f" AND {config.runs_query(queue)}" if queue else "")
     for _ in range(50):
         if [w async for w in temporal.list_workflows(query)]:
             return
@@ -510,3 +510,18 @@ def test_the_release_workflows_run_name_keeps_the_ask_number_the_webhook_matches
     import yaml
     text = (pathlib.Path(__file__).parent.parent / "sandbox-template/.github/workflows/release.yml").read_text()
     assert yaml.safe_load(text)["run-name"] == "release ${{ inputs.gate }} ${{ inputs.subject }} #${{ inputs.ask }}"
+
+
+async def test_a_closed_legacy_run_is_not_restarted_under_the_new_prefix(temporal, copy):
+    async with leased_slots(temporal, copy, 1) as [slot]:
+        legacy_id = f"{slot}.gh.review-13"
+        handle = await temporal.start_workflow(
+            "PullRequestReview", RunRequest(run_id="review-13", kind="review", repo=REPO, pr_number=13),
+            id=legacy_id, task_queue=slot,
+        )
+        await handle.terminate()
+        assert await webhooks.handle(temporal, starting(slot), defaults) == ["already done review-13"]
+        from temporalio.service import RPCError, RPCStatusCode
+        with pytest.raises(RPCError) as missing:
+            await temporal.get_workflow_handle(config.runs_prefix(slot) + "review-13").describe()
+        assert missing.value.status == RPCStatusCode.NOT_FOUND

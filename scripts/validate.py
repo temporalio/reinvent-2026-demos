@@ -13,7 +13,10 @@ def validate():
     assert len(docs) == 1 and docs[0]['kind'] == 'DemoProject', 'Expected one combined DemoProject'
     spec = docs[0]['spec']
     assert spec['source']['repo'] == 'https://github.com/temporalio/reinvent-2026-demos'
-    assert spec['temporal']['publicUI'] is False, 'Attendee payload publication requires explicit review'
+    # Publishing workflow payloads (Photo Booth attendee emails included) was
+    # reviewed and decided on November 21, 2026; turning it on needs that record.
+    assert spec['temporal']['publicUI'] is False or 'publicUI is on (decided' in (ROOT / 'docs/DEPLOYMENT.md').read_text(), \
+        'Attendee payload publication requires an explicit decision recorded in docs/DEPLOYMENT.md'
     assert '* @iandouglas' in (ROOT / '.github/CODEOWNERS').read_text()
     for name, build in spec['builds'].items():
         context = (ROOT / build['context']).resolve()

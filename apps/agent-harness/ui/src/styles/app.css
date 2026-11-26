@@ -58,3 +58,26 @@ a:focus-visible, summary:focus-visible { outline: 2px solid var(--green); outlin
 .settings option:checked { color: var(--green); }
 .settings option::checkmark { color: var(--green); }
 .settings option:disabled { color: var(--slate-300); }
+
+/* Booth controls share the launchpad's solid colors, square corners, and touch targets. */
+.app .button {min-height:48px;border-radius:0;background:var(--surface-page,#141414);border:1px solid var(--border-default,#71809d);box-shadow:none;color:var(--text-primary,#f8fafc);font-family:var(--font-mono);white-space:normal;}
+.app .button.primary {background:var(--brand-highlight,#d8ff00);border-color:var(--brand-highlight,#d8ff00);color:#141414;}
+.app .button:hover:not(:disabled) {border-color:var(--brand-highlight,#d8ff00);box-shadow:none;}
+.app .button::before,.app .button::after {display:none;}
+.app .button:disabled {opacity:.45;}
+.trip-lobby {flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:1rem;}
+.trip-lobby>.card {min-width:0;min-height:0;padding:1rem;display:flex;flex-direction:column;gap:.8rem;overflow:auto;}
+.trip-lobby h2,.trip-lobby p {margin:0;}
+.trip-form {display:grid;gap:1rem;}
+.trip-form label {display:grid;gap:.4rem;font-family:var(--font-mono);}
+.trip-form select {width:100%;min-width:0;min-height:48px;border-radius:0;border:1px solid var(--border-default,#71809d);background:var(--surface-overlay,#22223d);color:var(--text-primary,#f8fafc);font:inherit;padding:.55rem;}
+.trip-actions {display:flex;gap:.75rem;flex-wrap:wrap;}
+.trip-list {min-height:0;overflow:auto;display:flex;flex-direction:column;gap:.65rem;}
+.trip-summary {display:grid;text-align:left;gap:.35rem;padding:.85rem;min-height:72px;cursor:pointer;border:1px solid var(--border-default,#71809d);background:var(--surface-page,#141414);color:var(--text-primary,#f8fafc);font:inherit;}
+.trip-summary:hover {border-color:var(--brand-highlight,#d8ff00);}
+.trip-summary small {color:var(--text-muted,#b9b9c0);}
+@media(max-width:650px) {.trip-lobby {grid-template-columns:minmax(0,1fr);overflow:auto;}.trip-lobby>.card {overflow:visible;}}
+
+.app .button.small {font-size:.9rem;line-height:1.3;padding:.55rem .75rem;}
+.app .actions {min-width:0;flex-wrap:wrap;}
+.app .card {min-width:0;}

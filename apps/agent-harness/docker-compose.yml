@@ -29,6 +29,13 @@ services:
     environment:
       <<: *env
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      # Optional: Claude Haiku on Bedrock writes the suggested replies. Without it the page
+      # opens with built-in trip ideas and offers no replies after that.
+      SUGGEST_MODEL_ID: ${SUGGEST_MODEL_ID:-}
+      AWS_REGION: ${AWS_REGION:-us-west-2}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
 
 volumes:
   payloads:

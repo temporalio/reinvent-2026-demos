@@ -54,7 +54,7 @@ The platform was rechecked at main b3347fe on November 21. Its AWS/Lambda valida
 
 Verified November 21, 2026 with the combined portrait/dependency candidate:
 
-- The control image passes 11 real HTTP tests without external networking, including PIN expiry/date boundaries, same-origin writes, validation, simultaneous-save conflicts, and SQLite restart persistence. Resource warnings also fail the test run.
+- The control image passes 26 real HTTP tests without external networking: the 11 HTTP tests (PIN expiry/date boundaries, same-origin writes, validation, simultaneous-save conflicts, restart persistence) against both the SQLite store and the DynamoDB store (an in-memory fake that enforces the conditional writes), plus 4 DynamoDB-only tests (session TTL attribute, storage errors as 503, a second start keeping saved settings, an unreachable table at start). Resource warnings also fail the test run. Not exercised against real DynamoDB.
 - The launchpad passes 13 policy/store regression checks and builds with TypeScript. These include query-based station identity across navigation, offline Inherit, cached authentication, a fresh backup hub with a lower revision, and stale poll/logout races. Eighteen root/generator tests and the structure/credential-pattern scan pass.
 - Four isolated browser sessions used four gateway origins connected to the same hub. Global Tacos Off disabled launches on stations 1, 3, and 4; station 2 On overrode it. The already-running station 1 iframe survived the policy update, and its card became disabled after returning to missions.
 - The laptop UI saved a 50-pixel right move. Station 2 measured width 80%, height 70%, x 75px, y 50px, and content zoom 90%, while its existing iframe marker remained intact. Ziggy overlay open/close also retained that iframe.
@@ -64,3 +64,25 @@ Verified November 21, 2026 with the combined portrait/dependency candidate:
 - All nine application routes and the local Temporal UI still pass route checks. The temporary station gateway fixtures were removed, and their synthetic configuration changes were reset.
 
 These are local browser/container checks, not tests on four physical Mac Minis or booth televisions. Online/offline controls govern new launch availability; they do not switch worker connections, disconnect hardware networking, or provision providers. Full demo touch keyboards, arbitrary panel pinch handling, fleet process restart/forced-demo commands, and automatic hub/database failover remain separate work. Hosted control data needs durable storage support before its configuration writes can be relied on across pod replacement.
+
+## Holodeck external payload storage
+
+Verified November 21, 2026:
+
+- Photo Booth and Flight Simulator backends: 20 tests each pass (`uv run --frozen --extra aws --group dev python -m pytest`), including 4 new ones: a payload carrying an email encodes to an `ExternalStorageReference` with no email bytes and decodes back; a missing object reads as absent; no `PAYLOAD_BUCKET` leaves payloads inline; with one, the threshold is 0.
+- Both images build in Docker with temporalio 1.36.1 and boto3 1.43.101.
+- Not exercised against real S3 or a real workflow run; first hosted run should confirm a Photo Booth history in the public UI shows references only.
+
+## Touchscreen panel cleanup
+
+Verified November 22, 2026 against the local candidate built from the deployed onboarding branch:
+
+- Launchpad Docker build and 23 tests pass. Banking Docker build/typecheck/ESLint and Tacos Docker build/lint/six behavioral tests pass. Twenty-one root checks include the 72-example coverage/provenance checks; native excerpts match the source and translations are explicitly illustrative, not compiled SDK programs.
+- All nine local demo pages passed measured equal upper/lower tracks, no outer or native document scrolling, no clipped upper controls, and fitting Business/Architecture tabs at 1080×1920 and 2160×3840. Each SDK selector switched among eight distinct 12–32-line examples. Code/Temporal remain their own lower content regions; Temporal UI internals were not restyled.
+- Saved zoom 75/100/125% and height 60/78/90% kept equal tracks and zero station/document overflow. Banking compact account/form/review screens were exercised; its synthetic $50 transfer completed in Temporal. A native workflow link, with its old local-preview port normalized only in the browser fixture, selected the lower Temporal tab without a new tab; passive updates preserved the selected tab.
+- Tacos menu, populated cart, checkout, and relocated Kitchen settings dialog were opened without scrolling. Its dialog measured 321px within a 641px iframe. No Tacos order was submitted in this layout check. Native zoom/Perspective/language dropdown/footer duplicates are absent from the embedded shared view.
+- Real wall-clock testing with normal hub polling showed the five-second countdown after 30 seconds. A real pointer click reset the timer beyond its old deadline; after a fresh 35-second idle period the visitor screen returned to the screensaver. Photo and staff controls remained open. Unit tests also cover Flight exemption, iframe input, and detached-frame cleanup.
+- Both embedded and standalone planet Launch returned to crew selection, removed stale demo state, and preserved station identity. Mech selection opened Tacos on Workflow code. The gradient layer measured left 0/full viewport width on both portrait and letterboxed landscape views.
+- Staff draft preview rendered width 89% while the hub remained at 90% with the same revision. Back retained the unsaved/unlocked draft. Only Save changed the hub revision/width; the isolated preview was then reset to centered defaults.
+
+No live deployment, GitHub sandbox creation, provider inference, or physical television/stylus acceptance was performed. The exact character portraits are still missing from the latest toolkit tree; see TOUCHSCREEN-UI.md. The PIN-only ingress fix is reviewed separately in PR #8.

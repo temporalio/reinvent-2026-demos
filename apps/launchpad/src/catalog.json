@@ -61,5 +61,21 @@
     "path": "/photobooth/",
     "internet": "conditional",
     "tentative": false
+  },
+  {
+    "id": "agentcore-video",
+    "title": "AgentCore Demo \u00b7 Cornelia Davis",
+    "path": "/agentcore-video/",
+    "internet": "optional",
+    "tentative": false,
+    "kind": "video"
+  },
+  {
+    "id": "agentcore-research",
+    "title": "AgentCore Starship Engineer",
+    "path": "/agentcore-oncall/",
+    "internet": "required",
+    "tentative": false,
+    "kind": "agentcore"
   }
 ]

@@ -19,6 +19,16 @@ class CloudConnectionTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(connect.call_args.kwargs['api_key'], 'synthetic-key')
             self.assertTrue(connect.call_args.kwargs['tls'])
 
+    async def test_fieldkit_address_is_used_without_host_url(self):
+        # Fieldkit sets TEMPORAL_ADDRESS, TEMPORAL_NAMESPACE and TEMPORAL_API_KEY only.
+        env = {'TEMPORAL_ADDRESS': 'synthetic.example:7233', 'TEMPORAL_NAMESPACE': 'synthetic.ns',
+               'TEMPORAL_API_KEY': 'synthetic-key'}
+        with patch.dict(os.environ, env, clear=True), patch.object(client.Client, 'connect', new_callable=AsyncMock) as connect:
+            await client.get_client()
+            self.assertEqual(connect.call_args.args, ('synthetic.example:7233',))
+            self.assertEqual(connect.call_args.kwargs['namespace'], 'synthetic.ns')
+            self.assertTrue(connect.call_args.kwargs['tls'])
+
     async def test_missing_cloud_target_refuses_to_fall_back_to_local(self):
         with patch.dict(os.environ, {'TEMPORAL_API_KEY': 'synthetic-key'}, clear=True), \
              patch.object(client.Client, 'connect', new_callable=AsyncMock) as connect:

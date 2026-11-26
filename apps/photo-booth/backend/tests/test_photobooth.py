@@ -304,3 +304,35 @@ async def test_provider_errors_are_retried_with_a_short_message():
         assert e.type == "RuntimeError" and len(e.message) < 400 and e.__cause__ is None and not e.non_retryable
     else:
         raise AssertionError("expected ApplicationError")
+
+def test_cinematic_prompts_prioritize_action_and_scenery():
+    from holodeck.photobooth.scenes import SCENES
+    for scene in SCENES:
+        prompt=scene_prompt(scene)
+        assert "foreground, midground and distant scenery" in prompt
+        assert "environment should fill most of the image" in prompt
+        assert "pasted photo" in prompt and "Do not render titles" in prompt
+    assert "hover-racer" in BY_ID["grand_prix"].action
+    assert BY_ID["grand_prix"].backdrop != "podium"
+    assert "white spacesuit" not in BY_ID["kepler_explorer"].action
+
+
+def test_featured_strips_choose_four_distinct_adventures_with_varied_order():
+    import random
+    from holodeck.photobooth.scenes import FEATURED_SCENE_IDS, pick_featured_four
+
+    assert len(FEATURED_SCENE_IDS) == len(set(FEATURED_SCENE_IDS)) == 8
+    combinations = set()
+    positions = [set() for _ in range(4)]
+    for seed in range(2000):
+        selected = pick_featured_four(random.Random(seed))
+        assert len(selected) == len(set(selected)) == 4
+        assert set(selected) <= set(FEATURED_SCENE_IDS)
+        assert len({BY_ID[scene].category for scene in selected}) == 4
+        assert all(not BY_ID[scene].transform for scene in selected)
+        assert selected == pick_featured_four(random.Random(seed))
+        combinations.add(frozenset(selected))
+        for index, scene in enumerate(selected):
+            positions[index].add(scene)
+    assert len(combinations) == 70  # All ways to choose four from eight.
+    assert all(seen == set(FEATURED_SCENE_IDS) for seen in positions)

@@ -1,7 +1,11 @@
+import json
 import os
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
 import uuid
+from urllib.parse import quote, urlsplit
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, abort, jsonify, render_template, request
 from flask.wrappers import Response
 
 from client import get_client
@@ -31,11 +35,54 @@ data = {
 }
 
 
+SCENARIO_DESCRIPTIONS = {
+    "HappyPath": "Validate the manifest, copy it to a worker, turn its namespace entries into CSV, and load the result. A polling Activity confirms completion.",
+    "AdvancedVisibility": "Run the same pipeline while recording its current Step as a Search Attribute. Follow validation, extraction, transformation, loading, and completion in Temporal UI.",
+    "HumanInLoopSignal": "Load the CSV, then wait up to 60 seconds for you to send a completion Signal. Missing that deadline fails this job; its history remains available.",
+    "HumanInLoopUpdate": "Load the CSV, then wait up to 60 seconds for a completion Update. The Update returns an acknowledgement; missing the deadline fails this job.",
+    "Idempotency": "Call the load Activity twice with the same job key. The second call recognizes the key and skips the duplicate load.",
+    "APIFailure": "Make completion polling fail on its first nine attempts. Temporal retries every two seconds and the tenth attempt succeeds without repeating extraction or transformation.",
+    "RecoverableFailure": "An intentional code bug stops the workflow after transformation. Tap Fix code and resume to simulate deploying corrected code; the same run continues without repeating completed work.",
+    "NonRecoverableFailure": "Reject the manifest during validation and fail the Workflow before extraction. Temporal retains the failure and history; this input needs correction rather than more retries.",
+}
+
+
+def manifest():
+    source = Path(__file__).resolve().parents[1] / "demodata/source/info.json"
+    payload = json.loads(source.read_text())
+    return {"filename": "info.json", "objects": len(payload["namespaces"]),
+            "lines": len(source.read_text().splitlines()), "preview": json.dumps(payload, indent=2)}
+
+
+def request_workflow_id(job_id: str) -> str:
+    """Keep bookmarked legacy jobs readable without accepting an unrelated Workflow ID."""
+    candidate = request.args.get("workflow_id", f"job-{job_id}")
+    if candidate not in (f"job-{job_id}", f"datapipeline-{job_id}"):
+        abort(400, description="Workflow ID does not match this shipment")
+    return candidate
+
+
+def temporal_workflow_url(workflow_id: str, run_id: str) -> str | None:
+    """Link to the run in the Temporal UI, from the UI base and qualified namespace Fieldkit injects
+    (the local preview sets both too). TEMPORAL_NAMESPACE is not used: it can differ from the UI's namespace.
+
+    The run ID matters: without one the UI finds the run through a list query, and Temporal Cloud's
+    list results trail a new start by a moment, so a link followed right away shows a 404."""
+    base = os.getenv("TEMPORAL_UI_URL")
+    namespace = os.getenv("TEMPORAL_UI_NAMESPACE")
+    if not base or not namespace:
+        return None
+    if urlsplit(base).path.startswith("/_temporal/"):
+        base = urlsplit(base).path
+    workflow_path = f"{quote(workflow_id, safe='')}/{quote(run_id, safe='')}"
+    return f"{base.rstrip('/')}/namespaces/{quote(namespace, safe='')}/workflows/{workflow_path}/timeline"
+
+
 @app.route("/", methods=["GET", "POST"])
 async def main_order_page() -> str:
-    job_id = str(uuid.uuid4().int)[:6]
+    job_id = uuid.uuid4().hex[:12]
 
-    return render_template("index.html", data=data, scenarios=scenarios, job_id=job_id)
+    return render_template("index.html", data=data, scenarios=scenarios, descriptions=SCENARIO_DESCRIPTIONS, manifest=manifest(), job_id=job_id)
 
 
 @app.route("/run_job")
@@ -43,8 +90,8 @@ async def run_job() -> str | tuple[str, int]:
     selected_scenario = request.args.get("scenario")
     job_id = request.args.get("job_id")
 
-    if not selected_scenario:
-        return "Error: scenario parameter is required", 400
+    if selected_scenario not in scenarios:
+        return "Error: select a supported scenario", 400
     if not job_id:
         return "Error: job_id parameter is required", 400
 
@@ -59,22 +106,32 @@ async def run_job() -> str | tuple[str, int]:
         key=job_id,
     )
 
+    workflow_id = f"datapipeline-{job_id}"
     if selected_scenario == "HappyPath":
-        await client.start_workflow(
+        handle = await client.start_workflow(
             "DataPipelineWorkflowHappyPath",
             input,
-            id=f"job-{job_id}",
+            id=workflow_id,
             task_queue=os.getenv("TEMPORAL_TASK_QUEUE", "worker_specific_task_queue-distribution-queue"),
         )
     else:
-        await client.start_workflow(
+        handle = await client.start_workflow(
             "DataPipeline" + selected_scenario,
             input,
-            id=f"job-{job_id}",
+            id=workflow_id,
             task_queue=os.getenv("TEMPORAL_TASK_QUEUE", "worker_specific_task_queue-distribution-queue"),
         )
 
-    return render_template("job_progress.html", selected_scenario=selected_scenario, job_id=job_id)
+    return render_template(
+        "job_progress.html",
+        selected_scenario=selected_scenario,
+        job_id=job_id,
+        workflow_id=workflow_id,
+        workflow_url=temporal_workflow_url(workflow_id, handle.first_execution_run_id),
+        run_id=handle.first_execution_run_id,
+        manifest=manifest(),
+        scenario_description=SCENARIO_DESCRIPTIONS[selected_scenario],
+    )
 
 
 @app.route("/confirmation")
@@ -85,10 +142,12 @@ async def order_confirmation() -> str | tuple[str, int]:
         return "Error: job_id parameter is required", 400
 
     client = await get_client()
-    pipeline_workflow = client.get_workflow_handle(f"job-{job_id}")
-    await pipeline_workflow.result()
-
-    return render_template("confirmation.html", job_id=job_id)
+    pipeline_workflow = client.get_workflow_handle(request_workflow_id(job_id), run_id=request.args.get("run_id"))
+    desc = await pipeline_workflow.describe()
+    scenario = "HappyPath" if desc.workflow_type == "DataPipelineWorkflowHappyPath" else desc.workflow_type.removeprefix("DataPipeline")
+    return render_template("job_progress.html", job_id=job_id, run_id=desc.run_id, workflow_id=request_workflow_id(job_id),
+                           selected_scenario=scenario, scenario_description=SCENARIO_DESCRIPTIONS.get(scenario, "Follow the recorded job."),
+                           manifest=manifest(), workflow_url=temporal_workflow_url(request_workflow_id(job_id), desc.run_id))
 
 
 @app.route("/get_progress")
@@ -98,25 +157,58 @@ async def get_progress() -> Response | tuple[Response, int]:
     if not job_id:
         return jsonify({"error": "job_id parameter is required"}), 400
 
-    progress_percent = 0
     try:
         client = await get_client()
-        pipeline_workflow = client.get_workflow_handle(f"job-{job_id}")
-
-        try:
-            progress_percent = await pipeline_workflow.query("progress")
-        except Exception as e:
-            print(e)
-
-        desc = await pipeline_workflow.describe()
-        if desc.status == 3:
-            error_message = f"Workflow failed: job-{job_id}"
-            print(f"Error in get_progress route: {error_message}")
-            return jsonify({"error": error_message}), 500
-
-        return jsonify({"progress": progress_percent})
+        handle = client.get_workflow_handle(request_workflow_id(job_id), run_id=request.args.get("run_id"))
+        desc = await handle.describe()
+        state = desc.status.name.lower()
+        history = await handle.fetch_history()
+        from ui.progress import summarize
+        scenario = desc.workflow_type.removeprefix("DataPipeline")
+        result = summarize(history.events, state, scenario)
+        result["workflow_url"] = temporal_workflow_url(request_workflow_id(job_id), desc.run_id)
+        if state == "running" and result["step"] != "bug":
+            try:
+                result["progress"] = await handle.query("progress", rpc_timeout=timedelta(seconds=3))
+            except Exception:
+                result["notice"] = "Worker is not answering the progress query. Last recorded history is shown."
+        if desc.raw_description.pending_activities:
+            result["attempt"] = max(activity.attempt for activity in desc.raw_description.pending_activities)
+            if result["attempt"] > 1:
+                result["status"] = "retrying"
+        result["elapsed_seconds"] = round(((desc.close_time or datetime.now(timezone.utc)) - desc.start_time).total_seconds(), 1)
+        result["manifest"] = manifest()
+        return jsonify(result)
     except Exception:
-        return jsonify({"progress": progress_percent})
+        return jsonify({"error": "Could not reach Temporal. Your recorded job is retained; reconnecting."}), 503
+
+
+@app.route("/recover", methods=["POST"])
+async def recover() -> tuple[Response, int]:
+    """Record the booth's simulated code fix on this exact recoverable pipeline run."""
+    job_id, run_id = request.args.get("job_id"), request.args.get("run_id")
+    if not job_id or not run_id:
+        return jsonify(error="job_id and run_id are required"), 400
+    workflow_id = request_workflow_id(job_id)
+    try:
+        client = await get_client()
+        handle = client.get_workflow_handle(workflow_id, run_id=run_id)
+        desc = await handle.describe()
+        if desc.status.name != "RUNNING":
+            return jsonify(error="This job has ended. Start another shipment to try again."), 409
+        if desc.workflow_type != "DataPipelineRecoverableFailure":
+            return jsonify(error="Code recovery is only available for RecoverableFailure."), 409
+        from ui.progress import summarize
+        history = await handle.fetch_history()
+        progress = summarize(history.events, "running", "RecoverableFailure")
+        if progress["recovery_requested"]:
+            return jsonify(message="Recovery Signal already recorded. Waiting for the worker to continue."), 202
+        if progress["step"] != "bug":
+            return jsonify(error="This workflow has not reached the recoverable code bug."), 409
+        await handle.signal("demo_fix_code")
+        return jsonify(message="Simulated code fix accepted. The same workflow will resume with completed work preserved."), 202
+    except Exception:
+        return jsonify(error="Could not send the recovery Signal. Your workflow is retained; please try again."), 503
 
 
 @app.route("/signal", methods=["POST"])
@@ -128,7 +220,9 @@ async def signal() -> tuple[str, int] | tuple[Response, int]:
 
     try:
         client = await get_client()
-        pipeline_workflow = client.get_workflow_handle(f"job-{job_id}")
+        pipeline_workflow = client.get_workflow_handle(request_workflow_id(job_id), run_id=request.args.get("run_id"))
+        if (await pipeline_workflow.describe()).status.name != "RUNNING":
+            return jsonify({"error": "This job has ended. Start another shipment to try again."}), 409
         await pipeline_workflow.signal("load_complete_signal", "complete")
     except Exception as e:
         print(f"Error sending signal: {str(e)}")
@@ -147,7 +241,9 @@ async def update() -> Response:
     update_result = None
     try:
         client = await get_client()
-        pipeline_workflow = client.get_workflow_handle(f"job-{job_id}")
+        pipeline_workflow = client.get_workflow_handle(request_workflow_id(job_id), run_id=request.args.get("run_id"))
+        if (await pipeline_workflow.describe()).status.name != "RUNNING":
+            return jsonify({"error": "This job has ended. Start another shipment to try again."}), 409
         update_result = await pipeline_workflow.execute_update(
             update="load_complete_update",
             arg="complete",

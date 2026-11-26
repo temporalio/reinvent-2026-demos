@@ -32,6 +32,7 @@ class DataPipelineWorkflowScenarios:
         self.signal_received = False
         self.update_received = False
         self._progress = 0
+        self.demo_code_fixed = False
 
     @workflow.run
     async def run(self, args: Sequence[RawValue]) -> Any:
@@ -102,11 +103,9 @@ class DataPipelineWorkflowScenarios:
         )
         workflow.logger.info(f"Transform status: {input.input_filename}: {activity_output}")
 
-        # Non-Recoverable (bug) Scenario
+        # Booth recovery simulates a deployment; the recorded Signal enables the fix.
         if self.BUG == workflow_type:
-            # Comment out to fix recoverable scenario and uncomment pass
-            raise Exception("Workflow bug!")
-            # pass
+            await workflow.wait_condition(lambda: self.demo_code_fixed)
 
         # Set progress to 60%
         self._progress = 60
@@ -188,6 +187,12 @@ class DataPipelineWorkflowScenarios:
     async def load_complete_update(self, complete: str) -> str:
         self.update_received = True
         return "Workflow update successful"
+
+    @workflow.signal
+    def demo_fix_code(self) -> None:
+        """Simulate deploying a fix for this run, without editing or restarting a worker."""
+        if workflow.info().workflow_type == self.BUG:
+            self.demo_code_fixed = True
 
     @workflow.query
     def progress(self) -> int:

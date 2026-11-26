@@ -442,7 +442,7 @@ and `WORKER_MAX_CONCURRENT_WORKFLOWS` via `shared/workerconfig`. The startup log
 always prints the values in use.
 
 With `WORKER_MAX_CONCURRENT_ACTIVITIES=5` and each `SimulateWork` activity
-sleeping for 12 seconds, the worker saturates at 5 concurrent workflows. A seed
+sleeping for 4 seconds, the worker saturates at 5 concurrent workflows. A seed
 burst of 30 immediately queues 25 activity tasks, driving the sync match rate
 down and triggering Lambda scaling.
 
@@ -463,16 +463,16 @@ Control how long each workflow holds worker capacity. Edit the constants in
 
 ```go
 const (
-    WorkDuration1 = 12 * time.Second
-    WorkDuration2 = 12 * time.Second
-    WorkDuration3 = 12 * time.Second
+    WorkDuration1 = 4 * time.Second
+    WorkDuration2 = 4 * time.Second
+    WorkDuration3 = 4 * time.Second
 )
 ```
 
-Each workflow chains all three sequentially (~36 seconds total worker
+Each workflow chains all three sequentially (~12 seconds total worker
 occupancy). `StartToCloseTimeout` in `shared/workflows/demo_workflow.go` must
 always exceed the sum of all three.
 
-**Lambda timeout** is set to 600 seconds at creation — well above the 36-second
+**Lambda timeout** is set to 600 seconds at creation — well above the 12-second
 activity chain. **Lambda memory** is set to 256 MB; increase if you observe
 memory pressure in CloudWatch Logs.

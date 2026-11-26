@@ -11,7 +11,7 @@ os.environ.update({
     'AWS_SECRET_ACCESS_KEY': 'local-model-config-test',
     'AWS_EC2_METADATA_DISABLED': 'true',
     'AWS_REGION': 'us-east-1',
-    'BEDROCK_MODEL_ID': 'us.anthropic.claude-sonnet-4-5-20250929-v1:0',
+    'BEDROCK_MODEL_ID': 'us.anthropic.claude-sonnet-5-5',
 })
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))

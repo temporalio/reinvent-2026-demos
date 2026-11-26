@@ -28,3 +28,27 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - run: docker build -t reinvent-control apps/booth-control
       - run: docker run --rm --network none --entrypoint python reinvent-control -m unittest discover -s tests -v
+
+  photo-booth:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - run: docker build --target python-tests -t reinvent-photo-booth-tests apps/photo-booth
+      - run: docker build -t reinvent-photo-booth apps/photo-booth
+
+  agentcore-oncall:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - run: docker build --target test -t oncall-api-tests apps/agentcore-research/api
+      - run: docker run --rm oncall-api-tests
+      - run: docker build --target test -t oncall-agent-tests apps/agentcore-research/agent
+      - run: docker run --rm oncall-agent-tests
+
+  data-pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - run: docker build -t reinvent-pipeline apps/data-pipeline
+      - run: docker build --target test -t reinvent-pipeline-tests apps/data-pipeline
+      - run: docker run --rm --network none --entrypoint python reinvent-pipeline-tests -m unittest discover -s tests -v

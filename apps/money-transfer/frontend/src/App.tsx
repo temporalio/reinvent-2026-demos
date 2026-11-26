@@ -25,6 +25,8 @@ const DEFAULT_SETTINGS: Settings = {
   presentation_mode: 'detailed',
 }
 
+const SHARED_STAGE = new URLSearchParams(window.location.search).get('sharedStage') === '1'
+
 const TRANSFER_EVENTS = { update: 'transfer_update', done: 'transfer_complete' }
 
 function App() {
@@ -38,15 +40,28 @@ function App() {
   const [workflowId, setWorkflowId] = useState<string | null>(null)
   const [isTransferring, setIsTransferring] = useState(false)
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS)
+  const [executionScenario, setExecutionScenario] = useState<Settings['scenario']>('happy_path')
   const [temporalUi, setTemporalUi] = useState<TemporalUiInfo | null>(null)
   const [temporalWorkflowUrl, setTemporalWorkflowUrl] = useState<string | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [codeLanguage, setCodeLanguage] = useCodeLanguage()
 
-  const { events, finalStatus, reset: resetEvents } = useLiveEvents<TransferEvent>(
+  const { events, finalStatus, state: streamState, reset: resetEvents } = useLiveEvents<TransferEvent>(
     transferId ? `/banking/api/transfers/${transferId}/events` : null,
     TRANSFER_EVENTS,
   )
+
+  useEffect(() => {
+    if (window.parent === window) return
+    const current = events.filter(event => event.transfer_id === transferId)
+    const approval = current.findLast(event => event.step === 'approval_wait')
+    const latest = approval?.status === 'running' ? approval : current.at(-1)
+    window.parent.postMessage({
+      type: 'booth:money-execution', transferId, scenario: executionScenario,
+      step: latest?.step ?? null, status: latest?.status ?? null, attempt: latest?.attempt ?? 0,
+      finalStatus: latest ? finalStatus : null, streamState,
+    }, window.location.origin)
+  }, [transferId, events, finalStatus, executionScenario, streamState])
 
   useEffect(() => {
     fetch('/banking/api/settings')
@@ -102,6 +117,7 @@ function App() {
         }),
       })
       const data = (await res.json()) as CreateTransferResponse
+      setExecutionScenario(settings.scenario)
       setTransferId(data.transfer_id)
       setWorkflowId(data.workflow_id || null)
       setTemporalWorkflowUrl(data.temporal_ui_url || null)
@@ -109,7 +125,7 @@ function App() {
     } finally {
       setIsTransferring(false)
     }
-  }, [fromAccount, toAccount, amount])
+  }, [fromAccount, toAccount, amount, settings.scenario])
 
   const renderPhoneContent = () => {
     switch (screen) {
@@ -181,10 +197,11 @@ function App() {
           </button>
         </nav>
         <div className="topbar-actions">
+          {SHARED_STAGE && <label className="booth-scenario field"><span>Scenario</span><select value={settings.scenario} onChange={event=>void handleSaveSettings({...settings,scenario:event.target.value as Settings['scenario']})}>{SCENARIOS.map(item=><option key={item.value} value={item.value}>{item.label}</option>)}</select></label>}
           <button
             type="button"
             onClick={() => setSettingsOpen(true)}
-            className="button small secondary ultraviolet"
+            className="button small secondary ultraviolet booth-scenario-dialog"
             aria-haspopup="dialog"
           >
             Scenario: {scenarioLabel}
@@ -194,7 +211,7 @@ function App() {
             target="_blank"
             rel="noreferrer"
             aria-disabled={temporalUi?.namespace_url ? undefined : true}
-            className="button small secondary green"
+            className="button small secondary green booth-temporal-summary"
             title={
               temporalUi
                 ? `Open ${temporalUi.namespace} in the Temporal UI`
@@ -226,13 +243,11 @@ function App() {
                       </div>
                       <PaneCollapseButton />
                     </div>
-                    <PhoneFrame
+                    {SHARED_STAGE ? <div className="booth-banking-product">{renderPhoneContent()}</div> : <PhoneFrame
                       chrome="var(--space-black)"
                       background="var(--space-black)"
                       foreground="var(--off-white)"
-                    >
-                      {renderPhoneContent()}
-                    </PhoneFrame>
+                    >{renderPhoneContent()}</PhoneFrame>}
                   </div>
                 ),
               },

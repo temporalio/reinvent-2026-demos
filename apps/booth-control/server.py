@@ -1,4 +1,10 @@
-"""Private-LAN booth availability and display settings, with durable revisions."""
+"""Booth availability and display settings, with durable revisions.
+
+Local runs keep them in SQLite on a Docker volume (Store). The hosted hub keeps
+them in the DynamoDB table Fieldkit provisions from spec.aws (DynamoStore,
+selected by CONTROL_TABLE), because a container's own files do not survive a
+restart or a rollout.
+"""
 from __future__ import annotations
 
 from contextlib import closing, contextmanager
@@ -22,11 +28,11 @@ from zoneinfo import ZoneInfo
 
 DEMO_IDS = frozenset({
     'tacos', 'money-transfer', 'data-pipeline', 'loan', 'no-roads',
-    'agent-harness', 'agentic-sdlc', 'flight-simulator', 'photo-booth',
+    'agent-harness', 'agentic-sdlc', 'flight-simulator', 'photo-booth', 'agentcore-video', 'agentcore-research',
 })
 STATION_IDS = ('1', '2', '3', '4')
-DEFAULT_DISPLAY = {'width': 90, 'height': 78, 'x': 0, 'y': 0, 'zoom': 100}
-DISPLAY_BOUNDS = {'width': (40, 100), 'height': (30, 100), 'x': (-7680, 7680), 'y': (-7680, 7680), 'zoom': (50, 150)}
+DEFAULT_DISPLAY = {'width': 90, 'height': 78, 'x': 0, 'y': 0, 'zoom': 100, 'temporal_ui_zoom': 100}
+DISPLAY_BOUNDS = {'width': (40, 100), 'height': (30, 100), 'x': (-7680, 7680), 'y': (-7680, 7680), 'zoom': (50, 150), 'temporal_ui_zoom': (70, 130)}
 COOKIE_NAME = 'booth_control_session'
 SESSION_SECONDS = 8 * 60 * 60
 MAX_BODY_BYTES = 16 * 1024
@@ -45,13 +51,32 @@ def timestamp(now):
 
 def default_config():
     return {
-        'global': {'demo_enabled': {}, 'network_mode': 'online'},
+        'global': {'demo_enabled': {}, 'network_mode': 'online', 'display': dict(DEFAULT_DISPLAY)},
         'stations': {
             station: {'label': f'Mac Mini {station}', 'overrides': {'demo_enabled': {}},
-                      'display': dict(DEFAULT_DISPLAY), 'last_seen': None}
+                      'display': {}, 'last_seen': None}
             for station in STATION_IDS
         },
     }
+
+
+def normalized_config(config):
+    """Migrate old full station geometry into overrides, preserving custom values."""
+    legacy = 'display' not in config['global']
+    config['global']['display'] = {**DEFAULT_DISPLAY, **config['global'].get('display', {})}
+    if legacy:
+        for row in config['stations'].values():
+            row['display'] = {key: value for key, value in row['display'].items()
+                              if value != DEFAULT_DISPLAY.get(key)}
+    return config
+
+
+def public_config(config):
+    config = normalized_config(config)
+    for row in config['stations'].values():
+        row['display_overrides'] = dict(row['display'])
+        row['display'] = {**config['global']['display'], **row['display']}
+    return config
 
 
 def token_hash(token):
@@ -97,7 +122,7 @@ class Store:
 
     def _snapshot(self, db, token, now):
         revision, payload = db.execute('SELECT revision,payload FROM config WHERE id=1').fetchone()
-        result = json.loads(payload)
+        result = public_config(json.loads(payload))
         for station, seen in db.execute('SELECT station,last_seen FROM presence'):
             if station in result['stations']:
                 result['stations'][station]['last_seen'] = seen
@@ -133,12 +158,122 @@ class Store:
             current_revision, payload = db.execute('SELECT revision,payload FROM config WHERE id=1').fetchone()
             if revision != current_revision:
                 raise ApiError(409, 'stale_revision', 'Settings changed elsewhere. Review the current settings before saving.', state=self._snapshot(db, token, now))
-            config = json.loads(payload)
+            config = normalized_config(json.loads(payload))
             updated = deepcopy(config)
             mutate(updated)
             if config != updated:
                 db.execute('UPDATE config SET revision=revision+1,payload=? WHERE id=1', (json.dumps(updated, allow_nan=False),))
             return self._snapshot(db, token, now)
+
+
+class StorageUnavailable(OSError):
+    """The settings store could not be read or written."""
+
+
+class DynamoStore:
+    """Store's transactions on one DynamoDB table with string hash key pk.
+
+    Items: pk "config" (revision, payload), "presence#<station>" (last_seen) and
+    "session#<token hash>" (expires, plus expires_at for DynamoDB TTL). A save
+    is a put conditioned on the revision it read, so concurrent saves have one
+    winner, as Store's BEGIN IMMEDIATE gives locally.
+    """
+    def __init__(self, table, client):
+        from botocore.exceptions import BotoCoreError, ClientError
+        self.table, self.client = table, client
+        self._errors, self._client_error = (BotoCoreError, ClientError), ClientError
+        try:
+            self._call('put_item', Item={'pk': {'S': 'config'}, 'revision': {'N': '0'}, 'payload': {'S': json.dumps(default_config())}},
+                       ConditionExpression='attribute_not_exists(pk)')
+        except _ConditionFailed:
+            pass
+
+    def _call(self, operation, **kwargs):
+        try:
+            return getattr(self.client, operation)(TableName=self.table, **kwargs)
+        except self._client_error as error:
+            if error.response.get('Error', {}).get('Code') == 'ConditionalCheckFailedException':
+                raise _ConditionFailed() from None
+            raise StorageUnavailable(f'DynamoDB {operation} on {self.table}: {error}') from error
+        except self._errors as error:
+            raise StorageUnavailable(f'DynamoDB {operation} on {self.table}: {error}') from error
+
+    def _get(self, pk):
+        return self._call('get_item', Key={'pk': {'S': pk}}, ConsistentRead=True).get('Item')
+
+    def _config(self):
+        item = self._get('config')
+        if not item:
+            raise StorageUnavailable(f'DynamoDB table {self.table} has no config item')
+        return int(item['revision']['N']), item['payload']['S']
+
+    def _authenticated(self, token, now):
+        if not token:
+            return False
+        key = 'session#' + token_hash(token)
+        item = self._get(key)
+        if not item:
+            return False
+        if float(item['expires']['N']) <= now:
+            # TTL deletes it eventually; do it now so it is gone at once.
+            self._call('delete_item', Key={'pk': {'S': key}})
+            return False
+        return True
+
+    def _snapshot(self, token, now):
+        revision, payload = self._config()
+        result = public_config(json.loads(payload))
+        keys = [{'pk': {'S': 'presence#' + station}} for station in STATION_IDS]
+        try:
+            response = self.client.batch_get_item(RequestItems={self.table: {'Keys': keys, 'ConsistentRead': True}})
+        except self._errors as error:
+            raise StorageUnavailable(f'DynamoDB batch_get_item on {self.table}: {error}') from error
+        for item in response.get('Responses', {}).get(self.table, []):
+            station = item['pk']['S'].split('#', 1)[1]
+            if station in result['stations']:
+                result['stations'][station]['last_seen'] = item['last_seen']['S']
+        return {'revision': revision, **result, 'authenticated': self._authenticated(token, now), 'server_time': timestamp(now)}
+
+    def state(self, token, now, station=None):
+        if station:
+            self._call('put_item', Item={'pk': {'S': 'presence#' + station}, 'last_seen': {'S': timestamp(now)}})
+        return self._snapshot(token, now)
+
+    def login(self, token, old_token, now):
+        if old_token:
+            self._call('delete_item', Key={'pk': {'S': 'session#' + token_hash(old_token)}})
+        expires = now + SESSION_SECONDS
+        self._call('put_item', Item={'pk': {'S': 'session#' + token_hash(token)}, 'expires': {'N': repr(expires)}, 'expires_at': {'N': str(math.ceil(expires))}})
+        return self._snapshot(token, now)
+
+    def logout(self, token, now):
+        if token:
+            self._call('delete_item', Key={'pk': {'S': 'session#' + token_hash(token)}})
+        return self._snapshot('', now)
+
+    def patch(self, revision, mutate, token, now):
+        if not self._authenticated(token, now):
+            raise ApiError(401, 'authentication_required', 'Enter the station PIN before saving settings.')
+        current_revision, payload = self._config()
+        stale = ApiError(409, 'stale_revision', 'Settings changed elsewhere. Review the current settings before saving.')
+        if revision != current_revision:
+            stale.state = self._snapshot(token, now)
+            raise stale
+        config = normalized_config(json.loads(payload))
+        updated = deepcopy(config)
+        mutate(updated)
+        if config != updated:
+            try:
+                self._call('put_item', Item={'pk': {'S': 'config'}, 'revision': {'N': str(current_revision + 1)}, 'payload': {'S': json.dumps(updated, allow_nan=False)}},
+                           ConditionExpression='revision = :read', ExpressionAttributeValues={':read': {'N': str(current_revision)}})
+            except _ConditionFailed:
+                stale.state = self._snapshot(token, now)
+                raise stale from None
+        return self._snapshot(token, now)
+
+
+class _ConditionFailed(Exception):
+    """A DynamoDB conditional write lost to another write."""
 
 
 class PinLimiter:
@@ -192,17 +327,30 @@ def apply_demos(target, patch):
             target[name] = value
 
 
+def validate_display(display, *, inherit=False):
+    object_fields(display, DISPLAY_BOUNDS, 'Display settings')
+    for key, value in display.items():
+        if inherit and value is None:
+            continue
+        low, high = DISPLAY_BOUNDS[key]
+        if type(value) not in (int, float) or not low <= value <= high or not math.isfinite(value):
+            raise ApiError(422, 'invalid_settings', f'{key} must be a finite number between {low} and {high}.')
+
+
 def global_mutation(body):
     object_fields(body, {'revision', 'settings'}, 'Request')
     revision = revision_of(body)
     settings = body.get('settings')
-    object_fields(settings, {'demo_enabled', 'network_mode'}, 'Global settings')
+    object_fields(settings, {'demo_enabled', 'network_mode', 'display'}, 'Global settings')
     if 'demo_enabled' in settings:
         validate_demos(settings['demo_enabled'])
     if 'network_mode' in settings and settings['network_mode'] not in ('online', 'offline'):
         raise ApiError(422, 'invalid_settings', 'Global network mode must be online or offline.')
+    if 'display' in settings:
+        validate_display(settings['display'])
     def mutate(config):
         target = config['global']
+        target['display'].update(settings.get('display', {}))
         if 'demo_enabled' in settings:
             apply_demos(target['demo_enabled'], settings['demo_enabled'])
         if 'network_mode' in settings:
@@ -224,11 +372,7 @@ def station_mutation(body, station):
     if 'network_mode' in overrides and overrides['network_mode'] not in (None, 'online', 'offline'):
         raise ApiError(422, 'invalid_settings', 'Station network mode must be online, offline, or null to inherit.')
     display = body.get('display', {})
-    object_fields(display, DISPLAY_BOUNDS, 'Display settings')
-    for key, value in display.items():
-        low, high = DISPLAY_BOUNDS[key]
-        if type(value) not in (int, float) or not low <= value <= high or not math.isfinite(value):
-            raise ApiError(422, 'invalid_settings', f'{key} must be a finite number between {low} and {high}.')
+    validate_display(display, inherit=True)
     def mutate(config):
         target = config['stations'][station]
         if 'label' in body:
@@ -240,7 +384,11 @@ def station_mutation(body, station):
                 target['overrides'].pop('network_mode', None)
             else:
                 target['overrides']['network_mode'] = overrides['network_mode']
-        target['display'].update(display)
+        for key, value in display.items():
+            if value is None:
+                target['display'].pop(key, None)
+            else:
+                target['display'][key] = value
     return revision, mutate
 
 
@@ -264,6 +412,10 @@ class ControlServer(ThreadingHTTPServer):
         self.store, self.clock = store, clock
         self.pin_timezone = ZoneInfo(timezone_name)
         self.pin_limiter = PinLimiter()
+        self.machines = None
+        if os.environ.get('CONTROL_MACHINE_CONTROL') == '1' and isinstance(store, Store):
+            from machines import Machines
+            self.machines = Machines(Path(store.filename).parent)
         super().__init__(address, Handler)
 
 
@@ -378,7 +530,30 @@ class Handler(BaseHTTPRequestHandler):
             self.fail(ApiError(503, 'storage_unavailable', 'Settings storage is unavailable. Try again shortly.'))
 
     def do_POST(self):
-        self.write_request('POST')
+        if self.path.startswith('/control-api/machines/'):
+            self.machine_request()
+        else:
+            self.write_request('POST')
+
+    def machine_request(self):
+        from machines import MachineError
+        service = getattr(self.server, 'machines', None)
+        if service is None:
+            self.fail(ApiError(404, 'not_enabled', 'Machine control is available on the laptop LAN hub only.'))
+            return
+        try:
+            # Operator requests originate in the laptop's same-origin UI; signed
+            # native polls intentionally need no browser cookie or Origin header.
+            if self.path == '/control-api/machines/operator':
+                self.require_origin()
+            envelope = self.read_body()
+            self.json_response(200, service.handle(self.path, envelope, self.server.clock()))
+        except MachineError as error:
+            self.fail(ApiError(error.status, 'machine_control', error.message))
+        except ApiError as error:
+            self.fail(error)
+        except (OSError, sqlite3.Error):
+            self.fail(ApiError(503, 'storage_unavailable', 'Machine control storage is unavailable.'))
 
     def do_PATCH(self):
         self.write_request('PATCH')
@@ -425,8 +600,21 @@ class Handler(BaseHTTPRequestHandler):
             self.fail(ApiError(503, 'storage_unavailable', 'Settings storage is unavailable. Try again shortly.'))
 
 
+def make_store():
+    table = os.environ.get('CONTROL_TABLE', '').strip()
+    if not table:
+        return Store(os.environ.get('CONTROL_DB', '/data/control.sqlite3'))
+    import boto3
+    from botocore.config import Config
+    # Region and credentials come from the environment (Fieldkit sets
+    # AWS_REGION; EKS Pod Identity supplies the credentials). Short timeouts:
+    # the launchpad gives up on a request after 4 seconds.
+    config = Config(connect_timeout=2, read_timeout=3, retries={'mode': 'standard', 'max_attempts': 2})
+    return DynamoStore(table, boto3.client('dynamodb', config=config))
+
+
 def main():
-    store = Store(os.environ.get('CONTROL_DB', '/data/control.sqlite3'))
+    store = make_store()
     server = ControlServer(
         (os.environ.get('CONTROL_LISTEN_ADDRESS', '127.0.0.1'), int(os.environ.get('CONTROL_PORT', '8090'))),
         store, timezone_name=os.environ.get('CONTROL_TIMEZONE', 'America/Denver'),

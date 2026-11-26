@@ -95,7 +95,7 @@ def test_workflow_id_carries_task_queue_and_a_session_tag_not_the_session_id(tem
 
     session_id = alice.cookies[routes.SESSION_COOKIE]
     tag = sessions.resume_or_start(session_id).tag
-    assert started["workflow_id"] == f"transfer-MoneyTransfer-ws42-{tag}-{started['transfer_id']}"
+    assert started["workflow_id"] == f"moneytransfer-MoneyTransfer-ws42-{tag}-{started['transfer_id']}"
     assert session_id not in started["workflow_id"]
     assert temporal.started[0]["task_queue"] == "MoneyTransfer-ws42"
 

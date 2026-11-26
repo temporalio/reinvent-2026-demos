@@ -8,7 +8,6 @@ import { KitchenDisplay } from './components/KitchenDisplay'
 import { Menu } from './components/Menu'
 import { OrderTracker } from './components/OrderTracker'
 import { SettingsModal } from './components/SettingsModal'
-import { pathLabel } from './data/scenarios'
 import { useSSE } from './hooks/useSSE'
 import temporalLogo from './kit/brand/temporal-logo.svg'
 import type {
@@ -42,6 +41,17 @@ function App() {
   const [settingsOpen, setSettingsOpen] = useState(false)
 
   const { events, finalStatus, interrupted, reset: resetSSE } = useSSE(orderId)
+
+  // Report this order only; the shared panels do not infer execution from DOM text.
+  useEffect(() => {
+    if (window.parent === window) return
+    const latest = events.findLast(event => event.order_id === orderId)
+    window.parent.postMessage({
+      type: 'booth:tacos-execution', orderId, mode: settings.mode, language: settings.worker_language,
+      step: latest?.step ?? null, status: latest?.status ?? null, attempt: latest?.attempt ?? 0,
+      finalStatus, interrupted,
+    }, window.location.origin)
+  }, [orderId, events, finalStatus, interrupted, settings.mode, settings.worker_language])
 
   // Load settings from backend on mount
   useEffect(() => {
@@ -203,9 +213,7 @@ function App() {
         <p className="eyebrow">Durable orders. Across the galaxy.</p>
         <h1>ZIGGY SPACE<br className="narrow-break" /> TAQUERIA</h1>
         <div className="mission-rule"><span>ORDER / DISCONNECT / RECOVER</span><i aria-hidden="true" /></div>
-        <button className="mission-options" onClick={() => setSettingsOpen(true)} aria-haspopup="dialog" disabled={saving}>
-          {saving ? 'Saving…' : pathLabel(settings)} · Demo options
-        </button>
+
       </header>
       {(error || interrupted) && <div className="mission-notices">
       {error && <div className="mission-error" role="alert">{error}<button onClick={() => setError(null)} aria-label="Dismiss error">×</button></div>}
@@ -214,12 +222,14 @@ function App() {
       <main className="mission-workspace">
         <div className="mission-top">
           <section className="mission-panel customer-panel" aria-labelledby="customer-title">
-            <header className="panel-label"><span>01 / ORDER STATION</span><h2 id="customer-title">Your mission: tacos</h2></header>
-            <PanelViewport label="Order station"><div className="customer-app">{renderPhoneContent()}</div></PanelViewport>
+            <header className="panel-label"><span>01 / ORDER STATION</span><h2 id="customer-title">Your mobile app might look like:</h2></header>
+            <PanelViewport label="Order station"><div className="mobile-device"><div className="mobile-device-status" aria-hidden="true"><span>ORBITAL NETWORK</span><i /><span>▮▮▮</span></div><div className="customer-app">{renderPhoneContent()}</div><div className="mobile-device-home" aria-hidden="true"><i /></div></div></PanelViewport>
           </section>
           <section className="mission-panel kitchen-panel" aria-labelledby="kitchen-title">
-            <header className="panel-label"><span>02 / MISSION CONTROL</span><h2 id="kitchen-title">Kitchen uplink</h2></header>
-            <PanelViewport label="Kitchen uplink"><KitchenDisplay onOnlineChange={setStoreOnline} /></PanelViewport>
+            <header className="panel-label"><span>02 / MISSION CONTROL</span><h2 id="kitchen-title">Kitchen uplink</h2>        <button className="mission-options" onClick={() => setSettingsOpen(true)} aria-haspopup="dialog" disabled={saving}>
+          {saving ? 'Saving…' : 'Demo Options'}
+        </button></header>
+            <PanelViewport label="Kitchen uplink"><KitchenDisplay onOnlineChange={setStoreOnline} activeOrderId={orderId} /></PanelViewport>
           </section>
         </div>
         <MissionInsights events={events} finalStatus={finalStatus} settings={settings} workflowId={workflowId}

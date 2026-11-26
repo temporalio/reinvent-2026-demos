@@ -123,7 +123,7 @@ async def main() -> None:
 
     client = await _connect_temporal_client()
 
-    workflow_id = f"loan-{applicant.id}-{generate(size=6)}"
+    workflow_id = f"loanunderwriting-{applicant.id}-{generate(size=6)}"
     handle = await client.start_workflow(
         LoanUnderwritingWorkflow.run,
         applicant,

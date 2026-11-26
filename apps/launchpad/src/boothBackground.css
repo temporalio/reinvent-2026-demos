@@ -1,0 +1,15 @@
+.launchpad { isolation:isolate; position:relative; background:var(--surface-page); }
+.booth-background { position:fixed; inset:0; overflow:hidden; z-index:-1; pointer-events:none; background:#171719; }
+.booth-background > * { position:absolute; pointer-events:none; }
+/* Positions are normalized from Figma's shared 1080 × 1920 frame. */
+.booth-stars { inset:0; width:100%; height:100%; object-fit:contain; }
+.booth-glow { top:0; left:41.7593%; width:58.2407%; height:32.6892%; }
+.booth-grid { left:-8.0556%; top:-12.5521%; width:116.1111%; height:125.1042%; object-fit:cover; opacity:.03; }
+.booth-orbit { left:-27.6159%; top:-16.2904%; width:287.7144%; height:89.1179%; transform-origin:0 0; transform:matrix(.9055917,.4241504,-.4241504,.9055917,0,0); }
+.booth-orbit img { display:block; width:100%; height:auto; }
+.booth-ground { left:102.9181%; top:81.6146%; width:57.7663%; height:18.2873%; object-fit:cover; transform-origin:0 0; transform:matrix(-.9801863,.198078,.198078,.9801863,0,0); }
+.launchpad main.station-surface-browse { background:#08090d40; }
+.customer-marquee { background:transparent; }
+.launchpad > footer { position:relative; background:#17171988; }
+.ziggy-settings { padding:.15rem; }
+.ziggy-settings img { width:3rem; height:3rem; object-fit:contain; }

@@ -3,7 +3,7 @@ WORKDIR /ui
 COPY ui/package.json ui/package-lock.json ./
 RUN npm ci
 COPY ui/ ./
-RUN npm run build
+RUN npm run check && npm run build
 
 FROM ghcr.io/astral-sh/uv:0.12.19 AS uv
 FROM python:3.13-slim

@@ -18,7 +18,9 @@ async def get_client() -> Client:
 
     tls_cert = os.getenv("TEMPORAL_MTLS_TLS_CERT")
     tls_key = os.getenv("TEMPORAL_MTLS_TLS_KEY")
-    host_url = os.getenv("TEMPORAL_HOST_URL")
+    # Fieldkit injects the Cloud endpoint as TEMPORAL_ADDRESS; TEMPORAL_HOST_URL
+    # (local runs, .env files) wins when set.
+    host_url = os.getenv("TEMPORAL_HOST_URL") or os.getenv("TEMPORAL_ADDRESS")
     namespace = os.getenv("TEMPORAL_NAMESPACE")
 
     api_key = os.getenv("TEMPORAL_API_KEY")

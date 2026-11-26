@@ -22,8 +22,15 @@ load_dotenv(ROOT / ".env", override=False)
 class Settings:
     temporal_address: str = os.getenv("TEMPORAL_ADDRESS", "localhost:7233")
     temporal_namespace: str = os.getenv("TEMPORAL_NAMESPACE", "default")
+    # Workflow links: the UI base and qualified namespace Fieldkit injects (the local
+    # preview sets both too). TEMPORAL_NAMESPACE can differ from the UI's namespace.
+    temporal_ui_url: str | None = os.getenv("TEMPORAL_UI_URL") or None
+    temporal_ui_namespace: str | None = os.getenv("TEMPORAL_UI_NAMESPACE") or None
     temporal_api_key: str | None = os.getenv("TEMPORAL_API_KEY") or None
     station: str = os.getenv("HOLODECK_STATION", "laptop")
+    # S3 bucket that holds every workflow payload (temporal_client.payload_storage);
+    # Fieldkit provisions it from spec.aws. Unset: payloads stay in history.
+    payload_bucket: str | None = os.getenv("PAYLOAD_BUCKET") or None
 
     # mock | bedrock | openai. Unset = openai when OPENAI_API_KEY is present, else mock.
     image_provider: str = os.getenv("HOLODECK_IMAGE_PROVIDER") or ("openai" if os.getenv("OPENAI_API_KEY") else "mock")
@@ -37,12 +44,16 @@ class Settings:
     agentcore_runtime_arn: str | None = os.getenv("HOLODECK_AGENTCORE_RUNTIME_ARN") or None
     openai_api_key: str | None = os.getenv("OPENAI_API_KEY") or None
     # Photo booth image edits (see docs/photobooth.md for why flare + medium).
-    openai_image_model: str = os.getenv("HOLODECK_OPENAI_IMAGE_MODEL", "gpt-image-2.5-flare")
+    # gpt-image-2.6-flare: OpenAI's newest fast image model (the edit endpoint lists it next to
+    # 2.6-sunburst, its precision model). Set HOLODECK_OPENAI_IMAGE_MODEL to go back to 2.5-flare.
+    openai_image_model: str = os.getenv("HOLODECK_OPENAI_IMAGE_MODEL", "gpt-image-2.6-flare")
     openai_image_quality: str = os.getenv("HOLODECK_OPENAI_IMAGE_QUALITY", "medium")
     openai_image_size: str = os.getenv("HOLODECK_OPENAI_IMAGE_SIZE", "1536x1024")
-    # Likeness to the reference photo: "high" (default; new poses cost likeness) | "low" | "" to omit.
-    # gpt-image-2.5-* support it; gpt-image-2 ignores it.
-    openai_input_fidelity: str | None = os.getenv("HOLODECK_OPENAI_INPUT_FIDELITY", "high") or None
+    # Likeness to the reference photo: "high" | "low" | unset or "" to omit (the default).
+    # Only for a model that accepts it: OpenAI answers 400 "does not support the
+    # 'input_fidelity' parameter" for gpt-image-2.5-flare, and OpenAI documents it only for
+    # gpt-image-1.5 and gpt-image-1-mini.
+    openai_input_fidelity: str | None = os.getenv("HOLODECK_OPENAI_INPUT_FIDELITY") or None
     # inspired = new cinematic scene featuring someone who looks like the visitor; photo = edit their photo.
     photobooth_style: str = os.getenv("HOLODECK_PHOTOBOOTH_STYLE", "inspired")
     # auto (default, stricter) | low

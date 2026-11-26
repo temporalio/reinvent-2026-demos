@@ -1,4 +1,4 @@
-"""Exercise the real HTTP API, SQLite persistence, and concurrent writes."""
+"""Exercise the real HTTP API, SQLite and DynamoDB persistence, and concurrent writes."""
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from datetime import datetime, timezone
@@ -11,7 +11,9 @@ import tempfile
 import threading
 import unittest
 
-from server import COOKIE_NAME, ControlServer, DEFAULT_DISPLAY, MAX_BODY_BYTES, SESSION_SECONDS, Store
+from botocore.exceptions import ClientError
+
+from server import COOKIE_NAME, ControlServer, DEFAULT_DISPLAY, DynamoStore, MAX_BODY_BYTES, SESSION_SECONDS, Store, StorageUnavailable
 
 
 class Clock:
@@ -32,10 +34,17 @@ class ControlHttpTests(unittest.TestCase):
         self.addCleanup(self.stop_server)
 
     def start_server(self):
-        self.server = ControlServer(('127.0.0.1', 0), Store(self.database), clock=self.clock)
+        self.server = ControlServer(('127.0.0.1', 0), self.make_store(), clock=self.clock)
         self.thread = threading.Thread(target=self.server.serve_forever, kwargs={'poll_interval': .01}, daemon=True)
         self.thread.start()
         self.port = self.server.server_address[1]
+
+    def make_store(self):
+        return Store(self.database)
+
+    def session_hashes(self):
+        with closing(sqlite3.connect(self.database)) as db:
+            return [row[0] for row in db.execute('SELECT token_hash FROM sessions')]
 
     def stop_server(self):
         if self.server:
@@ -72,12 +81,117 @@ class ControlHttpTests(unittest.TestCase):
         parsed.load(headers['Set-Cookie'])
         return f'{COOKIE_NAME}={parsed[COOKIE_NAME].value}'
 
+    def test_workflow_zoom_is_station_specific_and_survives_restart(self):
+        cookie = self.login()
+        status, state, _ = self.request('PATCH', '/control-api/stations/2', {
+            'revision': 0, 'display': {'temporal_ui_zoom': 80},
+        }, cookie=cookie)
+        self.assertEqual(status, 200)
+        self.assertEqual(state['stations']['2']['display']['temporal_ui_zoom'], 80)
+        self.assertEqual(state['stations']['2']['display']['zoom'], 100)
+        self.assertEqual(state['stations']['1']['display']['temporal_ui_zoom'], 100)
+        self.stop_server()
+        self.start_server()
+        status, restored, _ = self.request('GET', '/control-api/state?station=2')
+        self.assertEqual(status, 200)
+        self.assertEqual(restored['stations']['2']['display']['temporal_ui_zoom'], 80)
+        for value in (69, 131, True, '80'):
+            self.assertEqual(self.request('PATCH', '/control-api/stations/2', {
+                'revision': 1, 'display': {'temporal_ui_zoom': value},
+            }, cookie=cookie)[0], 422)
+
+    def test_old_display_records_get_default_zoom_without_losing_geometry(self):
+        store = self.server.store
+        store.login('zoom-test', None, self.clock())
+        def legacy(config):
+            config['global'].pop('display')
+            for row in config['stations'].values():
+                row['display'] = dict(DEFAULT_DISPLAY)
+                row['display'].pop('temporal_ui_zoom')
+            config['stations']['3']['display']['width'] = 82
+        store.patch(0, legacy, 'zoom-test', self.clock())
+        self.stop_server()
+        self.start_server()
+        status, state, _ = self.request('GET', '/control-api/state?station=3')
+        self.assertEqual(status, 200)
+        self.assertEqual(state['revision'], 1)
+        self.assertEqual(state['stations']['3']['display']['width'], 82)
+        self.assertEqual(state['stations']['3']['display']['temporal_ui_zoom'], 100)
+
+    def test_global_display_defaults_station_override_and_inherit(self):
+        cookie = self.login()
+        defaults = {'width': 94, 'height': 72, 'x': 25, 'y': -30, 'zoom': 110, 'temporal_ui_zoom': 90}
+        status, state, _ = self.request('PATCH', '/control-api/global', {
+            'revision': 0, 'settings': {'display': defaults},
+        }, cookie=cookie)
+        self.assertEqual(status, 200)
+        for row in state['stations'].values():
+            self.assertEqual(row['display'], defaults)
+            self.assertEqual(row['display_overrides'], {})
+        status, state, _ = self.request('PATCH', '/control-api/stations/2', {
+            'revision': 1, 'display': {'width': 80, 'temporal_ui_zoom': 70},
+        }, cookie=cookie)
+        self.assertEqual(status, 200)
+        status, state, _ = self.request('PATCH', '/control-api/global', {
+            'revision': 2, 'settings': {'display': {'width': 96, 'height': 74, 'temporal_ui_zoom': 80}},
+        }, cookie=cookie)
+        self.assertEqual(status, 200)
+        self.assertEqual(state['stations']['1']['display']['width'], 96)
+        self.assertEqual(state['stations']['2']['display']['width'], 80)
+        self.assertEqual(state['stations']['2']['display']['height'], 74)
+        self.assertEqual(state['stations']['2']['display']['temporal_ui_zoom'], 70)
+        status, state, _ = self.request('PATCH', '/control-api/stations/2', {
+            'revision': 3, 'display': {'width': None, 'temporal_ui_zoom': None},
+        }, cookie=cookie)
+        self.assertEqual(status, 200)
+        self.assertEqual(state['stations']['2']['display_overrides'], {})
+        self.stop_server()
+        self.start_server()
+        restored = self.request('GET', '/control-api/state')[1]
+        self.assertEqual(restored['stations']['2']['display'], restored['global']['display'])
+
+    def test_explicit_override_equal_to_global_stays_pinned(self):
+        cookie = self.login()
+        self.request('PATCH', '/control-api/global', {'revision': 0, 'settings': {'display': {'width': 88}}}, cookie=cookie)
+        self.request('PATCH', '/control-api/stations/1', {'revision': 1, 'display': {'width': 88}}, cookie=cookie)
+        status, state, _ = self.request('PATCH', '/control-api/global', {'revision': 2, 'settings': {'display': {'width': 94}}}, cookie=cookie)
+        self.assertEqual(status, 200)
+        self.assertEqual(state['stations']['1']['display']['width'], 88)
+        self.assertEqual(state['stations']['2']['display']['width'], 94)
+
+    def test_global_display_rejects_inherit_and_invalid_values(self):
+        cookie = self.login()
+        for display in ({'width': None}, {'height': 101}, {'zoom': True}, {'temporal_ui_zoom': 69}, {'x': 9000}):
+            with self.subTest(display=display):
+                self.assertEqual(self.request('PATCH', '/control-api/global', {
+                    'revision': 0, 'settings': {'display': display},
+                }, cookie=cookie)[0], 422)
+
+    def test_legacy_custom_geometry_remains_an_override(self):
+        store = self.server.store
+        store.login('legacy-test', None, self.clock())
+        def legacy(config):
+            config['global'].pop('display')
+            for row in config['stations'].values():
+                row['display'] = dict(DEFAULT_DISPLAY)
+            config['stations']['1']['display'].update(width=82, x=20)
+        store.patch(0, legacy, 'legacy-test', self.clock())
+        cookie = self.login()
+        status, state, _ = self.request('PATCH', '/control-api/global', {
+            'revision': 1, 'settings': {'display': {'width': 95, 'zoom': 110}},
+        }, cookie=cookie)
+        self.assertEqual(status, 200)
+        self.assertEqual(state['stations']['1']['display_overrides'], {'width': 82, 'x': 20})
+        self.assertEqual(state['stations']['1']['display']['width'], 82)
+        self.assertEqual(state['stations']['1']['display']['zoom'], 110)
+        self.assertEqual(state['stations']['2']['display']['width'], 95)
+
     def test_defaults_presence_and_no_cors(self):
         status, state, headers = self.request('GET', '/control-api/state?station=1')
         self.assertEqual(status, 200)
         self.assertEqual(state['revision'], 0)
         self.assertFalse(state['authenticated'])
-        self.assertEqual(state['global'], {'demo_enabled': {}, 'network_mode': 'online'})
+        self.assertEqual(state['global'], {'demo_enabled': {}, 'network_mode': 'online', 'display': DEFAULT_DISPLAY})
         self.assertEqual(set(state['stations']), {'1', '2', '3', '4'})
         self.assertEqual(state['stations']['1']['display'], DEFAULT_DISPLAY)
         self.assertEqual(state['stations']['1']['last_seen'], state['server_time'])
@@ -106,8 +220,7 @@ class ControlHttpTests(unittest.TestCase):
         self.assertTrue(self.request('GET', '/control-api/state', cookie=cookie)[1]['authenticated'])
         self.clock.value += SESSION_SECONDS + 1
         self.assertFalse(self.request('GET', '/control-api/state', cookie=cookie)[1]['authenticated'])
-        with closing(sqlite3.connect(self.database)) as db:
-            self.assertEqual(db.execute('SELECT count(*) FROM sessions').fetchone()[0], 0)
+        self.assertEqual(self.session_hashes(), [])
         # A fresh login is on the same local date after this eight-hour advance.
         cookie = self.login()
         status, state, headers = self.request('POST', '/control-api/logout', {}, cookie=cookie)
@@ -123,6 +236,20 @@ class ControlHttpTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertIn('; Secure', headers['Set-Cookie'])
         self.assertEqual(self.request('POST', '/control-api/login', {'pin': '1130'}, origin='https://station.local', headers={'Host': 'station.local', 'X-Forwarded-Proto': 'http'})[0], 403)
+
+    def test_agentcore_availability_can_be_saved_for_each_station(self):
+        cookie = self.login()
+        status, state, _ = self.request('PATCH', '/control-api/global', {
+            'revision': 0, 'settings': {'demo_enabled': {'agentcore-video': False, 'agentcore-research': True}},
+        }, cookie=cookie)
+        self.assertEqual(status, 200)
+        self.assertFalse(state['global']['demo_enabled']['agentcore-video'])
+        status, state, _ = self.request('PATCH', '/control-api/stations/4', {
+            'revision': 1, 'overrides': {'demo_enabled': {'agentcore-video': True, 'agentcore-research': False}},
+        }, cookie=cookie)
+        self.assertEqual(status, 200)
+        self.assertEqual(state['stations']['4']['overrides']['demo_enabled'], {'agentcore-video': True, 'agentcore-research': False})
+        self.assertEqual(state['stations']['1']['overrides']['demo_enabled'], {})
 
     def test_authenticated_overrides_and_inheritance(self):
         request = {'revision': 0, 'settings': {'demo_enabled': {'photo-booth': False}, 'network_mode': 'offline'}}
@@ -186,8 +313,7 @@ class ControlHttpTests(unittest.TestCase):
         self.assertEqual(state['stations']['3']['display']['y'], 250)
         self.assertIsNotNone(state['stations']['3']['last_seen'])
         self.assertTrue(state['authenticated'])
-        with closing(sqlite3.connect(self.database)) as db:
-            saved_hash = db.execute('SELECT token_hash FROM sessions').fetchone()[0]
+        (saved_hash,) = self.session_hashes()
         self.assertNotIn(cookie.split('=', 1)[1], saved_hash)
 
     def test_strict_schema_and_bounds_reject_partial_writes(self):
@@ -237,3 +363,90 @@ class ControlHttpTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class FakeDynamo:
+    """The DynamoDB client calls DynamoStore makes, on one in-memory table.
+
+    It enforces the two condition expressions DynamoStore writes with, so the
+    concurrency and first-start behavior is the real store's.
+    """
+    def __init__(self, table='control'):
+        self.table, self.items, self.lock = table, {}, threading.Lock()
+        self.fail = None
+
+    def _check(self, TableName):
+        if self.fail:
+            raise ClientError({'Error': {'Code': self.fail, 'Message': 'injected'}}, 'call')
+        assert TableName == self.table, TableName
+
+    def get_item(self, TableName, Key, ConsistentRead=False):
+        self._check(TableName)
+        with self.lock:
+            item = self.items.get(Key['pk']['S'])
+            return {'Item': json.loads(json.dumps(item))} if item else {}
+
+    def put_item(self, TableName, Item, ConditionExpression=None, ExpressionAttributeValues=None):
+        self._check(TableName)
+        with self.lock:
+            current = self.items.get(Item['pk']['S'])
+            if ConditionExpression == 'attribute_not_exists(pk)':
+                ok = current is None
+            elif ConditionExpression == 'revision = :read':
+                ok = current is not None and current['revision'] == ExpressionAttributeValues[':read']
+            else:
+                assert ConditionExpression is None, ConditionExpression
+                ok = True
+            if not ok:
+                raise ClientError({'Error': {'Code': 'ConditionalCheckFailedException', 'Message': 'condition'}}, 'PutItem')
+            self.items[Item['pk']['S']] = json.loads(json.dumps(Item))
+        return {}
+
+    def delete_item(self, TableName, Key):
+        self._check(TableName)
+        with self.lock:
+            self.items.pop(Key['pk']['S'], None)
+        return {}
+
+    def batch_get_item(self, RequestItems):
+        (table, request), = RequestItems.items()
+        self._check(table)
+        with self.lock:
+            found = [json.loads(json.dumps(self.items[k['pk']['S']])) for k in request['Keys'] if k['pk']['S'] in self.items]
+        return {'Responses': {table: found}}
+
+
+class DynamoControlHttpTests(ControlHttpTests):
+    """The same HTTP behavior with the hosted DynamoDB store; a restart keeps the table."""
+    def setUp(self):
+        self.dynamo = FakeDynamo()
+        super().setUp()
+
+    def make_store(self):
+        return DynamoStore('control', self.dynamo)
+
+    def session_hashes(self):
+        return [pk.split('#', 1)[1] for pk in self.dynamo.items if pk.startswith('session#')]
+
+    def test_sessions_carry_a_ttl_attribute(self):
+        self.login()
+        (item,) = [v for k, v in self.dynamo.items.items() if k.startswith('session#')]
+        self.assertEqual(int(item['expires_at']['N']), int(self.clock.value) + SESSION_SECONDS)
+
+    def test_storage_errors_are_503_not_crashes(self):
+        self.dynamo.fail = 'ProvisionedThroughputExceededException'
+        status, payload, _ = self.request('GET', '/control-api/state?station=1')
+        self.assertEqual(status, 503)
+        self.assertEqual(payload['error'], 'storage_unavailable')
+
+    def test_a_second_start_keeps_the_saved_config(self):
+        cookie = self.login()
+        self.request('PATCH', '/control-api/global', {'revision': 0, 'settings': {'network_mode': 'offline'}}, cookie=cookie)
+        DynamoStore('control', self.dynamo)  # another replica or a restart
+        self.assertEqual(self.request('GET', '/control-api/state')[1]['global']['network_mode'], 'offline')
+
+    def test_unreachable_table_at_start_is_visible(self):
+        self.dynamo.fail = 'ResourceNotFoundException'
+        with self.assertRaises(StorageUnavailable) as raised:
+            DynamoStore('control', self.dynamo)
+        self.assertIn('control', str(raised.exception))

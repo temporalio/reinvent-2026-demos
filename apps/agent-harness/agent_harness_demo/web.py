@@ -86,6 +86,8 @@ DEV_USER = os.environ.get("DEV_USER", "local-dev")
 
 NO_STORE = {"Cache-Control": "no-store"}
 SESSION_LIST_LIMIT = 50
+STATION_COOKIE = "reinvent_travel_station"
+BOOTH_STATION_SCOPING = os.environ.get("BOOTH_STATION_SCOPING") == "true"
 # What may follow the owner prefix in a session ID the browser chooses.
 SESSION_SUFFIX = re.compile(r"[A-Za-z0-9_-]{1,64}")
 
@@ -114,13 +116,26 @@ def owner_prefix(request: Request) -> str:
             raise HTTPException(status_code=401, detail="Sign-in required")
     else:
         subject = DEV_USER
+    station = station_for(request)
+    if station is not None:
+        subject += "\0booth-station:" + station
     return prefix_for(subject)
+
+
+def station_for(request: Request) -> str | None:
+    """A booth display partition, in addition to the authenticated subject when present."""
+    station = request.query_params.get("station") or request.headers.get("X-Booth-Station") or request.cookies.get(STATION_COOKIE)
+    if station is None and not BOOTH_STATION_SCOPING:
+        return None
+    if station not in {"1", "2", "3", "4"}:
+        raise HTTPException(status_code=400, detail="Choose a booth station from 1 to 4 before opening Travel Agent.")
+    return station
 
 
 def prefix_for(subject: str) -> str:
     # A hash keeps email addresses and SSO subjects out of workflow IDs.
     owner = hashlib.sha256(subject.encode()).hexdigest()[:16]
-    return f"{config.TASK_QUEUE}.{owner}."
+    return f"travelagent-{config.TASK_QUEUE}.{owner}."
 
 
 Owner = Annotated[str, Depends(owner_prefix)]
@@ -128,7 +143,8 @@ Owner = Annotated[str, Depends(owner_prefix)]
 
 async def require_owned(temporal: Client, prefix: str, workflow_id: str) -> None:
     """Allow the caller's own sessions and the subagents those sessions started."""
-    if workflow_id.startswith(prefix):
+    owned_prefixes = (prefix, prefix.removeprefix("travelagent-"))
+    if workflow_id.startswith(owned_prefixes):
         return
     try:
         description = await temporal.get_workflow_handle(workflow_id).describe()
@@ -136,7 +152,7 @@ async def require_owned(temporal: Client, prefix: str, workflow_id: str) -> None
         if err.status != RPCStatusCode.NOT_FOUND:
             raise
     else:
-        if (description.parent_id or "").startswith(prefix):
+        if (description.parent_id or "").startswith(owned_prefixes):
             return
     # 404 rather than 403, so IDs belonging to other people aren't confirmed to exist.
     raise HTTPException(status_code=404, detail="Session not found")
@@ -192,6 +208,19 @@ def create_app() -> FastAPI:
     api = APIRouter()
 
     @app.middleware("http")
+    async def remember_station(request: Request, call_next):
+        station = request.query_params.get("station")
+        if station is not None and station not in {"1", "2", "3", "4"}:
+            return JSONResponse({"detail": "Invalid booth station"}, status_code=400)
+        response = await call_next(request)
+        if station is not None:
+            # Display identity only, never an authentication token. This path also
+            # covers the packaged console and its API/SSE requests.
+            response.set_cookie(STATION_COOKIE, station, path="/travel-agent", max_age=31536000,
+                                httponly=True, samesite="lax", secure=request.url.scheme == "https")
+        return response
+
+    @app.middleware("http")
     async def local_preview_guard(request: Request, call_next):
         if os.environ.get("LOCAL_PREVIEW") == "1" and request.method not in {"GET", "HEAD", "OPTIONS"}:
             return JSONResponse(
@@ -237,26 +266,39 @@ def create_app() -> FastAPI:
         ]
         return JSONResponse({"agents": agents}, headers=NO_STORE)
 
-    async def running_sessions(prefix: str) -> list[dict]:
+    async def recent_sessions(prefix: str) -> list[dict]:
         types = " OR ".join(f"WorkflowType='{t}'" for t in agent_types)
+        legacy_prefix = prefix.removeprefix("travelagent-")
         query = (
-            f"TaskQueue='{config.TASK_QUEUE}' AND WorkflowId STARTS_WITH '{prefix}' "
-            f"AND ExecutionStatus='Running' AND ({types})"
+            f"TaskQueue='{config.TASK_QUEUE}' AND (WorkflowId STARTS_WITH '{prefix}' OR WorkflowId STARTS_WITH '{legacy_prefix}') "
+            f"AND ({types})"
         )
-        sessions = [
-            Session(
-                workflow_id=execution.id,
-                created_at=execution.start_time.timestamp(),
-                label=registry.by_workflow_type(execution.workflow_type).label,
-                agent_workflow_type=execution.workflow_type,
-            )
+        executions = [
+            execution
             async for execution in temporal().list_workflows(query, limit=SESSION_LIST_LIMIT)
         ]
-        return list(
-            await asyncio.gather(
-                *(_session_with_execution_state(temporal(), session) for session in sessions)
+        sessions = await asyncio.gather(
+            *(
+                _session_with_execution_state(
+                    temporal(),
+                    Session(
+                        workflow_id=execution.id,
+                        created_at=execution.start_time.timestamp(),
+                        label=registry.by_workflow_type(execution.workflow_type).label,
+                        agent_workflow_type=execution.workflow_type,
+                    ),
+                )
+                for execution in executions
             )
         )
+        # The run ID lets the page link straight to the run in the Temporal UI.
+        result = []
+        for session, execution in zip(sessions, executions):
+            memo = await execution.memo()
+            plan = {key: memo[key] for key in ("traveler_name", "origin_city", "destination_city")
+                    if isinstance(memo.get(key), str)}
+            result.append({**session, "run_id": execution.run_id, "plan": plan})
+        return result
 
     @api.get("/view")
     async def view(prefix: Owner):
@@ -267,14 +309,14 @@ def create_app() -> FastAPI:
                 "preview": os.environ.get("LOCAL_PREVIEW") == "1",
                 "preview_notice": "Presentation preview only. Gemini inference is disabled." if os.environ.get("LOCAL_PREVIEW") == "1" else None,
                 "temporal_ui_url": config.temporal_ui_url(temporal().namespace),
-                "sessions": await running_sessions(prefix),
+                "sessions": await recent_sessions(prefix),
             },
             headers=NO_STORE,
         )
 
     @api.get("/sessions")
     async def list_sessions(prefix: Owner):
-        return await running_sessions(prefix)
+        return await recent_sessions(prefix)
 
     @api.post("/sessions")
     async def create_session(req: CreateSessionRequestBody, prefix: Owner):
@@ -298,6 +340,8 @@ def create_app() -> FastAPI:
                 id=prefix + suffix,
                 task_queue=config.TASK_QUEUE,
                 execution_timeout=config.SESSION_TIMEOUT,
+                memo={key: value for key in ("traveler_name", "origin_city", "destination_city")
+                      if data is not None and (value := (data.get(key) if isinstance(data, dict) else getattr(data, key, None))) is not None},
             )
         except WorkflowAlreadyStartedError:
             raise HTTPException(status_code=409, detail="Session ID already in use")
@@ -307,7 +351,13 @@ def create_app() -> FastAPI:
             label=descriptor.label,
             agent_workflow_type=req.agent_workflow_type,
         )
-        return await _session_with_execution_state(temporal(), session)
+        # The run ID lets the page link straight to the run: a run-less Temporal UI link
+        # finds the run with a list query, which on Temporal Cloud trails a new start by
+        # a moment, so the booth's Temporal UI panel would open a 404 for a new trip.
+        return {
+            **await _session_with_execution_state(temporal(), session),
+            "run_id": handle.first_execution_run_id,
+        }
 
     @api.get("/workflow-status/{workflow_id}")
     async def workflow_status(workflow_id: str, prefix: Owner):

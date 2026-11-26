@@ -8,7 +8,7 @@ The initial manifest still has one set of app components. Before deployment, exp
 
 The UI should be self-hosted Temporal UI connected to Cloud, not a second local Temporal server. Prefer the same core HTTPS origin. Provision a separate namespace-scoped read-only identity for each UI backend; keep keys out of browsers. A UI filter or editable station query/cookie is not an authorization boundary.
 
-Fieldkit's publicUI feature exposes workflow histories to anyone who can reach its route. Do not enable it for the initial shared namespace: Photo Booth inputs/results can contain attendee images and email addresses. Agree an authenticated station binding/private UI-proxy arrangement before turning on iframe access. Do not proxy the Cloud account management website or remove framing protections from GitHub.
+Fieldkit's publicUI feature exposes workflow histories to anyone who can reach its route. It is on for the shared namespace by decision on November 21, 2026 (DEPLOYMENT.md). Photo Booth and Flight Simulator keep their payloads, attendee emails included, in S3 external storage, so the UI shows references for them. Do not proxy the Cloud account management website or remove framing protections from GitHub.
 
 ## Approved shared-namespace fallback
 

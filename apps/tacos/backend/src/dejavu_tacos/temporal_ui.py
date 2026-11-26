@@ -7,7 +7,9 @@ from dejavu_tacos.temporal_client import temporal_target_host
 
 
 def temporal_namespace() -> str:
-    return os.environ.get("TEMPORAL_NAMESPACE", "default")
+    # Fieldkit injects the namespace for UI links as TEMPORAL_UI_NAMESPACE; it can
+    # differ from TEMPORAL_NAMESPACE, which stays the fallback for standalone runs.
+    return os.environ.get("TEMPORAL_UI_NAMESPACE") or os.environ.get("TEMPORAL_NAMESPACE", "default")
 
 
 def temporal_ui_base_url() -> str:

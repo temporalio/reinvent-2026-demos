@@ -7,7 +7,7 @@ export interface DayPodium { day: string; label: string; top: LeaderboardEntry[]
 export interface LeaderboardView { entries: LeaderboardEntry[]; day_label: string; champions: DayPodium[]; total_games: number }
 export interface SessionState extends Snapshot {
   session_id: string; status: string; game_ms: number; seq: number; event_log: string[];
-  history_events: number; activities_total: number; activities_pending: number; workflow_id?: string; name?: string;
+  history_events: number; activities_total: number; activities_pending: number; workflow_id?: string; temporal_ui_url?: string | null; name?: string;
 }
 /** What the FlightSessionWorkflow ran for this game (from its `summary` query). */
 export interface ActivitySummary {
@@ -26,7 +26,8 @@ function localName(email: string): string {
 }
 
 function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
-  return Promise.race([p, new Promise<T>((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
+  let timer:ReturnType<typeof setTimeout>;
+  return Promise.race([p, new Promise<T>((_, rej) => {timer=setTimeout(() => rej(new Error('timeout')), ms);})]).finally(()=>clearTimeout(timer));
 }
 
 /**
@@ -37,6 +38,7 @@ export class FlightNet {
   online = true;
   sessionId: string | null = null;
   workflowId: string | null = null;
+  workflowUrl: string | null = null;
   lastState: SessionState | null = null;
   private seq = 0;
   private inFlight = false;
@@ -57,9 +59,10 @@ export class FlightNet {
     this.pendingEvents = [];
     this.name = localName(email);
     try {
-      const r = await withTimeout(api<{ session_id: string; workflow_id: string; name: string }>('/flight/sessions', { email, consent_text_version: consentVersion }), 2500);
+      const r = await withTimeout(api<{ session_id: string; workflow_id: string; temporal_ui_url: string | null; name: string }>('/flight/sessions', { email, consent_text_version: consentVersion }), 2500);
       this.sessionId = r.session_id;
       this.workflowId = r.workflow_id;
+      this.workflowUrl = r.temporal_ui_url;
       this.name = r.name;
       this.remember();
       this.setOnline(true);
@@ -74,6 +77,7 @@ export class FlightNet {
   /** Fire-and-forget; only one request in flight, newest snapshot wins. */
   sendTelemetry(snap: Snapshot, events: GameEvent[]): void {
     this.pendingEvents.push(...events);
+    this.pendingEvents=this.pendingEvents.slice(-240);
     if (!this.sessionId || this.inFlight) return;
     this.inFlight = true;
     // Cap the batch (the workflow validator rejects >120); the rest goes next second.
@@ -82,7 +86,7 @@ export class FlightNet {
       .then((st) => { this.lastState = st; this.setOnline(true); })
       .catch((e: Error) => {
         // 409 = the workflow rejected the batch (validation); not a network problem.
-        if (!e.message.startsWith('409')) { this.pendingEvents.unshift(...body.events); this.setOnline(false); }
+        if (!e.message.startsWith('409')) { this.pendingEvents.unshift(...body.events); this.pendingEvents=this.pendingEvents.slice(-240); this.setOnline(false); }
       })
       .finally(() => { this.inFlight = false; });
   }
@@ -91,6 +95,7 @@ export class FlightNet {
     if (!this.sessionId) return;
     for (let i = 0; i < 20 && this.inFlight; i++) await new Promise((r) => setTimeout(r, 100));
     this.pendingEvents.push(...events);
+    this.pendingEvents=this.pendingEvents.slice(-240);
     try {
       this.lastState = await withTimeout(api<SessionState>(`/flight/sessions/${this.sessionId}/telemetry`, { ...snap, seq: ++this.seq, events: this.pendingEvents.splice(0, 120) }), 4000);
     } catch { /* the finish call still carries the score */ }
@@ -115,6 +120,7 @@ export class FlightNet {
     this.name = st.name ?? this.name;
     this.sessionId = st.session_id;
     this.workflowId = st.workflow_id ?? null;
+    this.workflowUrl = st.temporal_ui_url ?? null;
     this.seq = st.seq;
     this.lastState = st;
     this.remember();

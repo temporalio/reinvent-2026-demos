@@ -99,14 +99,14 @@ export class Game {
   get cruise(): number { return lerp(CONFIG.START_SPEED, CONFIG.MAX_SPEED, smooth(this.climb)); }
   get speed(): number { return this.cruise * (this.broken('engines') ? 0.65 : 1) * (this.durable ? 1.1 : 1); }
   /** Seconds between hazards. One at a time, never clustered; gaps shrink as the clock runs down. */
-  get spawnGap(): number { return this.tS < CONFIG.EASY_SECONDS ? CONFIG.EASY_SPAWN_GAP : lerp(1.6, 0.45, this.ramp); }
+  get spawnGap(): number { return this.tS < CONFIG.EASY_SECONDS ? CONFIG.EASY_SPAWN_GAP : lerp(0.9, 0.3, this.ramp); }
   /** Asteroid size multiplier: pebbles early, boulders late. */
   get sizeScale(): number { return lerp(0.4, 1.8, Math.pow(this.climb, 0.9)); }
   /** Extra closing speed for hazards late in the game. */
   get hazardSpeed(): number { return lerp(0, 22, this.ramp); }
   get enemyGap(): number {
     if (this.tS < CONFIG.EASY_SECONDS) return Infinity;
-    return lerp(11, 4, this.ramp) / (this.scenario.enemyBoost ?? 1);
+    return lerp(8, 3, this.ramp) / (this.scenario.enemyBoost ?? 1);
   }
   get maxEnemies(): number { return this.tS < 55 ? 1 : 2; }
   get enemyFireGap(): number { return lerp(2.4, 1.1, this.ramp); }

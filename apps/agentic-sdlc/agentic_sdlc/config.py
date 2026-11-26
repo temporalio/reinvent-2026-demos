@@ -143,3 +143,13 @@ def temporal_ui_url(namespace: str) -> str:
     if os.environ.get("TEMPORAL_ADDRESS", "").endswith(".tmprl.cloud:7233"):
         return f"https://cloud.temporal.io/namespaces/{namespace}"
     return f"http://localhost:8233/namespaces/{namespace}"
+
+
+def runs_prefix(queue: str) -> str:
+    """Stable demo label followed by the existing copy and session-slot scope."""
+    return f"agenticsdlc-{queue}.gh."
+
+
+def runs_query(queue: str) -> str:
+    """Include existing runs during the prefix migration, within this same slot."""
+    return f"(WorkflowId STARTS_WITH '{runs_prefix(queue)}' OR WorkflowId STARTS_WITH '{queue}.gh.')"

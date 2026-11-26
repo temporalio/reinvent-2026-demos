@@ -18,3 +18,20 @@ test('unloaded settings and explicit disablement gate new launches',()=>{
   assert.equal(launchRestriction(demo,{mode:'local'},online,false),'Loading station settings…')
   assert.equal(launchRestriction(demo,{mode:'local'},{...online,demo_enabled:{tacos:false}},true),'Disabled for this station')
 })
+test('packaged video is available locally without a worker but obeys station disablement',()=>{
+ const video={id:'agentcore-video',tentative:false,kind:'video'}
+ assert.equal(launchRestriction(video,{mode:'local',availableDemos:[]},{...online,network_mode:'offline'},true),null)
+ assert.equal(launchRestriction(video,{mode:'hosted'},online,true),null)
+ assert.equal(launchRestriction(video,{mode:'local'},{...online,demo_enabled:{'agentcore-video':false}},true),'Disabled for this station')
+})
+test('enabling a future demo cannot bypass its missing integration',()=>{
+ assert.equal(launchRestriction({id:'agentcore-research',tentative:false,kind:'coming-soon'},{mode:'hosted'},{...online,demo_enabled:{'agentcore-research':true}},true),'Coming soon — demo integration pending')
+})
+
+test('on-call launches hosted and needs the local adapter locally',()=>{
+ const demo={id:'agentcore-research',tentative:false,kind:'agentcore'}
+ const settings={demo_enabled:{},network_mode:'online'}
+ assert.equal(launchRestriction(demo,{mode:'hosted'},settings,true),null)
+ assert.equal(launchRestriction(demo,{mode:'local',availableDemos:[]},settings,true),'Not running on this station')
+ assert.equal(launchRestriction(demo,{mode:'local',availableDemos:['agentcore-research']},settings,true),null)
+})

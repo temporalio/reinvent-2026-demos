@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import { AgentSession } from "@temporalio/agent-harness-svelte";
   import type { ZiggyChatAgent, TripBoard as Board } from "./generated/ZiggyChatAgent.ts";
   import ApprovalQueue from "./ApprovalQueue.svelte";
@@ -12,12 +13,16 @@
   import RouteMap from "./RouteMap.svelte";
   import { departures } from "./travel.ts";
 
-  let { sessionId }: { sessionId: string } = $props();
+  let { sessionId, runId, initialPrompt=null, onInitialSent=()=>{}, readOnly=false }: { sessionId: string; runId: string | null;initialPrompt?:string|null;onInitialSent?:()=>void;readOnly?:boolean } = $props();
 
   const agent = new AgentSession<ZiggyChatAgent>({
     get sessionId() {
       return sessionId;
     },
+  });
+
+  onMount(()=>{
+    if(initialPrompt&&!readOnly){const prompt=initialPrompt;onInitialSent();void agent.sendMessage("ask",{text:prompt});}
   });
 
   // The board lives on whichever agent in the tree runs the scripts: the root for Ziggy
@@ -111,17 +116,33 @@
   // Choices waiting on the traveler, from Ziggy or any subagent, take over the chat column
   // until they're answered; the chat comes back, scrolled to the newest, once they are.
   const choices = $derived(agent.pendingCallbacks.filter((c) => isChoiceTool(c.part.toolName)));
+  $effect(() => {
+    if (parent === window || !runId) return;
+    const step = agent.pendingCallbacks.length ? 'approval' : thinking ? 'model' : running.length ? 'tool' : 'input';
+    parent.postMessage({type:'booth:demo-execution',demoId:'agent-harness',runId,step,
+      variant:'default',status:step==='approval'||step==='input'?'waiting':'running',stale:agent.connection==='reconnecting'},location.origin);
+  });
   const still = $derived(motion.paused || motion.reduced);
 
   let draft = $state("");
+
+  // Replies to tap instead of typing, from the Workflow's Haiku helper. They describe the
+  // conversation as it stood after Ziggy's last reply, so they hide while a turn is open.
+  const busy = $derived(messages.some((m) => m.status !== "done" && m.status !== "error"));
+  const suggestions = $derived(busy ? [] : (agent.states.suggestions?.replies ?? []));
+  const opening = $derived(messages.length === 0);
+
+  function ask(text: string) {
+    // The message shows at once from `pending`; the server's reply reconciles it.
+    void agent.sendMessage("ask", { text });
+  }
 
   function send(event: SubmitEvent) {
     event.preventDefault();
     const text = draft.trim();
     if (!text) return;
     draft = "";
-    // The message shows at once from `pending`; the server's reply reconciles it.
-    void agent.sendMessage("ask", { text });
+    ask(text);
   }
 </script>
 
@@ -129,16 +150,8 @@
   <div class="travel" role="region" aria-label="Route and booking status">
     <RouteMap {rows} {away} />
     <Departures {rows} {board} {away} {still} />
-    {#if agent.pendingApprovals.length > 0}
-      <div class="approvals">
-        <ApprovalQueue
-          calls={agent.pendingApprovals}
-          respond={(call, decision) => agent.respondToApproval(call.part.toolId, decision)}
-        />
-      </div>
-    {/if}
 
-    {#if choices.length === 0}
+    {#if !readOnly && choices.length === 0}
       <Settings
         {model}
         {policy}
@@ -168,7 +181,7 @@
       </div>
     {/if}
 
-    {#if choices.length > 0}
+    {#if !readOnly && choices.length > 0}
       <section class="card choosing" aria-label="Choose an option">
         {#each choices as call (call.part.toolId)}
           <ChoiceCards part={call.part} answer={(choice) => agent.provideToolOutput(call.part.toolId, choice)} />
@@ -178,7 +191,26 @@
       <Conversation {messages} />
     {/if}
 
-    {#if choices.length === 0}
+    {#if !readOnly && agent.pendingApprovals.length > 0}
+      <div class="approvals" role="region" aria-label="Approvals">
+        <ApprovalQueue
+          calls={agent.pendingApprovals}
+          respond={(call, decision) => agent.respondToApproval(call.part.toolId, decision)}
+        />
+      </div>
+    {/if}
+
+    {#if !readOnly && choices.length === 0 && (suggestions.length > 0 || opening)}
+      <section class="suggestions" class:opening aria-label={opening ? "Trip ideas" : "Suggested replies"}>
+        {#each suggestions as text (text)}
+          <button type="button" class="button small secondary ultraviolet" onclick={() => ask(text)}>{text}</button>
+        {:else}
+          <p class="muted thinking" role="status">Finding a few trip ideas…</p>
+        {/each}
+      </section>
+    {/if}
+
+    {#if !readOnly && choices.length === 0 && agent.pendingApprovals.length === 0}
       <form class="composer" onsubmit={send}>
         <label class="visually-hidden" for="composer">Message Ziggy</label>
         <textarea
@@ -208,12 +240,19 @@
   .side { display: flex; flex-direction: column; gap: .8rem; min-height: 0; }
   .side > * { flex-shrink: 0; }
   .side > :global(.conversation), .side > .choosing { flex: 1 1 0; min-height: 8rem; }
-  /* However many calls wait at once, the conversation keeps its share of the column. */
-  .approvals { max-height: 55%; overflow: auto; flex-shrink: 1; min-height: 0; }
+  /* Approvals sit under the conversation, in the column the traveler taps. However many calls
+     wait at once, they scroll inside this box and the conversation keeps its share. */
+  .side > .approvals { max-height: 65%; overflow: auto; flex-shrink: 1; min-height: 0; }
   .choosing { overflow: auto; display: grid; gap: 1.5rem; align-content: start; border-color: var(--yellow); }
   .recovering { border-color: var(--yellow); display: grid; gap: .5rem; }
   .failure { border-color: var(--red); display: grid; gap: .5rem; justify-items: start; }
   .recovering p, .failure p { margin: 0; }
+  .suggestions { display: flex; flex-wrap: wrap; gap: .5rem; }
+  .suggestions.opening { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .suggestions .button { text-align: left; white-space: normal; line-height: 1.3; height: auto; }
+  .suggestions p { margin: 0; }
+  .thinking { animation: breathe 1.6s ease-in-out infinite; }
+  @keyframes breathe { 50% { opacity: .45; } }
   .composer { display: flex; gap: .6rem; align-items: stretch; }
   textarea {
     flex: 1; resize: none; padding: .7rem .8rem; font: inherit; color: var(--off-white);

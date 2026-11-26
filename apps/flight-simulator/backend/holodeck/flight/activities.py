@@ -19,7 +19,7 @@ from ..config import settings
 from ..temporal_client import get_client
 from .models import ActivityReceipt, GameEvent, LeaderboardEntry, LeaderboardInput, SubmitResult
 
-LEADERBOARD_ID = f"{settings.task_queue}-leaderboard"
+LEADERBOARD_ID = f"flightsim-{settings.task_queue}-leaderboard"
 
 
 class ShipComputerGlitch(RuntimeError):

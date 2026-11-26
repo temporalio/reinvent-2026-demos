@@ -345,7 +345,7 @@ class SlotActivities:
         from agentic_sdlc import faults
 
         stopped = 0
-        query = f"WorkflowId STARTS_WITH '{input.queue}.gh.' AND ExecutionStatus = 'Running'"
+        query = f"{config.runs_query(input.queue)} AND ExecutionStatus = 'Running'"
         async for execution in self._client.list_workflows(query):
             with suppress(RPCError):
                 await self._client.get_workflow_handle(execution.id).terminate("Slot reset")

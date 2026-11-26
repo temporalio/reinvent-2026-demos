@@ -47,6 +47,13 @@ export function RunConsole({ view, feeds, config, onError }: {
   const retries = useMemo(() => retryingSteps(view), [view]);
   const active = run.steps.find((s) => s.status === "waiting") ?? [...run.steps].reverse().find((s) => s.status === "active" && !s.lane)
     ?? [...run.steps].reverse().find((s) => s.status !== "pending" && s.status !== "skipped" && !s.lane) ?? null;
+  useEffect(() => {
+    if (parent === window) return;
+    const step = run.gate ? `gate:${run.gate.key}` : active?.key.startsWith('code:') ? 'code' : active?.key;
+    if (!step) return;
+    parent.postMessage({type:'booth:demo-execution',demoId:'agentic-sdlc',runId:view.temporal_run_id,
+      variant:run.kind,step,status:view.closed?(run.status==='completed'?'completed':'failed'):run.gate?'waiting':retries.has(active?.key||'')?'retrying':active?.status==='active'?'running':active?.status||'pending',stale:false},location.origin);
+  }, [run,active,view.temporal_run_id,view.closed,retries]);
   const [selected, setSelected] = useState<string | null>(null);
   const focus = selected ?? active?.key ?? null;
   const [side, setSide] = useState<"code" | "talk" | "store" | "github">("code");

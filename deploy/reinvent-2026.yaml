@@ -1,5 +1,6 @@
 # Single Fieldkit project. NOT deployment-ready: see docs/DEPLOYMENT.md.
-# Pinned platform validation: 69e7fa0f4faa3a08e25cb8462269ef215efe4544.
+# Pinned platform validation: a1e2bf3b (temporal-fieldkit-platform main: spec.aws for
+# aws-lambda and aws-agentcore components).
 apiVersion: registry.tmprl-demo.cloud/v1alpha1
 kind: DemoProject
 metadata:
@@ -22,6 +23,12 @@ spec:
     repo: https://github.com/temporalio/reinvent-2026-demos
     branch: main
   builds:
+    oncall-api:
+      context: apps/agentcore-research/api
+      dockerfile: apps/agentcore-research/api/Dockerfile
+    oncall-agent:
+      context: apps/agentcore-research/agent
+      dockerfile: apps/agentcore-research/agent/Dockerfile
     launchpad:
       context: apps/launchpad
       dockerfile: apps/launchpad/Dockerfile
@@ -79,19 +86,21 @@ spec:
   temporal:
     auth:
       mode: apiKey
-    publicUI: false
+    publicUI: true
     searchAttributes:
       Step:
         type: keyword
       AgenticSdlcGitHubRefs:
         type: keywordList
+      OncallPhase:
+        type: keyword
   secrets:
+    # The platform's shared provider keys (fieldkit/platform/shared/<name>):
+    # nothing to create; the booth is torn down after re:Invent.
     openai:
-      requiredProperties:
-      - OPENAI_API_KEY
+      shared: openai
     gemini:
-      requiredProperties:
-      - GEMINI_API_KEY
+      shared: gemini
     github:
       requiredProperties:
       - GITHUB_TOKEN
@@ -99,12 +108,47 @@ spec:
       requiredProperties:
       - SENDGRID_API_KEY
       - HOLODECK_EMAIL_FROM
+    # Random values the operator creates on first reconcile. Copy
+    # GITHUB_WEBHOOK_SECRET from Secrets Manager into the sandbox repo's
+    # webhook settings when the SDLC demo is enabled.
     runtime:
-      requiredProperties:
-      - REDIS_PASSWORD
-      - GITHUB_WEBHOOK_SECRET
-      - GITHUB_SANDBOX_REPO
+      generate:
+        properties:
+        - name: REDIS_PASSWORD
+        - name: GITHUB_WEBHOOK_SECRET
   components:
+    # On-call API and web UI. Starts incidents, sends approvals, reads state with
+    # Describe, the Event History and Worker heartbeats (never a Query).
+    oncall-api:
+      build: oncall-api
+      ports:
+      - name: http
+        containerPort: 8080
+        servicePort: 8080
+      temporalAccess: true
+      env:
+      - name: TEMPORAL_TASK_QUEUE
+        value: ri26-oncall
+      - name: WORKER_LOCATION
+        value: agentcore
+      replicas: 1
+    # The Strands agent's Temporal Worker on Bedrock AgentCore Runtime. It polls
+    # only while invoked, drains after AGENTCORE_DEBOUNCE_SECONDS without an
+    # Activity, and AgentCore ends the idle session after idleSessionTimeoutSeconds.
+    # Build ID: one per commit (unset). BEDROCK_MODEL_ID comes from spec.aws.
+    oncall-agent:
+      build: oncall-agent
+      serverless:
+        provider: aws-agentcore
+        agentcore:
+          idleSessionTimeoutSeconds: 60
+      env:
+      - name: TEMPORAL_TASK_QUEUE
+        value: ri26-oncall
+      - name: AGENT_MODEL
+        value: bedrock
+      - name: AGENTCORE_DEBOUNCE_SECONDS
+        value: '30'
     launchpad:
       build: launchpad
       ports:
@@ -113,27 +157,22 @@ spec:
         servicePort: 8080
     gateway:
       build: gateway
-      env:
-      - name: CONTROL_HUB_URL
-        value: http://control-hub:8090
       ports:
       - name: http
         containerPort: 8080
         servicePort: 8080
-    # Hosted SQLite is ephemeral with the current Fieldkit Component schema.
-    # Keep one replica, but do not treat disruption: never as persistent storage.
-    # See docs/STATION-CONTROL.md before enabling hosted configuration writes.
+    # Hosted, the hub keeps its settings in the spec.aws DynamoDB table
+    # (CONTROL_TABLE); without it (local runs) it uses SQLite. Ingress sends
+    # /control-api straight here: reads are public for the kiosks, writes
+    # need a Fieldkit sign-in (docs/STATION-CONTROL.md).
     control-hub:
       build: control-hub
       replicas: 1
-      disruption: never
       ports:
       - name: http
         containerPort: 8090
         servicePort: 8090
       env:
-      - name: CONTROL_DB
-        value: /data/control.sqlite3
       - name: CONTROL_TIMEZONE
         value: America/Denver
     tacos-web:
@@ -213,8 +252,14 @@ spec:
         containerPort: 8000
         servicePort: 8000
       env:
+      # Must match travel-worker's queue: the web app starts each session's
+      # workflow on it (and prefixes session IDs with it).
+      - name: TEMPORAL_TASK_QUEUE
+        value: ri26-travel
       - name: TRUST_AUTH_HEADERS
         value: 'false'
+      - name: BOOTH_STATION_SCOPING
+        value: 'true'
       args:
       - web
       temporalAccess: true
@@ -364,9 +409,9 @@ spec:
       - name: GITHUB_WEBHOOK_SECRET
         valueFrom:
           inputRef: secrets.runtime.GITHUB_WEBHOOK_SECRET
+      # Booth-owned sandbox. Hosted token/webhook setup and rehearsal remain required.
       - name: GITHUB_SANDBOX_REPO
-        valueFrom:
-          inputRef: secrets.runtime.GITHUB_SANDBOX_REPO
+        value: temporal-aws-reinvent-2026/reinvent-sdlc-sandbox
     sdlc-worker-v1:
       build: sdlc
       command:
@@ -389,9 +434,9 @@ spec:
         value: v1
       - name: WEB_INTERNAL_URL
         value: http://sdlc-web:8000
+      # Booth-owned sandbox. Hosted token/webhook setup and rehearsal remain required.
       - name: GITHUB_SANDBOX_REPO
-        valueFrom:
-          inputRef: secrets.runtime.GITHUB_SANDBOX_REPO
+        value: temporal-aws-reinvent-2026/reinvent-sdlc-sandbox
       - name: RUN_BUDGET_USD
         value: '3.00'
     sdlc-worker-v2:
@@ -416,9 +461,9 @@ spec:
         value: v2
       - name: WEB_INTERNAL_URL
         value: http://sdlc-web:8000
+      # Booth-owned sandbox. Hosted token/webhook setup and rehearsal remain required.
       - name: GITHUB_SANDBOX_REPO
-        valueFrom:
-          inputRef: secrets.runtime.GITHUB_SANDBOX_REPO
+        value: temporal-aws-reinvent-2026/reinvent-sdlc-sandbox
       - name: RUN_BUDGET_USD
         value: '3.00'
   redis:
@@ -433,28 +478,65 @@ spec:
     - travel-web
     - travel-worker
     - photobooth-web
+    - flightsim-web
     - loan-worker
+    - oncall-agent
+    - oncall-api
+    - control-hub
+    dynamodb:
+      tables:
+        control:
+          env: CONTROL_TABLE
+          hashKey:
+            name: pk
+            type: S
+          ttlAttribute: expires_at
     s3:
       buckets:
+        # Temporal external payload storage. Photo Booth and Flight Simulator
+        # keep every payload here (attendee emails stay out of the public UI);
+        # Agent Harness only its large ones. Kept 30 days, past the namespace's
+        # 7-day retention, so stored data can still be retrieved afterwards.
         payloads:
           env: PAYLOAD_BUCKET
-          expirationDays: 7
+          expirationDays: 30
         photos:
           env: PHOTO_MEDIA_BUCKET
-          expirationDays: 7
+          expirationDays: 30
     bedrock:
       models:
         loan:
-          id: us.anthropic.claude-sonnet-4-5-20250929-v1:0
+          id: us.anthropic.claude-sonnet-5-5
           env: BEDROCK_MODEL_ID
+        # Travel Agent's suggested-reply helper (agent_harness_demo/ziggy/suggestions.py).
+        travel-suggestions:
+          id: us.anthropic.claude-haiku-5-5
+          env: SUGGEST_MODEL_ID
+        # Starship engineering demo: writes each visit's alarms (apps/agentcore-research/api).
+        oncall-incidents:
+          id: us.anthropic.claude-haiku-5-5
+          env: INCIDENT_MODEL_ID
+  # Kiosks and staff need no Fieldkit session. The control hub authenticates
+  # writes with its daily PIN/session cookie and enforces same-origin requests.
   ingress:
     subdomain: reinvent-booth
-    auth: required
+    auth: public
     routes:
     - pathPrefix: /agentic-sdlc/webhooks/github
       component: gateway
       port: http
       public: true
+    - pathPrefix: /config
+      component: gateway
+      port: http
+      auth: public
+    - pathPrefix: /control-api/state
+      component: control-hub
+      port: http
+    - pathPrefix: /control-api
+      component: control-hub
+      port: http
+      auth: public
     - pathPrefix: /
       component: gateway
       port: http

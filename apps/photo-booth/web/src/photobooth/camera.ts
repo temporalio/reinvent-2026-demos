@@ -7,18 +7,22 @@ export interface CameraSource {
   live: boolean;
   /** Capture the current frame as a mirrored 3:4 portrait JPEG data URL. */
   capture(): string;
+  stop(): void;
+  deviceId?: string;
+  error?: string;
 }
 
 const OUT_W = 768;
 const OUT_H = 1024;
 
-export async function openCamera(): Promise<CameraSource> {
+export async function openCamera(deviceId?: string): Promise<CameraSource> {
   const test = new URLSearchParams(location.search).get('testcam');
   if (test !== null) return testVisitor(test === 'dark');
+  let stream: MediaStream | undefined;
   try {
     if (!navigator.mediaDevices?.getUserMedia) throw new Error('no camera API');
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'user', width: { ideal: 1920 }, height: { ideal: 1080 } },
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { ...(deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'user' }), width: { ideal: 1920 }, height: { ideal: 1080 } },
       audio: false,
     });
     const video = document.createElement('video');
@@ -27,10 +31,14 @@ export async function openCamera(): Promise<CameraSource> {
     video.playsInline = true;
     video.srcObject = stream;
     await video.play();
-    return { el: video, live: true, capture: () => grab(video, video.videoWidth, video.videoHeight, true) };
+    const activeStream = stream;
+    return { el: video, live: true, deviceId:stream.getVideoTracks()[0]?.getSettings().deviceId, capture: () => grab(video, video.videoWidth, video.videoHeight, true), stop: () => {video.pause();video.srcObject=null;activeStream.getTracks().forEach(track => track.stop());} };
   } catch (e) {
-    console.warn('Camera unavailable, using test visitor', e);
-    return testVisitor(false);
+    stream?.getTracks().forEach(track => track.stop());
+    const fallback = testVisitor(false);
+    const name = e instanceof Error ? e.name : '';
+    fallback.error = name === 'NotAllowedError' ? 'Allow Camera in Island’s site settings, then try again.' : name === 'NotReadableError' ? 'Camera is busy or unavailable. Close other camera apps or choose another camera.' : name === 'NotFoundError' ? 'No camera is available. Connect a camera, then try again.' : 'Camera could not start. Check browser and macOS camera permissions, then try again.';
+    return fallback;
   }
 }
 
@@ -55,6 +63,7 @@ function testVisitor(dark = false): CameraSource {
   c.height = OUT_H;
   const ctx = c.getContext('2d')!;
   let t = 0;
+  let frame = 0;
   const draw = () => {
     t += 1 / 60;
     const w = OUT_W, hh = OUT_H;
@@ -81,8 +90,8 @@ function testVisitor(dark = false): CameraSource {
     ctx.textAlign = 'center';
     ctx.fillText('TEST VISITOR (no camera found)', w / 2, hh * 0.08);
     if (dark) { ctx.fillStyle = 'rgba(0,0,0,0.94)'; ctx.fillRect(0, 0, w, hh); }
-    requestAnimationFrame(draw);
+    frame = requestAnimationFrame(draw);
   };
   draw();
-  return { el: c, live: false, capture: () => grab(c, OUT_W, OUT_H, false) };
+  return { el: c, live: false, capture: () => grab(c, OUT_W, OUT_H, false), stop: () => cancelAnimationFrame(frame) };
 }

@@ -79,6 +79,7 @@
     .submit-msg { font-size: 13px; color: var(--text-secondary); margin-top: 10px; min-height: 18px; }
     .submit-msg.ok  { color: var(--green); }
     .submit-msg.err { color: var(--red);   }
+    .submit-msg a { color: inherit; }
 
     /* ── Stat cards — two rows ── */
     .stats-grid {
@@ -187,6 +188,11 @@
       <button class="btn" id="submit-btn" onclick="submitWorkflow()">
         <i class="ti ti-player-play"></i> Start workflow
       </button>
+    </div>
+    <div class="booth-name-choices" role="group" aria-label="Example names" style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.75rem">
+      <button type="button" class="btn btn-secondary" onclick="document.getElementById('name-input').value='Captain Nova'">Captain Nova</button>
+      <button type="button" class="btn btn-secondary" onclick="document.getElementById('name-input').value='Orbit Crew'">Orbit Crew</button>
+      <button type="button" class="btn btn-secondary" onclick="document.getElementById('name-input').value='Ziggy'">Ziggy</button>
     </div>
     <p class="submit-msg" id="submit-msg"></p>
   </div>
@@ -389,6 +395,7 @@
       if (!resp.ok) { setSeedMsg('Error: ' + await resp.text(), 'err'); return; }
       const data = await resp.json();
       setSeedMsg(`✓ Burst fired — ${data.started} started` + (data.failed > 0 ? `, ${data.failed} failed` : ''), 'ok');
+      if(data.temporalUiUrl){const link=document.createElement('a');link.href=data.temporalUiUrl;link.textContent='View one workflow from this burst';document.getElementById('seed-msg').append(' ',link)}
       feedItems.unshift({ workflowId: `seed-burst-${data.started}`, name: `⚡ Seed burst (${data.started} workflows)`, status: 'running', time: new Date() });
       if (feedItems.length > MAX_FEED) feedItems.pop();
       renderFeed();
@@ -421,6 +428,15 @@
       if (!resp.ok) { setMsg('Error: ' + await resp.text(), 'err'); return; }
       const data = await resp.json();
       setMsg(`✓ Workflow ${data.workflowId} started for "${name}"`, 'ok');
+      if (data.temporalUiUrl) {
+        // The booth's lower Temporal UI panel follows this link.
+        const link = document.createElement('a');
+        link.href = data.temporalUiUrl;
+        link.target = '_blank';
+        link.rel = 'noopener';
+        link.textContent = 'View workflow ↗';
+        document.getElementById('submit-msg').append(' ', link);
+      }
       input.value = '';
       feedItems.unshift({ workflowId: data.workflowId, name, status: 'running', time: new Date() });
       if (feedItems.length > MAX_FEED) feedItems.pop();
@@ -439,9 +455,14 @@
   }
 
   // ── Metrics polling ───────────────────────────────────────────────────────
+  let metricsInFlight=false;
+  const pageLifetime=new AbortController();
+  window.addEventListener('pagehide',()=>pageLifetime.abort(),{once:true});
   async function fetchMetrics() {
+    if(metricsInFlight||pageLifetime.signal.aborted)return;
+    metricsInFlight=true;
     try {
-      const resp = await fetch('/no-roads/api/metrics');
+      const resp = await fetch('/no-roads/api/metrics',{signal:AbortSignal.any([pageLifetime.signal,AbortSignal.timeout(10_000)])});
       if (!resp.ok) return;
       const data = await resp.json();
 
@@ -468,7 +489,8 @@
       document.getElementById('backlog-peak').textContent = bPeak > 0 ? `peak ${bPeak}` : '';
 
       reconcileFeedStatuses(data.runningWorkflows ?? 0);
-    } catch (e) { /* silently ignore poll failures */ }
+    } catch (e) { /* Keep the last metrics until the bounded retry. */ }
+    finally {metricsInFlight=false;}
   }
 
   function setText(id, val) { document.getElementById(id).textContent = val; }
@@ -531,8 +553,9 @@
   drawSyncSpark(syncSpark);
 
   fetchMetrics();
-  setInterval(fetchMetrics, 2000);
-  setInterval(renderFeed,   5000);
+  const metricsTimer=setInterval(fetchMetrics, 2000);
+  const feedTimer=setInterval(renderFeed,5000);
+  window.addEventListener('pagehide',()=>{clearInterval(metricsTimer);clearInterval(feedTimer);},{once:true});
 </script>
 
 <a href="/config" style="position:fixed;bottom:8px;right:8px;z-index:2147483647;padding:10px 16px;background:#172537;color:white;border:1px solid #8da8c5;border-radius:6px;font:14px system-ui" aria-label="Booth settings (staff)">Config</a>

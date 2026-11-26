@@ -22,7 +22,7 @@ from PIL import Image, ImageOps
 from pydantic import BaseModel
 
 from ..config import settings
-from ..temporal_client import get_client, wf_id
+from ..temporal_client import get_client, wf_id, workflow_ui_url
 from .analysis import analyze, resolve_analysis_provider
 from .providers import resolve_provider_name
 from .spool import Spool
@@ -33,10 +33,12 @@ spool = Spool(settings.data_dir / "photobooth_spool.sqlite")
 START_TIMEOUT = timedelta(seconds=4)
 
 
-async def start_workflow(workflow_id: str, inp: PhotoBoothInput) -> None:
+async def start_workflow(workflow_id: str, inp: PhotoBoothInput) -> str:
+    """Start the session's workflow and return its run ID."""
     client = await asyncio.wait_for(get_client(), START_TIMEOUT.total_seconds())
-    await client.start_workflow(PhotoBoothWorkflow.run, inp, id=workflow_id, task_queue=settings.task_queue,
-                                rpc_timeout=START_TIMEOUT)
+    handle = await client.start_workflow(PhotoBoothWorkflow.run, inp, id=workflow_id, task_queue=settings.task_queue,
+                                         rpc_timeout=START_TIMEOUT)
+    return handle.first_execution_run_id
 
 
 @asynccontextmanager
@@ -116,10 +118,17 @@ async def start_session(req: StartRequest, x_station: str | None = Header(defaul
 
     # 2. Then try the network. Failure is fine: the spool drainer keeps trying.
     row = spool.get(session_id)
-    started = bool(row) and await spool.try_start(row, start_workflow)
+    run_id: str | None = None
+
+    async def start_now(workflow_id: str, inp: PhotoBoothInput) -> None:
+        nonlocal run_id  # the processing screen links to this run (see workflow_ui_url)
+        run_id = await start_workflow(workflow_id, inp)
+
+    started = bool(row) and await spool.try_start(row, start_now)
     if not started:
         log.warning("photo booth session %s spooled; Temporal unreachable", session_id)
-    return {"session_id": session_id, "workflow_id": workflow_id, "spooled": not started, "provider": inp.provider}
+    return {"session_id": session_id, "workflow_id": workflow_id, "spooled": not started, "provider": inp.provider,
+            "temporal_ui_url": workflow_ui_url(workflow_id, run_id) if run_id else None}
 
 
 @router.get("/sessions/{session_id}")
@@ -129,7 +138,8 @@ async def get_session(session_id: str) -> dict:
     row = spool.get(session_id)
     if not row:
         raise HTTPException(404, "unknown session")
-    base = {"session_id": session_id, "workflow_id": row.workflow_id, "email": row.input.email}
+    base = {"session_id": session_id, "workflow_id": row.workflow_id, "email": row.input.email,
+            "temporal_ui_url": workflow_ui_url(row.workflow_id) if row.started_at else None}
     if not row.started_at:
         return {**base, "stage": "spooled", "steps": []}
     try:
@@ -139,7 +149,8 @@ async def get_session(session_id: str) -> dict:
     except Exception as e:  # noqa: BLE001 - network or worker trouble: the UI shows "we'll email it"
         return {**base, "stage": "unreachable", "steps": [], "error": type(e).__name__}
 
-    out = {**base, **dataclasses.asdict(status), "workflow_status": desc.status.name if desc.status else None}
+    out = {**base, **dataclasses.asdict(status), "workflow_status": desc.status.name if desc.status else None,
+           "temporal_ui_url": workflow_ui_url(row.workflow_id, desc.run_id)}
     # Overlay live retry info from pending activities (attempt counts, last error).
     steps = {s["key"]: s for s in out["steps"]}
     for pa in desc.raw_description.pending_activities:

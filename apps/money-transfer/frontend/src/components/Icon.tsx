@@ -1,4 +1,8 @@
 import type { ReactNode } from 'react'
+import ziggyBusiness from '../assets/ziggy/business.png'
+import ziggyChecking from '../assets/ziggy/checking.png'
+import ziggyInvestment from '../assets/ziggy/investment.png'
+import ziggySavings from '../assets/ziggy/savings.png'
 
 /** Line icons drawn in the brand's stroke style (no fill, currentColor). */
 const PATHS = {
@@ -76,9 +80,25 @@ export function Icon({ name, size = 18, strokeWidth = 1.8, className }: IconProp
   )
 }
 
-export function AccountIcon({ type }: { type?: string }) {
+/**
+ * Ziggy, Temporal's mascot, minding each demo account. Generated with Stability's
+ * style-guide model on Amazon Bedrock, using the official Ziggy face as the style
+ * reference; not official brand art.
+ */
+const ZIGGY: Record<string, string> = {
+  'ACC-001': ziggyChecking,
+  'ACC-002': ziggySavings,
+  'ACC-003': ziggyBusiness,
+  'ACC-004': ziggyInvestment,
+}
+
+export function AccountIcon({ id, type }: { id?: string; type?: string }) {
+  const ziggy = id ? ZIGGY[id] : undefined
+  if (ziggy) {
+    return <img className="account-icon account-ziggy w-12 h-12 flex-shrink-0 object-cover" src={ziggy} alt="" width={48} height={48} />
+  }
   return (
-    <div className="w-10 h-10 flex-shrink-0 border border-control-edge flex items-center justify-center text-t-indigo">
+    <div className="account-icon w-10 h-10 flex-shrink-0 border border-control-edge flex items-center justify-center text-t-indigo">
       <Icon name={type === 'checking' ? 'card' : 'bank'} />
     </div>
   )

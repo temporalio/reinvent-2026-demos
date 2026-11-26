@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-PLATFORM_REV=69e7fa0f4faa3a08e25cb8462269ef215efe4544
+PLATFORM_REV=a1e2bf3b34338ceab2cbdf05d64029404d4e4412
 PLATFORM_DIR="${FIELDKIT_PLATFORM_DIR:-$ROOT/tmp/fieldkit-platform}"
 if [[ ! -d "$PLATFORM_DIR/.git" ]]; then
   echo "Clone temporal-sa/temporal-fieldkit-platform to $PLATFORM_DIR (read access required)." >&2

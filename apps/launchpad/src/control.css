@@ -70,3 +70,24 @@
 .control-confirm::backdrop { background:rgba(0,0,0,.75); }
 .control-confirm button { margin:.3rem; }
 @media(max-width:760px) { .station-control { padding:1rem; } .control-targets { grid-template-columns:repeat(2,minmax(0,1fr)); } .control-targets > button:first-child { grid-column:1/-1; } .control-demo-row { grid-template-columns:minmax(0,1fr); } .control-demo-row .control-choice { display:grid; grid-auto-flow:column; grid-auto-columns:1fr; } .control-sliders { grid-template-columns:minmax(0,1fr); } .control-keyboard { grid-template-columns:repeat(6,minmax(0,1fr)); } .control-savebar > span { width:100%; } }
+.control-preview-action { display:flex; align-items:center; gap:1rem; flex-wrap:wrap; padding-top:1rem; margin-top:1rem; border-top:1px solid var(--border-subtle); }
+.control-preview-action .control-muted { flex:1; min-width:14rem; margin:0; }
+.station-preview { position:fixed; inset:0; z-index:40; background-color:var(--surface-page); }
+.preview-footer-actions { display:flex; align-items:center; justify-content:flex-end; gap:1rem; margin-left:auto; }
+.preview-caption { font:.6rem var(--font-mono); color:var(--text-muted); }
+.station-preview-attract .preview-footer { position:absolute; inset:auto 2rem 3.5rem; padding:1rem; background:var(--surface-page); }
+.preview-unavailable { margin:auto; padding:1rem; font-size:.85rem; }
+@media(max-width:650px) { .preview-caption { max-width:7rem; } .preview-footer-actions { gap:.5rem; } .station-preview-attract .preview-footer { inset-inline:1rem; } }
+
+.control-workflow-zoom { max-width:28rem; margin-block:1rem; }
+.control-workflow-zoom label { display:flex; justify-content:space-between; gap:1rem; }
+.control-workflow-zoom output { color:var(--brand-highlight); }
+.control-workflow-zoom input { width:100%; min-height:48px; accent-color:var(--brand-highlight); }
+
+.control-inheritance { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:.5rem; margin-top:.5rem; }
+.control-inheritance span { font-size:.8rem; color:var(--text-muted); }
+.control-inheritance button { min-height:40px; padding:.35rem .6rem; }
+
+/* This outline is a viewport overlay, so it stays aligned while controls scroll. */
+.launchpad.control-outline-shell { position:fixed; left:0; top:0; width:100vw; height:100dvh; visibility:hidden; pointer-events:none; }
+.control-screen-outline { position:fixed; z-index:100; pointer-events:none; box-sizing:border-box; outline:3px solid #ff4444; outline-offset:-3px; background:transparent; }

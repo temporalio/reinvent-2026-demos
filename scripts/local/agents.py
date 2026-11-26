@@ -41,6 +41,7 @@ def apply(services, spec, root, apps, port):
         service = web("travel-web")
         service["environment"].update({
             "TEMPORAL_TASK_QUEUE": "ri26-travel", "TRUST_AUTH_HEADERS": "false",
+            "BOOTH_STATION_SCOPING": "true",
             "PAYLOAD_DIR": "/tmp/preview-payloads", "PAYLOAD_BUCKET": "",
             "GEMINI_API_KEY": "", "GOOGLE_API_KEY": "",
         })

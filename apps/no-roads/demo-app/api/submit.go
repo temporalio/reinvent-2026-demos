@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
+	"os"
+	"strings"
 
 	"go.temporal.io/sdk/client"
 
@@ -19,8 +22,9 @@ type SubmitRequest struct {
 
 // SubmitResponse is returned to the frontend on success.
 type SubmitResponse struct {
-	WorkflowID string `json:"workflowId"`
-	Message    string `json:"message"`
+	WorkflowID    string `json:"workflowId"`
+	TemporalUIURL string `json:"temporalUiUrl,omitempty"`
+	Message       string `json:"message"`
 }
 
 // SubmitHandler returns an http.HandlerFunc that starts a DemoWorkflow for
@@ -41,7 +45,7 @@ func SubmitHandler(tc client.Client) http.HandlerFunc {
 		// Keep the name at the front of the ID so the audience UI can show it,
 		// and append the task queue so isolated workspaces sharing this
 		// namespace cannot collide.
-		workflowID := taskqueue.ExecutionID("demo-" + sanitizeName(req.Name) + "-" + shortID())
+		workflowID := taskqueue.ExecutionID("noroads-" + sanitizeName(req.Name) + "-" + shortID())
 
 		opts := client.StartWorkflowOptions{
 			ID:        workflowID,
@@ -58,10 +62,29 @@ func SubmitHandler(tc client.Client) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(SubmitResponse{
-			WorkflowID: we.GetID(),
-			Message:    "workflow started",
+			WorkflowID:    we.GetID(),
+			TemporalUIURL: workflowUIURL(we.GetID(), we.GetRunID()),
+			Message:       "workflow started",
 		})
 	}
+}
+
+// workflowUIURL links to the run in the Temporal UI, from the UI base and
+// qualified namespace Fieldkit injects (the local preview sets both too), or
+// returns "" when either is missing. TEMPORAL_NAMESPACE is not used: it can
+// differ from the UI's namespace.
+//
+// The run ID matters: without one the UI finds the run through a list query,
+// and Temporal Cloud's list results trail a new start by a moment, so a link
+// followed right away shows a 404.
+func workflowUIURL(workflowID, runID string) string {
+	base := strings.TrimRight(os.Getenv("TEMPORAL_UI_URL"), "/")
+	namespace := os.Getenv("TEMPORAL_UI_NAMESPACE")
+	if base == "" || namespace == "" {
+		return ""
+	}
+	return base + "/namespaces/" + url.PathEscape(namespace) + "/workflows/" +
+		url.PathEscape(workflowID) + "/" + url.PathEscape(runID) + "/timeline"
 }
 
 // sanitizeName strips characters that aren't safe in a Temporal workflow ID.

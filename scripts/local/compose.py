@@ -24,8 +24,9 @@ def load_adapter(name):
 
 SERVERLESS = load_adapter('serverless')
 AGENTS = load_adapter('agents')
+ONCALL = load_adapter('oncall')
 GROUPS.update(SERVERLESS.GROUPS)
-GROUPS.update({'agent-harness': [], 'agentic-sdlc': []})
+GROUPS.update({'agent-harness': [], 'agentic-sdlc': [], 'agentcore-research': []})
 NOTICES = {
     'no-roads': 'Local native worker: backlog and concurrency are real; AWS Lambda scaling is not emulated.',
     'loan': 'Presentation preview: Bedrock inference and loan decisions are unavailable until a provider is configured.',
@@ -72,6 +73,7 @@ def render(apps, port=15101, bind_address='127.0.0.1', hub_url=DEFAULT_CONTROL_H
     services = {
         'temporal': {
             'image': 'temporalio/temporal:1.8.3',
+            'restart': 'unless-stopped',
             'command': ['server', 'start-dev', '--ip', '0.0.0.0', '--db-filename', '/home/temporal/temporal.db', '--ui-public-path', '/_temporal/primary', '--ui-disable-news-fetch'],
             'volumes': ['temporal-data:/home/temporal'],
             'ports': ['127.0.0.1:17234:7233'],
@@ -79,6 +81,7 @@ def render(apps, port=15101, bind_address='127.0.0.1', hub_url=DEFAULT_CONTROL_H
         },
         'moto': {
             'image': MOTO,
+            'restart': 'unless-stopped',
             'environment': {'MOTO_PORT': '5000'},
             'ports': ['127.0.0.1:15001:5000'],
             'healthcheck': {'test': ['CMD', 'python', '-c', "import urllib.request; urllib.request.urlopen('http://localhost:5000/moto-api/')"], 'interval': '3s', 'timeout': '5s', 'retries': 30},
@@ -117,7 +120,9 @@ def render(apps, port=15101, bind_address='127.0.0.1', hub_url=DEFAULT_CONTROL_H
         if name == 'photobooth-web' or name == 'flightsim-web':
             env.update({'HOLODECK_IMAGE_PROVIDER': 'mock', 'HOLODECK_LLM_PROVIDER': 'mock', 'HOLODECK_EMAIL_PROVIDER': 'outbox', 'HOLODECK_PUBLIC_BASE_URL': f'http://localhost:{port}' + env['PUBLIC_PATH']})
             service['volumes'] = [f'{name}-data:/data']
-        if name in spec['aws']['components']:
+        # The hosted hub's DynamoDB table (spec.aws) is not emulated: local
+        # runs keep the hub on SQLite in the control-data volume.
+        if name in spec['aws']['components'] and name != 'control-hub':
             env.update({'AWS_ACCESS_KEY_ID': 'local', 'AWS_SECRET_ACCESS_KEY': 'local', 'AWS_REGION': 'us-east-1', 'AWS_ENDPOINT_URL_S3': 'http://moto:5000', 'AWS_ENDPOINT_URL_DYNAMODB': 'http://moto:5000'})
             for key, bucket in spec['aws']['s3']['buckets'].items(): env[bucket['env']] = 'ri26-local-' + key
             service.setdefault('depends_on', {})['aws-seed'] = {'condition': 'service_completed_successfully'}
@@ -131,16 +136,23 @@ def render(apps, port=15101, bind_address='127.0.0.1', hub_url=DEFAULT_CONTROL_H
             service['volumes'] = [str(ROOT / 'tmp/local/gateway.conf.template') + ':/etc/nginx/templates/default.conf.template:ro']
             service['depends_on'] = {'launchpad': {'condition': 'service_started'}, 'aws-seed': {'condition': 'service_completed_successfully'}, 'temporal-init': {'condition': 'service_completed_successfully'}, 'control-hub': {'condition': 'service_healthy'}}
         if name == 'control-hub':
+            env['CONTROL_DB'] = '/data/control.sqlite3'
+            env['CONTROL_MACHINE_CONTROL'] = '1'
             service['volumes'] = ['control-data:/data']
             service['healthcheck'] = {'test': ['CMD', 'python', '-c', "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/healthz')"], 'interval': '3s', 'timeout': '3s', 'retries': 30}
         if name == 'launchpad':
             service['volumes'] = [str(ROOT / 'tmp/local/runtime-config.json') + ':/usr/share/nginx/html/runtime-config.json:ro']
+        service['restart'] = 'unless-stopped'
         services[name] = service
     # nginx resolves these API hosts while loading its static config.
     for web, api in [('tacos-web','tacos-api'),('banking-web','banking-api')]:
         if web in services: services[web]['depends_on'] = {api: {'condition': 'service_started'}}
     SERVERLESS.apply(services, spec, ROOT, apps, port)
     AGENTS.apply(services, spec, ROOT, apps, port)
+    ONCALL.apply(services, spec, ROOT, apps, port)
+    for name, service in services.items():
+        if name not in {'aws-seed', 'temporal-init', 'no-roads-deployment-init'}:
+            service.setdefault('restart', 'unless-stopped')
     volumes = {'temporal-data': {}, 'control-data': {}}
     volumes.update({name+'-data': {} for name in ['flightsim-web','photobooth-web'] if name in services})
     return {'name': 'reinvent-2026-local', 'services': services, 'volumes': volumes}
@@ -163,4 +175,10 @@ if __name__ == '__main__':
     parser.add_argument('--bind-address', choices=['127.0.0.1', '0.0.0.0'], default='127.0.0.1')
     parser.add_argument('--control-hub-url', default=DEFAULT_CONTROL_HUB_URL)
     options = parser.parse_args()
-    write(options.apps.split(','), options.port, options.bind_address, options.control_hub_url)
+    try:
+        write(options.apps.split(','), options.port, options.bind_address, options.control_hub_url)
+    except ValueError as error:
+        message = str(error)
+        if 'CONTROL_HUB_URL' in message:
+            message += '\nExample: CONTROL_HUB_URL=http://192.168.50.10:15101 ./scripts/local.sh up'
+        parser.error(message)

@@ -13,7 +13,8 @@ export function PanelViewport({ label, children }: { label: string; children: Re
   }
   useEffect(() => {
     const element = root.current
-    if (!element) return
+    // The shared launchpad owns panel zoom in embedded mode.
+    if (!element || new URLSearchParams(window.location.search).get('sharedStage') === '1') return
     let gesture: { distance: number; zoom: number } | null = null
     function distance(touches: TouchList) {
       return Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY)

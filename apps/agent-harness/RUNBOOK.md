@@ -47,8 +47,8 @@ Each beat takes a minute or two, longer when the model is slow. The model call s
 
 ### 1. Start a trip and ask for one
 
-1. Open the app. It starts a new trip or resumes your most recent one; **New trip** in the header starts a fresh one.
-2. Type in the message box and press **Send** (or `Enter`): *"Book me a flight from SFO to JFK on November 3 and a hotel for three nights. Traveler is Ada Lovelace."*
+1. Open the app. The booth view starts on this station’s recent trips. Choose a trip to review or continue, or tap **New trip**, choose a traveler, departure city, and destination, then tap **Plan this trip**. This starts a fresh Workflow and sends the selected plan to Ziggy.
+2. Tap one of the four trip ideas under the conversation, or type your own and press **Send** (or `Enter`). Each new trip gets a fresh set. After every reply, the buttons change to answers to Ziggy's question, so nobody needs the on-screen keyboard.
 3. Your message appears in **Conversation**, whose header reads "Each message is a Workflow Update". A **thinking** badge shows the model call running.
 4. Say: "This conversation is a Temporal Workflow. My message just went in as an Update, and the model call is an Activity. If anything fails from here on, the conversation is already saved."
 
@@ -396,3 +396,25 @@ These updates are only for AWS re:Invent 2026. This repository's main branch is 
 The laptop bundle uses this demo's source instructions with a separate UI port and a laptop-specific task queue. From the parent `new-demos/` folder, run `./bundle-setup.sh --only agent-harness` and `python3 bundle.py panel`, then start **Travel Agent / Temporal Agent Harness** in [Config](http://127.0.0.1:5199/config). UI: [localhost:5360](http://127.0.0.1:5360/).
 
 Use the shared `.env` from 1Password at the bundle root. Keep machine identity in `.env.local`. The panel keeps local Temporal running in Cloud mode and restarts this demo's owned processes when switching targets. See the [bundle runbook](../RUNBOOK.md) for Cloud prerequisites, offline limits and verification. Runtime is not verified by installation alone.
+
+## Booth Deployment and Slow Model Calls
+
+The booth monorepo's `deploy/reinvent-2026.yaml` uses Fieldkit's shared `gemini` secret. Only `travel-worker` receives `GEMINI_API_KEY`. Both web and worker use `ri26-travel` and the shared payload storage configured by the deployment. The localhost presentation adapter currently starts only the web app and explicitly disables inference; providing a key alone does not add its missing worker.
+
+For a slow response, inspect the exact conversation in the booth's lower Temporal UI panel:
+
+1. Find `gemini_interactions_create_streamed`. Check its pending Activity state and attempt number.
+2. A scheduled Activity without a start points to worker availability or routing. `GET /travel-agent/api/agents` reports whether a worker is polling `ri26-travel`.
+3. A started model Activity is inside the provider/client call. Its start-to-close timeout is three minutes. A second attempt after that timeout means Temporal recovered a stalled call; it does not identify the provider's underlying fault.
+4. Compare the Activity's last failure, retry state, and completed-attempt duration. Use worker logs for provider response codes, rate limits, authentication errors, or streaming exceptions. Keep keys and traveler prompts out of shared debug output.
+5. If the model Activity completed and the page awaits a tool approval or a choice, tap that card to continue. That wait is a durable human checkpoint.
+
+All flight and hotel searches, bookings, prices, confirmations, and seat selections come from simulated tool Activities in `ziggy/activities.py`. Approval never reserves a real trip or contacts an airline or hotel. Gemini inference and Temporal execution are real.
+
+### Four-station booth behavior
+
+The launchpad passes its configured station number to the Travel Agent iframe. The web server remembers it in an HttpOnly, SameSite cookie scoped to `/travel-agent`, so the demo view, packaged console, streaming endpoints, and approvals all use the same station partition. `BOOTH_STATION_SCOPING=true` requires an identity from 1–4. The prefix hashes the station together with the normal authenticated subject (or the deployment’s fallback identity). The Task Queue and Temporal namespace remain shared.
+
+This is booth separation, not an authentication boundary: these public demos still permit an operator to select another station explicitly, and the public Temporal UI still exposes workflow data. Configure each Mini’s station number before use.
+
+The trip list contains up to 50 recent sessions, including ended ones. New trip selections are recorded in Workflow memo for the list. Existing shared trips remain in Temporal; they are not silently assigned to every station. Reopening a trip does not resend its initial planning prompt. Only pressing **Plan this trip** starts a new planning request. The form has ten fictional names and ten North American cities; the initial request plans three nights departing in two weeks, and can be refined through the normal conversation.

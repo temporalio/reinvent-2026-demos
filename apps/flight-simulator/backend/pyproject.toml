@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Holodeck demos backend: Temporal workers + small API server"
 requires-python = ">=3.12"
 dependencies = [
-  "temporalio>=1.18",
+  "temporalio>=1.36.1",
   "fastapi>=0.115",
   "uvicorn[standard]>=0.30",
   "pillow>=11",

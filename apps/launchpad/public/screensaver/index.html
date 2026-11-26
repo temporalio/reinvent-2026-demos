@@ -13,12 +13,12 @@
      repeats the list until the strip is covered twice over, then the strip slides by
      exactly one copy so the loop never shows a seam.
 
-     The six planets are the six Launchpad decks. Each one circles its orbit, growing
+     The planets represent the Launchpad demos. Each one circles its orbit, growing
      as it swings to the front and shrinking as it passes behind. Tap a planet to open
      its deck's lead demo on the card; DECKS in the script holds that copy and each
-     demo's link. The card's Launch outline fills over CARD_SECONDS, then the card
+     demo's introduction. The card's Launch outline fills over CARD_SECONDS, then the card
      closes and only the orbits stay until the next planet is tapped. A tap anywhere
-     else goes on to the crew select screen (CREW_SELECT_URL, not built yet).
+     else goes on to crew selection, as does every Launch button.
 
      Point the asset paths at your copy of assets/. -->
 <html lang="en">
@@ -49,12 +49,16 @@
       transform: translate(-50%, -50%) scale(var(--s, 1));
       overflow: hidden;
     }
-    .screensaver > * { position: absolute; }
+    .screensaver > *, .ambient-artboard > * { position: absolute; }
     .stage-art { inset: 0; width: 100%; height: 100%; overflow: visible; }
     .lines { pointer-events: none; }
 
     /* Background art */
-    .glow { left: -868px; top: -494.7px; width: 1814.85px; height: 1355.62px; rotate: -42.34deg; scale: 1 -1; }
+    /* Background fills the viewport even when the portrait artboard is letterboxed. */
+    .viewport-glow { position:fixed; inset:0; overflow:hidden; pointer-events:none; }
+    .viewport-glow .glow { position:absolute; left:calc(-868px * var(--s, 1)); top:calc(-494.7px * var(--s, 1)); width:calc(1814.85px * var(--s, 1)); height:calc(1355.62px * var(--s, 1)); rotate:-42.34deg; scale:1 -1; }
+    .viewport-decor { position:fixed; inset:0; overflow:hidden; pointer-events:none; }
+    .ambient-artboard { position:absolute; left:0; top:0; transform:scale(var(--s,1)); transform-origin:0 0; }
     .comet-ring { fill: none; stroke: var(--status-retrying); stroke-width: .5; opacity: .7; }
     .link { stroke: var(--accent); stroke-width: 2; stroke-dasharray: 2 10; }
     /* The big asteroid starts where Figma puts it; the script then arcs it off the bottom. */
@@ -136,7 +140,7 @@
     /* Logo marquees: 40 Figma pixels in from the window's top and bottom, edge to edge across it. */
     .marquee { position: fixed; left: 0; right: 0; overflow: hidden; height: calc(32px * var(--s, 1)); }
     .marquee.top { top: calc(40px * var(--s, 1)); }
-    .marquee.bottom { bottom: calc(40px * var(--s, 1)); }
+    .marquee.bottom { bottom: calc(40px * var(--s, 1)); background:rgb(9 10 16 / 72%); box-shadow:0 0 14px 8px rgb(9 10 16 / 35%); }
     .marquee-track { display: flex; width: max-content; height: 100%; }
     .marquee-track.is-running { animation: marquee-left var(--marquee-duration, 30s) linear infinite; }
     .marquee.bottom .marquee-track.is-running { animation-name: marquee-right; }
@@ -152,15 +156,19 @@
 <body>
   <canvas id="stars" aria-hidden="true"></canvas>
 
-  <main class="screensaver" aria-label="Crash Course: no lost state">
-    <img class="glow" src="art/glow.svg" alt="">
+  <div class="viewport-glow" aria-hidden="true"><img class="glow" src="art/glow.svg" alt=""></div>
 
-    <svg class="stage-art lines" viewBox="0 0 1080 1920" aria-hidden="true">
+  <div class="viewport-decor" aria-hidden="true"><div class="ambient-artboard">
+
+    <svg class="stage-art lines" viewBox="0 0 1080 1920" preserveAspectRatio="none" aria-hidden="true">
       <ellipse class="comet-ring" cx="540.11" cy="959.75" rx="2949.2" ry="855.28" transform="rotate(25.1 540.11 959.75)"/>
     </svg>
 
     <img class="asteroid" src="art/asteroid.png" alt="">
 
+  </div></div>
+
+  <main class="screensaver" aria-label="Crash Course: no lost state">
     <svg class="stage-art orbits" viewBox="0 0 1080 1920">
       <defs>
         <!-- One wireframe planet, radius 1; each <use> scales and colours it.
@@ -238,6 +246,9 @@
   <div class="marquee bottom" aria-hidden="true"><div class="marquee-track"></div></div>
 
   <script src="../../assets/js/starfield.js"></script>
+  <script src="./navigation.js"></script>
+  <script src="preview-rotation.js"></script>
+  <script src="asteroid-bounds.js"></script>
   <script>
     Starfield.start(document.getElementById("stars"));
     // No long-press menu on the touch screen.
@@ -275,11 +286,15 @@
       [tracks[1], [...logoImages.slice(half), ...logoImages.slice(0, half)]],
     ]);
     let scale = 1;
+    const ambient = document.querySelector(".ambient-artboard");
+    let ambientWidth = 1080, ambientHeight = 1920;
 
     // Fit the 1080 x 1920 stage inside the window.
     function fit() {
       scale = Math.min(innerWidth / 1080, innerHeight / 1920);
       document.documentElement.style.setProperty("--s", scale);
+      ambientWidth = innerWidth / scale; ambientHeight = innerHeight / scale;
+      ambient.style.width = `${ambientWidth}px`; ambient.style.height = `${ambientHeight}px`;
     }
 
     function fill(track) {
@@ -323,7 +338,173 @@
     // does (angle in degrees, 90 = front); pace scales its lap time (under 1 is faster,
     // over 1 slower); the card copy is each deck's lead demo, and
     // url is where its Launch button goes. Until a url is set, Launch does nothing.
-    const DECKS = [{"badge": "orbit_01", "deck": "Ziggy Space Taqueria", "color": "--persona-captain", "orbit": 5, "angle": 30, "r": 42, "pace": 0.8, "title": "Ziggy Space Taqueria", "lead": "Order tacos from orbit, then", "mark": "cut the kitchen uplink", "rest": " and recover the order.", "url": "/?demo=tacos"}, {"badge": "orbit_02", "deck": "Money Transfer", "color": "--persona-mech", "orbit": 4, "angle": 71, "r": 39, "pace": 0.89, "title": "Money Transfer", "lead": "Move credits between accounts.", "mark": "Interrupt the transfer", "rest": " and inspect compensation.", "url": "/?demo=money-transfer"}, {"badge": "orbit_03", "deck": "Data Pipeline", "color": "--persona-envoy", "orbit": 3, "angle": 112, "r": 36, "pace": 0.98, "title": "Data Pipeline", "lead": "Validate and transform mission data.", "mark": "Recover a failed step", "rest": " without starting over.", "url": "/?demo=data-pipeline"}, {"badge": "orbit_04", "deck": "Loan Underwriting", "color": "--persona-solarian", "orbit": 2, "angle": 153, "r": 33, "pace": 1.07, "title": "Loan Underwriting", "lead": "Assess an application with Strands agents.", "mark": "Pause for human review", "rest": " before the decision.", "url": "/?demo=loan"}, {"badge": "orbit_05", "deck": "No Roads", "color": "--persona-wizard", "orbit": 1, "angle": 194, "r": 30, "pace": 1.1600000000000001, "title": "No Roads", "lead": "Send jobs to serverless workers.", "mark": "Watch backlog and concurrency", "rest": " on AWS Lambda.", "url": "/?demo=no-roads"}, {"badge": "orbit_06", "deck": "Travel Agent / Temporal Agent Harness", "color": "--brand-accent", "orbit": 0, "angle": 235, "r": 27, "pace": 1.25, "title": "Travel Agent / Temporal Agent Harness", "lead": "Build a trip with an AI agent.", "mark": "Approve the next booking", "rest": " and follow each durable tool call.", "url": "/?demo=agent-harness"}, {"badge": "orbit_07", "deck": "Agentic SDLC (tentative)", "color": "--persona-captain", "orbit": 5, "angle": 276, "r": 24, "pace": 1.34, "title": "Agentic SDLC (tentative)", "lead": "GitHub-driven development agents.", "mark": "Staff setup required", "rest": " before this mission can launch.", "url": null}, {"badge": "orbit_08", "deck": "Flight Simulator", "color": "--persona-mech", "orbit": 4, "angle": 317, "r": 21, "pace": 1.4300000000000002, "title": "Flight Simulator", "lead": "Take the controls for a flight mission.", "mark": "Explore the galaxy", "rest": " with Temporal behind the scenes.", "url": "/?demo=flight-simulator"}, {"badge": "orbit_09", "deck": "Photo Booth", "color": "--persona-envoy", "orbit": 3, "angle": 358, "r": 18, "pace": 1.52, "title": "Photo Booth", "lead": "Step into the Photo Booth.", "mark": "Become a space explorer", "rest": " and create an AI photo strip.", "url": "/?demo=photo-booth"}];
+    const DECKS = [
+      {
+            "badge": "orbit_01",
+            "deck": "Ziggy Space Taqueria",
+            "color": "--persona-solarian",
+            "orbit": 5,
+            "angle": 30,
+            "r": 42,
+            "pace": 0.8,
+            "title": "Ziggy Space Taqueria",
+            "lead": "Order tacos from orbit, then",
+            "mark": "cut the kitchen uplink",
+            "rest": " and recover the order.",
+            "url": "/?demo=tacos",
+            "id": "tacos"
+      },
+      {
+            "badge": "orbit_02",
+            "deck": "Money Transfer",
+            "color": "--persona-solarian",
+            "orbit": 4,
+            "angle": 71,
+            "r": 39,
+            "pace": 0.89,
+            "title": "Money Transfer",
+            "lead": "Move credits between accounts.",
+            "mark": "Interrupt the transfer",
+            "rest": " and inspect compensation.",
+            "url": "/?demo=money-transfer",
+            "id": "money-transfer"
+      },
+      {
+            "badge": "orbit_03",
+            "deck": "Data Pipeline",
+            "color": "--persona-solarian",
+            "orbit": 3,
+            "angle": 112,
+            "r": 36,
+            "pace": 0.98,
+            "title": "Data Pipeline",
+            "lead": "Validate and transform mission data.",
+            "mark": "Recover a failed step",
+            "rest": " without starting over.",
+            "url": "/?demo=data-pipeline",
+            "id": "data-pipeline"
+      },
+      {
+            "badge": "orbit_04",
+            "deck": "Loan Underwriting",
+            "color": "--status-waiting",
+            "orbit": 2,
+            "angle": 153,
+            "r": 33,
+            "pace": 1.07,
+            "title": "Loan Underwriting",
+            "lead": "Assess an application with Strands agents.",
+            "mark": "Pause for human review",
+            "rest": " before the decision.",
+            "url": "/?demo=loan",
+            "id": "loan"
+      },
+      {
+            "badge": "orbit_05",
+            "deck": "No Roads",
+            "color": "--status-waiting",
+            "orbit": 1,
+            "angle": 194,
+            "r": 30,
+            "pace": 1.1600000000000001,
+            "title": "No Roads",
+            "lead": "Send jobs to serverless workers.",
+            "mark": "Watch backlog and concurrency",
+            "rest": " on AWS Lambda.",
+            "url": "/?demo=no-roads",
+            "id": "no-roads"
+      },
+      {
+            "badge": "orbit_06",
+            "deck": "Travel Agent / Temporal Agent Harness",
+            "color": "--persona-space-wizard",
+            "orbit": 0,
+            "angle": 235,
+            "r": 27,
+            "pace": 1.25,
+            "title": "Travel Agent / Temporal Agent Harness",
+            "lead": "Build a trip with an AI agent.",
+            "mark": "Approve the next booking",
+            "rest": " and follow each durable tool call.",
+            "url": "/?demo=agent-harness",
+            "id": "agent-harness"
+      },
+      {
+            "badge": "orbit_07",
+            "deck": "Agentic SDLC (tentative)",
+            "color": "--persona-space-wizard",
+            "orbit": 5,
+            "angle": 276,
+            "r": 24,
+            "pace": 1.34,
+            "title": "Agentic SDLC (tentative)",
+            "lead": "GitHub-driven development agents.",
+            "mark": "Staff setup required",
+            "rest": " before this mission can launch.",
+            "url": "/?demo=agentic-sdlc",
+            "id": "agentic-sdlc"
+      },
+      {
+            "badge": "orbit_08",
+            "deck": "Flight Simulator",
+            "color": "--persona-envoy",
+            "orbit": 4,
+            "angle": 317,
+            "r": 21,
+            "pace": 1.4300000000000002,
+            "title": "Flight Simulator",
+            "lead": "Take the controls for a flight mission.",
+            "mark": "Explore the galaxy",
+            "rest": " with Temporal behind the scenes.",
+            "url": "/?demo=flight-simulator",
+            "id": "flight-simulator"
+      },
+      {
+            "badge": "orbit_09",
+            "deck": "Photo Booth",
+            "color": "--persona-envoy",
+            "orbit": 3,
+            "angle": 358,
+            "r": 18,
+            "pace": 1.52,
+            "title": "Photo Booth",
+            "lead": "Step into the Photo Booth.",
+            "mark": "Become a space explorer",
+            "rest": " and create an AI photo strip.",
+            "url": "/?demo=photo-booth",
+            "id": "photo-booth"
+      },
+      {
+            "id": "agentcore-video",
+            "badge": "orbit_10",
+            "deck": "AgentCore Demo · Cornelia Davis",
+            "title": "AgentCore Demo · Cornelia Davis",
+            "color": "--persona-captain",
+            "orbit": 2,
+            "angle": 17,
+            "r": 28,
+            "pace": 1.6,
+            "lead": "Watch Cornelia Davis demonstrate AgentCore.",
+            "mark": "Silent video",
+            "rest": " with touch playback controls.",
+            "url": "/?demo=agentcore-video"
+      },
+      {
+            "id": "agentcore-research",
+            "badge": "orbit_11",
+            "deck": "AgentCore Starship Engineer",
+            "title": "AgentCore Starship Engineer",
+            "color": "--persona-captain",
+            "orbit": 1,
+            "angle": 75,
+            "r": 28,
+            "pace": 1.6,
+            "lead": "An AI engineer fixes Ziggy's starship and waits for the captain's approval.",
+            "mark": "Human approval",
+            "rest": " — resume the agent without repeating its work.",
+            "url": "/?demo=agentcore-research"
+      }
+];
 
     // How far round the front a planet is: 0 at the back of its orbit, 1 at the front.
     const depthAt = deg => (1 + Math.sin(deg * Math.PI / 180)) / 2;
@@ -364,15 +545,17 @@
 
     // How long a card stays open before it closes on its own, in seconds.
     const CARD_SECONDS = 15;
-    // The screen a tap on the background leads to. The crew select screen is not
-    // built yet: until it is, a background tap only fires a "screensaver:next" event.
-    const CREW_SELECT_URL = null;
 
     const launch = card.querySelector(".launch");
     let selected = null;
     let timer = null;
+    const previewRotation = window.createPreviewRotation({ count:planets.length, onSelect:index=>select(planets[index]) });
+    previewRotation.setHidden(document.hidden);
+    document.addEventListener("visibilitychange",()=>previewRotation.setHidden(document.hidden));
+    addEventListener("pagehide",()=>previewRotation.stop());
 
     function select(planet) {
+      previewRotation.selected(planets.indexOf(planet));
       selected = planet;
       const { deck } = planet;
       stage.classList.remove("is-idle");
@@ -401,14 +584,9 @@
         p.append(keep, deck.rest);
       }
       launch.setAttribute("aria-label", `Launch ${deck.title}`);
-      if (deck.url) {
-        launch.href = deck.url;
-        launch.target = "_top";
-        launch.removeAttribute("aria-disabled");
-      } else {
-        launch.removeAttribute("href");
-        launch.setAttribute("aria-disabled", "true");
-      }
+      launch.href = deck.url;
+      launch.removeAttribute("target");
+      launch.removeAttribute("aria-disabled");
       card.classList.remove("is-swapping");
       void card.offsetWidth;
       card.classList.add("is-swapping");
@@ -424,8 +602,9 @@
       timer.finished.then(close, () => {});
     }
 
-    // Close the card and clear the selection: only the orbits stay until the next tap.
+    // Keep the orbits clear for five seconds, then preview a different planet.
     function close() {
+      previewRotation.closed();
       selected = null;
       timer = null;
       planets.forEach(p => p.g.setAttribute("aria-pressed", false));
@@ -437,11 +616,15 @@
         .finished.then(() => { if (!selected) hide(); });
     }
 
-    // A tap anywhere but a planet or the open card moves on to the crew select screen.
+    launch.addEventListener("click", event => {
+      event.preventDefault();
+      if(selected)window.boothLaunchDemo(selected.deck.id);
+    });
+
+    // Background taps start Crew; planet cards launch their selected demo.
     addEventListener("pointerdown", e => {
       if (e.target.closest(".planet, .card-overview")) return;
-      if (CREW_SELECT_URL) location.href = CREW_SELECT_URL;
-      else document.dispatchEvent(new CustomEvent("reinvent:exit"));
+      window.boothExitScreensaver();
     });
 
     function place(planet) {
@@ -487,7 +670,10 @@
     // Keyframes for a curved trip from one point to another. The path bows out
     // towards `toward` (a corner of the screen) by 12-22% of its length, and the rock
     // turns slowly on the way. `fade` fades it in and out at the ends.
-    function arc([fromX, fromY], [toX, toY], [towardX, towardY], { turn, spin, fade }) {
+    function arc([fromX, fromY], [toX, toY], [towardX, towardY], { turn, spin, fade, width=94.26 }) {
+      const top=document.querySelector(".marquee.top").getBoundingClientRect().bottom/scale;
+      const bottom=document.querySelector(".marquee.bottom").getBoundingClientRect().top/scale;
+      const safe=window.asteroidTravelBounds(top,bottom,width);
       const midX = (fromX + toX) / 2, midY = (fromY + toY) / 2;
       const len = Math.hypot(toX - fromX, toY - fromY);
       let nx = (toY - fromY) / len, ny = -(toX - fromX) / len;
@@ -498,7 +684,8 @@
       for (let i = 0; i <= 24; i++) {
         const t = i / 24, u = 1 - t;
         const x = u * u * fromX + 2 * u * t * ctrlX + t * t * toX;
-        const y = u * u * fromY + 2 * u * t * ctrlY + t * t * toY;
+        const rawY = u * u * fromY + 2 * u * t * ctrlY + t * t * toY;
+        const y = window.reflectAsteroidPosition(rawY,safe.min,safe.max);
         const frame = { transform: `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) rotate(${(turn + spin * t).toFixed(1)}deg)` };
         if (fade) frame.opacity = Math.min(1, t / .15, (1 - t) / .15) * .9;
         frames.push(frame);
@@ -508,19 +695,19 @@
 
     // Little asteroids: every so often one slides in past one edge, cuts across that
     // corner of the screen and leaves past the neighbouring edge.
-    const CORNERS = [[0, 0], [1080, 0], [0, 1920], [1080, 1920]];
     let drifting = 0;
 
     function drift() {
       if (drifting < 2) {
+        const CORNERS = [[0, 0], [ambientWidth, 0], [0, ambientHeight], [ambientWidth, ambientHeight]];
         const corner = CORNERS[Math.floor(Math.random() * CORNERS.length)];
         const [cx, cy] = corner;
         const size = between(36, 80);
         const off = size + 20;
         // Enter through the side edge, leave through the top or bottom edge, so the
         // path cuts across the corner, between 150 and 600px in from it.
-        const side = [cx === 0 ? -off : 1080 + off - size, cy === 0 ? between(150, 600) : 1920 - between(150, 600)];
-        const end = [cx === 0 ? between(150, 600) : 1080 - between(150, 600), cy === 0 ? -off : 1920 + off - size];
+        const side = [cx === 0 ? -off : ambientWidth + off - size, cy === 0 ? between(150, 600) : ambientHeight - between(150, 600)];
+        const end = [cx === 0 ? between(150, 600) : ambientWidth - between(150, 600), cy === 0 ? -off : ambientHeight + off - size];
         const [from, to] = Math.random() < .5 ? [side, end] : [end, side];
 
         const rock = document.createElement("img");
@@ -528,36 +715,42 @@
         rock.src = "art/asteroid.png";
         rock.alt = "";
         rock.style.width = `${size}px`;
-        stage.insertBefore(rock, stage.querySelector(".orbits"));
+        ambient.append(rock);
         drifting++;
-        const frames = arc(from, to, corner, { turn: between(0, 360), spin: between(-1, 1) * between(40, 140), fade: true });
-        rock.animate(frames, { duration: between(30, 50) * 1000, easing: "linear" }).finished.then(() => {
-          rock.remove();
-          drifting--;
-        });
+        const frames = arc(from, to, corner, { turn: between(0, 360), spin: between(-1, 1) * between(40, 140), fade: true, width:size });
+        const cleanup=()=>{rock.remove();drifting--;};
+        rock.animate(frames, { duration: between(30, 50) * 1000, easing: "linear" }).finished.then(cleanup,cleanup);
       }
       setTimeout(drift, between(8, 18) * 1000);
     }
 
-    // The big asteroid: it falls away off the bottom of the screen along an arc that
-    // bows towards the bottom-right corner. The first fall starts at once from its
-    // Figma spot at the right edge; after a pause off screen it comes back in from a
-    // random height on the right and leaves at a random point along the bottom.
+    // The larger asteroid arcs in from the right, reflects above the lower logo
+    // strip, and fades before the next trip. All paths share the logo clearance.
     const asteroid = document.querySelector(".asteroid");
 
+    let fallDelay=null;
     function fall(from) {
-      const to = [between(250, 950), 1920 + 120];
-      const frames = arc(from, to, [1080, 1920], { turn: 149.13, spin: between(30, 90) });
-      asteroid.animate(frames, { duration: between(25, 40) * 1000, easing: "linear", fill: "forwards" }).finished.then(() => {
-        setTimeout(() => fall([1080 + 40, between(700, 1650)]), between(15, 45) * 1000);
-      });
+      clearTimeout(fallDelay);
+      const to = [between(ambientWidth * .23, ambientWidth * .88), ambientHeight + 120];
+      const frames = arc(from, to, [ambientWidth, ambientHeight], { turn: 149.13, spin: between(30, 90), fade:true });
+      const animation=asteroid.animate(frames, { duration: between(25, 40) * 1000, easing: "linear", fill: "forwards" });
+      animation.finished.then(() => {
+        // The last frame is transparent. Release the filled effect before the next trip.
+        animation.cancel();
+        fallDelay=setTimeout(() => fall([ambientWidth + 40, between(ambientHeight * .36, ambientHeight * .86)]), between(15, 45) * 1000);
+      },()=>{});
     }
 
     if (reduceMotion) {
       asteroid.hidden = true;
     } else {
-      fall([1032.5, 1529.2]);
+      fall([ambientWidth - 47.5, ambientHeight - 390.8]);
       setTimeout(drift, between(2, 5) * 1000);
+      addEventListener("resize",()=>{
+        document.querySelectorAll(".drifter").forEach(rock=>rock.getAnimations().forEach(animation=>animation.cancel()));
+        asteroid.getAnimations().forEach(animation=>animation.cancel());
+        fall([ambientWidth-47.5,ambientHeight*.65]);
+      });
     }
   </script>
 </body>

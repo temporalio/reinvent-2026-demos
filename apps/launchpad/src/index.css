@@ -1,3 +1,4 @@
+@import url('/booth/keyboard.css');
 @import url('/assets/css/temporal-theme.css');
 @import url('/assets/css/cosmic-pop-theme.css');
 * { box-sizing: border-box; }
@@ -16,13 +17,6 @@ main.lower { margin-top: auto; padding-top: 12vh; }
 h1 { font: 400 clamp(2.5rem, 8vw, 6rem)/1 var(--font-mono); margin: .8rem 0 2rem; }
 .demo-title { font-size: 2.5rem; }
 .eyebrow { color: var(--text-muted); font: .75rem var(--font-mono); }
-.crew { display: grid; gap: 1rem; }
-.crew button { text-align: left; padding: 1.5rem; background: var(--surface-overlay); }
-.crew strong { display: block; font: 700 2rem var(--font-mono); color: var(--brand-highlight); }
-.crew p { font: 1rem var(--font-sans); margin-top: .5rem; }
-.crew [data-persona=captain] strong { color: var(--persona-captain); }
-.crew [data-persona=envoy] strong { color: var(--persona-envoy); }
-.crew [data-persona=solarian] strong { color: var(--persona-solarian); }
 .missions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 1rem; }
 .missions article { display: flex; flex-direction: column; border: 1px solid var(--border-default); padding: 1.3rem; background: var(--surface-overlay); }
 h2 { font: 700 1.4rem var(--font-mono); }
@@ -57,13 +51,136 @@ button:disabled { opacity: .55; cursor: default; }
 .launchpad { height:100dvh; min-height:0; overflow:hidden; padding-top:3.5rem; padding-bottom:3.5rem; }
 .launchpad > header, .launchpad > footer { flex-shrink:0; }
 .launchpad > footer { margin-top:0; }
-.station-status { font: .65rem var(--font-mono); margin:.4rem 0; color:var(--text-muted); }
 .local-notice { font-size:.65rem; flex-shrink:0; }
 .presentation-bounds { flex:1; min-height:0; position:relative; overflow:hidden; }
 main.station-surface { position:absolute; top:50%; left:50%; max-width:none; margin:0; padding:0; overflow:auto; overscroll-behavior:contain; border:1px solid var(--border-default); background:var(--surface-overlay); transition:none; }
 .station-content { min-height:100%; padding:1rem; }
-.station-surface .demo-stage { height:calc(100dvh - 20rem); min-height:42rem; }
-.station-surface .native-stage { height:calc(100dvh - 20rem); min-height:42rem; }
 .ziggy-settings { margin-left:auto; display:flex; align-items:center; min-width:48px; min-height:48px; }
 
 .station-settings-overlay { position:fixed; inset:0; z-index:30; overflow:auto; background:var(--surface-page); overscroll-behavior:contain; }
+
+/* Browse screens may scroll; running demos always fit the saved station rectangle. */
+.launchpad > header { min-height:2.6rem; padding-bottom:.4rem; }
+.launchpad > header > img { width:7rem; flex-shrink:0; }
+.launchpad > header .demo-title { margin:0; font-size:clamp(.9rem,2.8vw,1.7rem); text-align:right; }
+.station-content { min-height:0; padding:1rem; }
+.station-surface-demo { overflow:hidden !important; }
+.station-surface-demo .station-content { position:absolute; inset:0 auto auto 0; display:flex; flex-direction:column; padding:0; overflow:hidden; }
+.station-surface-demo .demo-stage { flex:1; height:100%; min-height:0; }
+.screensaver-control { margin-left:auto; }
+.ziggy-settings { margin-left:0; }
+
+/* Capability cards use the toolkit's existing marks and screensaver artwork. */
+.missions { align-items:stretch; gap:.8rem; }
+.missions .mission-card { position:relative; isolation:isolate; min-width:0; padding:1rem; background:var(--surface-page); overflow:hidden; }
+.mission-card::before { content:""; position:absolute; inset:0; z-index:-1; pointer-events:none; background:radial-gradient(ellipse at top right,var(--surface-hero),transparent 70%); }
+.mission-card::after { content:""; position:absolute; right:-2.8rem; bottom:-3.4rem; width:9rem; height:9rem; z-index:-1; opacity:.13; pointer-events:none; background:url('/screensaver/art/asteroid.png') center/contain no-repeat; transform:rotate(-20deg); }
+.mission-card-heading { display:flex; align-items:center; gap:.65rem; min-height:3.2rem; }
+.mission-icon { display:grid; place-items:center; flex:0 0 2.8rem; width:2.8rem; height:2.8rem; border:1px solid var(--border-default); }
+.mission-icon img { width:1.9rem; height:1.9rem; }
+.mission-card-heading h2 { min-width:0; margin:0; font:700 1.05rem/1.2 var(--font-mono); text-transform:uppercase; overflow-wrap:anywhere; }
+.missions .mission-description { font-size:.8rem; line-height:1.4; min-height:4.2em; color:var(--text-primary); margin:.8rem 0; }
+.mission-tags { display:flex; align-content:start; flex-wrap:wrap; gap:.3rem; padding:0; margin:0 0 .6rem; list-style:none; }
+.mission-tags li { border:1px solid var(--border-default); padding:.2rem .35rem; font:.55rem/1.2 var(--font-mono); text-transform:uppercase; color:var(--text-primary); }
+.missions .mission-connectivity { margin:.1rem 0 .65rem; font:.6rem/1.3 var(--font-mono); color:var(--text-muted); }
+.missions .mission-card .pending { font-size:.65rem; line-height:1.35; margin:0 0 .6rem; }
+.missions .mission-card button { display:flex; justify-content:space-between; gap:.5rem; width:100%; min-height:48px; border-color:var(--brand-highlight); margin-top:auto; }
+.mission-card[aria-disabled=true] .mission-card-heading,.mission-card[aria-disabled=true] .mission-description,.mission-card[aria-disabled=true] .mission-icon { opacity:.55; }
+@media(min-width:651px) { .mission-card-heading h2 { min-height:2.4em; display:flex; align-items:center; } }
+.screensaver-control { display:flex; align-items:center; justify-content:flex-end; gap:.6rem; }
+.idle-countdown { color:var(--status-waiting); font:.65rem var(--font-mono); white-space:nowrap; }
+@media(max-width:650px) { .screensaver-control { position:relative; } .idle-countdown { position:absolute; bottom:100%; right:0; padding-bottom:.3rem; } }
+
+/* Every mission, including its Launch button, shares the station's height budget. */
+.station-surface-missions { container:mission-surface / size; overflow:hidden !important; }
+.station-surface-missions .station-content { position:absolute; inset:0 auto auto 0; display:flex; flex-direction:column; min-height:0; padding:clamp(8px,1.6cqw,30px); overflow:hidden; }
+.station-surface-missions .eyebrow { flex-shrink:0; margin:0; font-size:clamp(9px,1.1cqw,22px); }
+.station-surface-missions h1 { flex-shrink:0; margin:.5cqh 0 1.3cqh; font-size:clamp(28px,6cqh,100px); line-height:1; }
+.station-surface-missions .missions { flex:1; min-height:0; min-width:0; grid-template-columns:repeat(2,minmax(0,1fr)); grid-template-rows:repeat(var(--mission-rows),minmax(0,1fr)); gap:clamp(6px,1cqh,24px); }
+.station-surface-missions .mission-card { min-height:0; min-width:0; padding:clamp(8px,1.1cqh,26px) clamp(8px,1.5cqw,28px); }
+.station-surface-missions .mission-card-heading { min-height:0; gap:.8cqw; flex-shrink:0; }
+.station-surface-missions .mission-card-heading h2 { min-height:0; font-size:clamp(11px,1.7cqw,34px); line-height:1.2; }
+.station-surface-missions .mission-icon { flex:0 0 clamp(28px,4cqw,76px); width:clamp(28px,4cqw,76px); height:clamp(28px,4cqw,76px); }
+.station-surface-missions .mission-icon img { width:70%; height:70%; }
+.station-surface-missions .mission-description { min-height:0; font-size:clamp(10px,1.4cqw,28px); line-height:1.35; margin:.7cqh 0; }
+.station-surface-missions .mission-tags { margin:auto 0 .5cqh; gap:.35cqw; }
+.station-surface-missions .mission-tags li { font-size:clamp(8px,.9cqw,18px); padding:.2em .35em; }
+.station-surface-missions .mission-connectivity { margin:.2cqh 0 .7cqh; font-size:clamp(8px,.95cqw,20px); }
+.station-surface-missions .mission-card .pending { margin:0 0 .5cqh; font-size:clamp(9px,1cqw,20px); }
+.station-surface-missions .mission-card button { flex-shrink:0; min-height:48px; margin-top:0; padding:.4em .7em; font-size:clamp(11px,1.3cqw,26px); }
+
+@container mission-surface (min-aspect-ratio:1/1) {
+  .station-surface-missions .missions { grid-template-columns:repeat(var(--mission-wide-columns),minmax(0,1fr)); grid-template-rows:repeat(var(--mission-wide-rows),minmax(0,1fr)); }
+  .station-surface-missions .mission-card { padding:1cqh .7cqw; }
+  .station-surface-missions .mission-card-heading h2 { font-size:clamp(10px,2.1cqh,22px); }
+  .station-surface-missions .mission-icon { flex-basis:28px; width:28px; height:28px; }
+  .station-surface-missions .mission-description { font-size:clamp(9px,1.9cqh,18px); margin:.5cqh 0; }
+  .station-surface-missions .mission-tags li { font-size:clamp(7px,1.4cqh,14px); }
+  .station-surface-missions .mission-connectivity,.station-surface-missions .mission-card .pending { font-size:clamp(8px,1.5cqh,15px); }
+}
+
+/* Holodeck is a manual two-choice menu, with two equal cards filling the available height. */
+.station-surface-missions .missions.missions-holodeck {
+  flex:1; grid-template-columns:minmax(0,1fr); grid-template-rows:repeat(2,minmax(0,1fr));
+  align-content:start; max-width:100%; overflow:hidden;
+}
+.station-surface-missions .missions-holodeck .mission-card { padding:clamp(12px,1.8cqh,32px) clamp(12px,2cqw,38px); }
+.station-surface-missions .missions-holodeck .mission-description { margin:1cqh 0; }
+.station-surface-missions .missions-holodeck .mission-tags { margin:.8cqh 0 1.4cqh; }
+.station-surface-missions .missions-holodeck .pending { margin-bottom:1cqh; }
+
+.station-surface-missions .missions-holodeck .mission-preview { flex:1 1 0; min-height:0; margin:.5cqh 0; overflow:hidden; border:1px solid var(--border-default); background:#090b12; }
+.station-surface-missions .mission-preview img { display:block; width:100%; height:100%; object-fit:cover; object-position:center; }
+@container mission-surface (min-aspect-ratio:1/1) {
+  .station-surface-missions .missions-holodeck .mission-card { padding:.8cqh 1cqw; }
+  .station-surface-missions .missions-holodeck .mission-description { margin:.5cqh 0; }
+  .station-surface-missions .missions-holodeck .mission-tags { margin:.4cqh 0; }
+}
+.station-surface-missions .missions-holodeck .mission-card { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); grid-template-rows:auto minmax(0,1fr) auto auto; column-gap:1.5cqw; }
+.station-surface-missions .missions-holodeck .mission-card-heading,.station-surface-missions .missions-holodeck .mission-description,.station-surface-missions .missions-holodeck .mission-tags,.station-surface-missions .missions-holodeck .mission-card > button { grid-column:1; }
+.station-surface-missions .missions-holodeck .mission-preview { grid-column:2; grid-row:1 / 5; margin:0; }
+.station-surface-missions .missions-holodeck .mission-preview img { object-fit:contain; }
+.station-surface-missions .missions-holodeck .mission-tags { align-self:end; }
+
+/* Larger mission copy fills the cards while preserving the fixed viewport budget. */
+.station-surface-missions .missions-main .mission-card-heading h2 { font-size:clamp(18px,2.8cqw,54px); line-height:1.08; }
+.station-surface-missions .missions-main .mission-icon { flex-basis:clamp(40px,6cqw,112px); width:clamp(40px,6cqw,112px); height:clamp(40px,6cqw,112px); }
+.station-surface-missions .missions-main .mission-description { font-size:clamp(12px,1.8cqw,35px); line-height:1.35; margin:1cqh 0; }
+.station-surface-missions .missions-main .mission-tags li { font-size:clamp(9px,1.05cqw,21px); }
+.station-surface-missions .missions-main .mission-card > button { font-size:clamp(14px,1.65cqw,32px); }
+.station-surface-missions .missions-aws-ai .mission-card-heading h2 { font-size:clamp(16px,2.5cqw,48px); }
+.station-surface-missions .missions-aws-ai .mission-preview { flex:1; min-height:0; overflow:hidden; border:1px solid var(--border-default); background:var(--surface-page); margin:.8cqh 0; }
+.station-surface-missions .missions-aws-ai .mission-preview img { object-fit:contain; }
+.station-surface-missions .missions-aws-ai .mission-tags { flex-shrink:0; margin:.5cqh 0; }
+@container mission-surface (min-aspect-ratio:1/1) {
+  .station-surface-missions .missions-main .mission-card-heading h2 { font-size:clamp(13px,2.8cqh,29px); }
+  .station-surface-missions .missions-main .mission-icon { flex-basis:clamp(28px,5cqh,52px); width:clamp(28px,5cqh,52px); height:clamp(28px,5cqh,52px); }
+  .station-surface-missions .missions-main .mission-description { font-size:clamp(10px,2.2cqh,23px); margin:.5cqh 0; }
+  .station-surface-missions .missions-main .mission-tags li { font-size:clamp(7px,1.5cqh,15px); }
+  .station-surface-missions .missions-main .mission-card > button { font-size:clamp(12px,2cqh,21px); }
+  .station-surface-missions .missions-aws-ai .mission-card-heading h2 { font-size:clamp(13px,2.5cqh,26px); }
+}
+
+/* Keep the two new AgentCore cards beneath the original AI/AWS four. */
+.station-surface-missions .missions.missions-aws-ai { grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(var(--mission-rows),minmax(0,1fr)); }
+@media(max-width:850px) {
+  .launchpad > footer { gap:.4rem; }
+  .launchpad > footer button { padding:.5rem;font-size:.65rem; }
+}
+
+main.station-surface-video { border:0; background:transparent; overflow:hidden; box-shadow:none; }
+.station-surface-video .station-content { position:absolute; inset:0 auto auto 0; display:flex; flex-direction:column; padding:0; overflow:hidden; background:transparent; }
+.launchpad > footer button { min-height:48px; }
+
+/* Keep the lower customer logos legible over the moon terrain. */
+.customer-marquee.bottom { background:rgb(9 10 16 / 72%); box-shadow:0 0 14px 8px rgb(9 10 16 / 35%); }
+
+.idle-toggle { display:inline-flex; align-items:center; justify-content:center; gap:.35rem; padding:.6rem; min-width:48px; }
+.idle-toggle svg { width:1.1rem; height:1.1rem; fill:none; stroke:currentColor; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
+.idle-toggle[aria-pressed="true"] { color:var(--brand-highlight); border-color:var(--brand-highlight); }
+.idle-toggle span { font-size:.65rem; }
+
+.connection-status {display:inline-flex;align-items:center;justify-content:center;flex:none;width:2.5rem;color:var(--text-secondary,#bbb);}
+.connection-status[data-online=true] {color:var(--color-turquoise,#14b8b8);}
+.connection-status svg {width:1.5rem;height:1.5rem;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;}
+.machine-controls input {max-width:100%;font-family:monospace;}

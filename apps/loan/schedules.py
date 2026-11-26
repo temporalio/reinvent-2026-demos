@@ -53,7 +53,7 @@ async def create_schedule(client: Client) -> None:
             action=ScheduleActionStartWorkflow(
                 LoanUnderwritingWorkflow.run,
                 applicant,
-                id=f"loan-{applicant.id}-{generate(size=6)}",
+                id=f"loanunderwriting-{applicant.id}-{generate(size=6)}",
                 task_queue=TASK_QUEUE,
             ),
             spec=ScheduleSpec(

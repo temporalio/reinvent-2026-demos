@@ -1,3 +1,4 @@
+@import url('/booth/keyboard.css');
 @import url('/assets/css/temporal-theme.css');
 @import url('/assets/css/cosmic-pop-theme.css');
 html[data-booth=true] {
@@ -61,20 +62,59 @@ html[data-booth=true][data-demo=no-roads] .stat-value { font-size:2rem; }
 html[data-booth=true][data-demo=no-roads] .presenter-controls { align-items:stretch; }
 html[data-booth=true][data-demo=no-roads] .presenter-title { flex-wrap:wrap; }
 
-/* Loan: application editing alongside preset applicants and bulk controls. */
-html[data-booth=true][data-demo=loans] body > header { display:none; }
-html[data-booth=true][data-demo=loans] .screen { max-width:none; padding:1rem; }
-html[data-booth=true][data-demo=loans] .hero-title { padding:0 !important; margin:0 !important; font-size:1.6rem; }
-html[data-booth=true][data-demo=loans] .hero-sub { padding:0 !important; margin:.5rem 0 1rem !important; }
-html[data-booth=true][data-demo=loans] .loan-entry-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; }
-html[data-booth=true][data-demo=loans] .loan-entry-grid > div { margin:0 !important; padding:0 !important; min-width:0; }
-html[data-booth=true][data-demo=loans] .loan-entry-grid .form-grid { grid-template-columns:minmax(0,1fr); }
-html[data-booth=true][data-demo=loans] .profile-grid { grid-template-columns:minmax(0,1fr); }
-html[data-booth=true][data-demo=loans] :is(.form-card,.profile-card,.panel,.assessment-box,.bulk-actions) { border-radius:0; border-color:var(--border-default); background:var(--surface-overlay); }
-html[data-booth=true][data-demo=loans] :is(.btn-primary,.btn-approve) { background:var(--brand-highlight); color:var(--surface-overlay); }
-html[data-booth=true][data-demo=loans] .bulk-button-row { flex-direction:column; }
-html[data-booth=true][data-demo=loans] .two-col { gap:1rem; }
-html[data-booth=true][data-demo=loans] .submit-panel { position:static; }
+/* Loan: native-size controls and two bounded, readable application panels. */
+html[data-booth=true][data-shared-stage=true][data-demo=loans] body { height:100dvh; min-height:0; display:flex; flex-direction:column; overflow:hidden; font-size:16px; }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] body > header { display:none; }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] .booth-native-notice { margin:0 .75rem; padding:.35rem .6rem; font-size:12px; }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] .screen { max-width:none; min-height:0; width:100%; padding:.8rem; }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] .screen.active { display:flex; flex-direction:column; flex:1; min-height:0; overflow:hidden; }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] .hero-title { padding:0 !important; margin:0 0 .65rem !important; max-width:none !important; font:400 clamp(20px,2vw,28px)/1.25 var(--font-mono); }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] .loan-entry-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.8rem; flex:1; min-height:0; }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] .loan-entry-grid > div { margin:0 !important; padding:0 !important; min-width:0; min-height:0; max-width:none; }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] .loan-entry-form { display:flex; }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] .form-card { flex:1; display:flex; flex-direction:column; min-height:0; padding:1rem; }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] .form-card-title,.profiles-title { font:700 18px/1.3 var(--font-mono); margin:0 0 .65rem; }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] .loan-entry-grid .form-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:.65rem; }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] .form-label { font-size:14px; margin-bottom:.35rem; }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] :is(.form-select,.form-input) { font:400 16px/1.3 var(--font-sans); padding:.6rem; min-height:48px; border-radius:0; }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] .form-card > .btn { margin-top:auto; }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] :is(.btn,.back-btn) { font:400 16px/1.3 var(--font-mono); min-height:48px; border-radius:0; padding:.6rem; }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] :is(.btn-primary,.btn-approve) { background:var(--brand-highlight); color:var(--surface-overlay); }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] :is(.form-card,.profile-card,.panel,.assessment-box,.bulk-actions) { border-radius:0; border-color:var(--border-default); background:var(--surface-overlay); }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] .loan-entry-examples { display:flex; flex-direction:column; border:1px solid var(--border-default); padding:1rem !important; }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] .profiles-sub { display:none; }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] .profile-grid { display:grid; grid-template-columns:1fr; grid-template-rows:repeat(2,minmax(0,1fr)); flex:1; min-height:0; gap:.5rem; }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] .profile-card { color:var(--text-primary); font-size:16px; display:grid; grid-template-columns:minmax(0,1fr) auto; align-content:center; min-width:0; min-height:0 !important; width:100%; text-align:left; white-space:normal; padding:.6rem .75rem; gap:.2rem .5rem; }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] .card-name { font:700 16px/1.2 var(--font-sans); }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] .card-occupation { grid-column:1; font-size:14px; line-height:1.25; margin:0; }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] .card-loan { grid-column:2; grid-row:1/3; align-self:center; font:700 20px/1.2 var(--font-mono); margin:0; }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] .card-purpose { grid-column:1/-1; font-size:14px; line-height:1.25; margin:0; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] .loan-profile-pager { display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:.5rem; margin-top:.5rem; flex:none; }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] .loan-profile-pager span { text-align:center; font:14px var(--font-mono); }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] .loan-profile-pager .btn { width:auto; min-height:44px; font-size:14px; }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] .loan-bulk-panel { margin-top:.4rem; flex:none; }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] .loan-bulk-panel summary { min-height:44px; padding:.65rem; cursor:pointer; border:1px solid var(--border-default); font:14px var(--font-mono); }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] .loan-entry-examples:has(.loan-bulk-panel[open]) :is(.profile-grid,.loan-profile-pager) { display:none; }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] .bulk-actions { padding:.7rem 0 0; border:0; }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] .bulk-button-row { grid-template-columns:1fr 1fr; gap:.4rem; }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] #bulk-start-btn { grid-column:1/-1; }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] .bulk-title { display:none; }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] .two-col { flex:1; min-height:0; gap:1rem; align-items:stretch; }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] .two-col > div { min-height:0; overflow:auto; }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] .submit-panel { position:static; gap:.7rem; }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] .panel { padding:1rem; }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] .submit-description { font-size:16px; }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] .back-btn { flex:none; margin:0 0 .5rem; width:max-content; }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] .loading-center { min-height:0; height:100%; gap:.8rem; justify-content:center; }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] .loading-title { font-size:24px; }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] .loading-sub { font-size:16px; }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] .activity-feed { min-height:0; max-width:36rem; overflow:auto; }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] .activity-item { font-size:16px; }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] .verdict-header { flex:none; margin-bottom:.7rem; }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] .assessment-box { flex:1; min-height:0; max-height:none; overflow:auto; font-size:16px; }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] .decision-buttons { flex:none; }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] .result-center { min-height:0; height:100%; gap:.7rem; }
+html[data-booth=true][data-shared-stage=true][data-demo=loans] .workflow-id { font-size:12px; margin:.6rem 0 0; }
 
 /* Travel: the conversation is the interaction surface; approvals and route status sit beside it. */
 html[data-booth=true][data-demo=travel-agent] .app { height:100dvh; min-height:0; padding:1rem; }
@@ -130,3 +170,239 @@ html[data-booth=true][data-execution-mode=native] .stat-card:has(#stat-lambda) :
 html[data-booth=true][data-execution-mode=native] .charts-grid .card:first-child :is(.spark,.chart-time,.chart-peak) { display:none; }
 html[data-booth=true][data-execution-mode=native] .stat-card:has(#stat-lambda)::after,
 html[data-booth=true][data-execution-mode=native] .charts-grid .card:first-child::after { content:'Not emulated'; display:block; margin-top:1rem; color:var(--text-muted); font:.8rem var(--font-mono); }
+
+/* Shared stage: each native app fills the upper half. Its own lower explainer is redundant. */
+html[data-shared-stage=true],html[data-shared-stage=true] body { width:100%; height:100%; min-height:0; margin:0; overflow:hidden; }
+html[data-shared-stage=true] #root,html[data-shared-stage=true] #app { height:100%; min-height:0; overflow:hidden; }
+html[data-shared-stage=true] :is(button,select,input:not([type=checkbox]):not([type=radio])) { min-height:44px; }
+html[data-shared-stage=true][data-demo=banking] { font-size:16px; }
+html[data-shared-stage=true][data-demo=banking] .app-header { flex:none; padding:.4rem .6rem; gap:.5rem; }
+html[data-shared-stage=true][data-demo=banking] .app-header :is(.brand,.booth-scenario-dialog,.booth-temporal-summary) { display:none; }
+html[data-shared-stage=true][data-demo=banking] .topbar-actions { flex:1; justify-content:flex-end; min-width:0; }
+html[data-shared-stage=true][data-demo=banking] .booth-scenario { display:flex; align-items:center; gap:.4rem; margin:0; min-width:0; }
+html[data-shared-stage=true][data-demo=banking] .booth-scenario select { width:min(18rem,40vw); min-width:0; padding:.4rem; font-size:.85rem; }
+html[data-shared-stage=true][data-demo=banking] #root > main { flex:1; min-height:0; overflow:hidden; }
+html[data-shared-stage=true][data-demo=banking] .pane-layout { grid-template-columns:repeat(2,minmax(0,1fr)); gap:.5rem; height:100%; overflow:hidden; }
+html[data-shared-stage=true][data-demo=banking] :is(.pane,.pane-stack,.booth-banking-product,.banking-screen) { min-height:0; height:100%; overflow:hidden; }
+html[data-shared-stage=true][data-demo=banking] .booth-banking-product { display:flex; flex-direction:column; }
+html[data-shared-stage=true][data-demo=banking] .pane-head { flex:none; padding:.4rem .6rem; }
+html[data-shared-stage=true][data-demo=banking] .pane-head .eyebrow { display:none; }
+html[data-shared-stage=true][data-demo=banking] .pane-head h2 { font-size:1rem; }
+html[data-shared-stage=true][data-demo=banking] .banking-screen-head { flex:none; padding:.35rem .6rem; gap:.25rem; }
+html[data-shared-stage=true][data-demo=banking] .banking-screen-head h1 { font-size:1rem; }
+html[data-shared-stage=true][data-demo=banking] .banking-screen-body { flex:1; min-height:0; padding:.5rem .6rem; overflow:visible; }
+html[data-shared-stage=true][data-demo=banking] .banking-screen-actions { flex:none; padding:.4rem .6rem; }
+html[data-shared-stage=true][data-demo=banking] .banking-screen-actions button { min-height:44px; padding:.4rem; }
+html[data-shared-stage=true][data-demo=banking] .banking-total { display:flex; flex-direction:row; align-items:center; justify-content:space-between; gap:.5rem; padding:.5rem; margin:0; }
+html[data-shared-stage=true][data-demo=banking] .banking-total .stat-value { font-size:1.5rem; }
+html[data-shared-stage=true][data-demo=banking] .account-overview { display:flex; flex-direction:column; gap:.5rem; }
+html[data-shared-stage=true][data-demo=banking] .account-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.5rem; }
+html[data-shared-stage=true][data-demo=banking] .account-grid > * { margin:0; }
+html[data-shared-stage=true][data-demo=banking] .account-tile { padding:.5rem; }
+html[data-shared-stage=true][data-demo=banking] .account-tile > div { display:grid; grid-template-columns:auto minmax(0,1fr); gap:.25rem .6rem; align-items:start; }
+html[data-shared-stage=true][data-demo=banking] .account-tile .account-icon { display:none; }
+html[data-shared-stage=true][data-demo=banking] .account-tile .account-ziggy { display:block; grid-row:span 2; width:3.2rem; height:3.2rem; }
+html[data-shared-stage=true][data-demo=banking] .account-tile .text-right { grid-column:2; }
+html[data-shared-stage=true][data-demo=banking] .account-tile .text-right { text-align:left; }
+html[data-shared-stage=true][data-demo=banking] .account-meta { font-size:.7rem; }
+html[data-shared-stage=true][data-demo=banking] .transfer-fields { grid-template-columns:repeat(2,minmax(0,1fr)); gap:.5rem; }
+html[data-shared-stage=true][data-demo=banking] .transfer-fields > :is(.amount-field,.quick-amounts) { grid-column:1 / -1; }
+html[data-shared-stage=true][data-demo=banking] .transfer-fields .field { gap:.25rem; min-width:0; }
+html[data-shared-stage=true][data-demo=banking] .transfer-fields :is(select,input) { width:100%; min-height:44px; padding:.4rem; font-size:.85rem; }
+html[data-shared-stage=true][data-demo=banking] .amount-input input { padding-left:1.8rem; font-size:1.25rem; }
+html[data-shared-stage=true][data-demo=banking] .quick-amounts { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:.25rem; }
+html[data-shared-stage=true][data-demo=banking] .review-detail { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.5rem; align-content:start; }
+html[data-shared-stage=true][data-demo=banking] .review-amount { grid-column:1 / -1; margin:0; gap:.1rem; }
+html[data-shared-stage=true][data-demo=banking] .review-amount > p:first-child { font-size:2rem; }
+html[data-shared-stage=true][data-demo=banking] .review-account { margin:0; padding:.5rem; gap:.3rem; }
+html[data-shared-stage=true][data-demo=banking] .review-account > div { display:grid; grid-template-columns:auto minmax(0,1fr); gap:.2rem .6rem; align-items:start; }
+html[data-shared-stage=true][data-demo=banking] .review-account .account-ziggy { grid-row:span 2; }
+html[data-shared-stage=true][data-demo=banking] .review-account .account-icon:not(.account-ziggy),html[data-shared-stage=true][data-demo=banking] .review-direction { display:none; }
+html[data-shared-stage=true][data-demo=banking] .review-account .account-ziggy { width:2.6rem; height:2.6rem; }
+html[data-shared-stage=true][data-demo=banking] .review-account .text-right { text-align:left; margin-top:.3rem; }
+html[data-shared-stage=true][data-demo=banking] .tracking-hero { margin:0 0 .5rem; padding:.6rem; }
+html[data-shared-stage=true][data-demo=banking] .tracking-hero > span { display:none; }
+html[data-shared-stage=true][data-demo=banking] .tracking-hero h2 { font-size:1.15rem; }
+html[data-shared-stage=true][data-demo=banking] .tracking-progress { padding:0 .6rem; margin-bottom:.5rem; min-height:5rem; }
+html[data-shared-stage=true][data-demo=banking] .tracking-security { display:none; }
+html[data-shared-stage=true][data-demo=banking] .card.backstage { height:100%; padding:.5rem .6rem; gap:.45rem; overflow:hidden; }
+html[data-shared-stage=true][data-demo=banking] .backstage > .card-head { flex:none; }
+html[data-shared-stage=true][data-demo=banking] .backstage .heading { font-size:1rem; }
+html[data-shared-stage=true][data-demo=banking] .backstage .steps { flex:none; overflow:visible; padding:0; gap:.2rem; }
+html[data-shared-stage=true][data-demo=banking] .backstage .step { grid-template-columns:1.25rem minmax(0,1fr) auto; gap:.1rem .4rem; padding-bottom:.35rem; }
+html[data-shared-stage=true][data-demo=banking] .backstage .dot { width:1.25rem; height:1.25rem; font-size:.65rem; }
+html[data-shared-stage=true][data-demo=banking] .backstage .step-label { font-size:.85rem; }
+html[data-shared-stage=true][data-demo=banking] .backstage .step-detail { font-size:.72rem; }
+html[data-shared-stage=true][data-demo=banking] .backstage .step-note,html[data-shared-stage=true][data-demo=banking] .backstage .legend { display:none; }
+html[data-shared-stage=true][data-demo=banking] .backstage:has(.state-banner) .step-detail { display:none; }
+html[data-shared-stage=true][data-demo=banking] .backstage .state-banner { padding:.4rem; font-size:.78rem; }
+html[data-shared-stage=true][data-demo=banking] .backstage .execution-foot { margin-top:auto; padding-top:.3rem; gap:.3rem; }
+html[data-shared-stage=true][data-demo=banking] .execution-foot .wfid { font-size:.65rem; }
+html[data-shared-stage=true][data-demo=banking] .execution-foot a { min-height:44px; font-size:.7rem; padding:.3rem; white-space:nowrap; }
+
+/* Tacos contributes one live customer/chaos session. The launchpad owns all lower tabs. */
+html[data-shared-stage=true][data-demo=dejavutacos] { font-size:16px; }
+html[data-shared-stage=true][data-demo=dejavutacos] :is(.mission-header,.mission-footer,.insight-panel,.panel-zoom) { display:none !important; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-shell { height:100%; min-height:0; padding:.5rem; display:flex; flex-direction:column; gap:.4rem; overflow:hidden; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-shell::before { display:none; }
+html[data-shared-stage=true][data-demo=dejavutacos] .mission-workspace { flex:1; min-height:0; display:flex; flex-direction:column; padding:0; margin:0; overflow:hidden; }
+html[data-shared-stage=true][data-demo=dejavutacos] .mission-top { flex:1; min-height:0; grid-template-columns:repeat(2,minmax(0,1fr)); grid-template-rows:minmax(0,1fr); gap:.5rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] :is(.mission-panel,.panel-viewport,.panel-scroll,.panel-zoom-content,.customer-app) { min-height:0; overflow:visible; }
+html[data-shared-stage=true][data-demo=dejavutacos] .mission-panel { overflow:hidden; }
+html[data-shared-stage=true][data-demo=dejavutacos] .panel-scroll { flex:1; overflow:hidden; }
+html[data-shared-stage=true][data-demo=dejavutacos] .panel-zoom-content { zoom:1 !important; height:100%; }
+html[data-shared-stage=true][data-demo=dejavutacos] .panel-label { padding:.4rem .6rem; gap:.2rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .panel-label h2 { font-size:1rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .panel-label > span { font-size:.6rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .customer-app > .h-full { height:100%; min-height:0; }
+html[data-shared-stage=true][data-demo=dejavutacos] .customer-app .overflow-y-auto { min-height:0; overflow:visible; }
+html[data-shared-stage=true][data-demo=dejavutacos] .customer-app > div > :first-child { flex:none; padding:.4rem .6rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .customer-app > div > :first-child h1 { font-size:1rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-menu-items { display:grid; grid-template-columns:minmax(0,1fr); gap:.4rem; padding:.4rem; align-content:start; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-menu-category,html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-menu-category > div { display:contents; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-menu-category > h2,html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-menu-description { display:none; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-menu-item { min-width:0; min-height:68px; margin:0; padding:.35rem; gap:.25rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-menu-item > span { display:none; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-menu-item h3 { font-size:.75rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-menu-item button { flex:none; min-width:44px; min-height:44px; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-cart-items { display:grid; grid-template-columns:minmax(0,1fr); align-content:start; gap:.4rem; padding:.4rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-cart-item { flex-wrap:wrap; min-width:0; margin:0; gap:.25rem; padding:.35rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-cart-item > div { min-width:0; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-cart-item h3 { font-size:.72rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-cart-item button { min-width:44px; min-height:44px; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-cart-totals { flex:none; padding:.75rem; display:grid; grid-template-columns:minmax(0,1fr); gap:.5rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-cart-totals > div { display:flex; justify-content:space-between; gap:1rem; margin:0; font-size:.85rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-cart-totals button { grid-column:1 / -1; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-checkout-content { display:grid; grid-template-columns:minmax(0,1fr); align-content:start; gap:.4rem; padding:.4rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-checkout-card { margin:0; padding:.4rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-checkout-card h2 { margin-bottom:.25rem; font-size:.75rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-checkout-card p { font-size:.68rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-checkout-summary { grid-column:1 / -1; display:grid; grid-template-columns:minmax(0,1fr); gap:.15rem .5rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-checkout-summary > h2,html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-checkout-totals { grid-column:1 / -1; }
+html[data-shared-stage=true][data-demo=dejavutacos] .taqueria-checkout-summary > div { font-size:.7rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .kitchen-content { height:100%; padding:.5rem .6rem; overflow:hidden; }
+html[data-shared-stage=true][data-demo=dejavutacos] .uplink { padding:0; }
+html[data-shared-stage=true][data-demo=dejavutacos] .uplink-orbit { display:none; }
+html[data-shared-stage=true][data-demo=dejavutacos] .uplink h3 { font-size:1.25rem; margin:.3rem 0; }
+html[data-shared-stage=true][data-demo=dejavutacos] .uplink > p { font-size:.75rem; margin:.3rem 0; }
+html[data-shared-stage=true][data-demo=dejavutacos] .mission-note { display:none; }
+html[data-shared-stage=true][data-demo=dejavutacos] .kitchen-orders { margin-top:.6rem; padding-top:.6rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .kitchen-order { padding:.5rem; margin:.35rem 0 0; }
+html[data-shared-stage=true][data-demo=dejavutacos] .kitchen-order h3 { font-size:.85rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .kitchen-order p { font-size:.75rem; }
+/* Presenter controls belong to mission control, including when the outer header is absent. */
+html[data-booth=true][data-demo=dejavutacos] .kitchen-panel > .panel-label { position:relative; padding-right:9rem; }
+html[data-booth=true][data-demo=dejavutacos] .kitchen-panel .mission-options { position:absolute; right:.5rem; top:.4rem; margin:0; max-width:8rem; padding:.3rem .5rem; font-size:.65rem; line-height:1.2; }
+html[data-shared-stage=true][data-demo=dejavutacos] .settings-dialog { width:min(50rem,calc(100vw - 1rem)); max-height:calc(100dvh - 1rem); padding:.7rem; gap:.5rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .settings-body { grid-template-columns:repeat(3,minmax(0,1fr)); gap:.6rem; overflow:visible; }
+html[data-shared-stage=true][data-demo=dejavutacos] .settings-group { gap:.35rem; align-content:start; }
+html[data-shared-stage=true][data-demo=dejavutacos] .scenario-list { gap:.35rem; }
+html[data-shared-stage=true][data-demo=dejavutacos] .scenario { padding:.45rem; min-height:44px; }
+html[data-shared-stage=true][data-demo=dejavutacos] .scenario-note { display:none; }
+html[data-shared-stage=true] [data-booth-scrollfit=true] { overflow:visible !important; max-height:none !important; }
+html[data-shared-stage=true]:is([data-demo=no-roads],[data-demo=loans],[data-demo=agentic-sdlc],[data-demo=data-pipeline]) { font-size:16px; }
+/* Travel Agent isn't zoomed to fit, so its type scales with the frame instead: 16px in a
+   frame about 1040px wide, and proportionally larger on a bigger kiosk. */
+html[data-shared-stage=true][data-demo=travel-agent] { font-size:clamp(16px,min(1.55vw,3.4vh),48px); }
+html[data-shared-stage=true][data-demo=no-roads] body { height:auto; min-height:var(--booth-canvas-height); padding:.5rem; }
+html[data-shared-stage=true][data-demo=no-roads] .no-roads-booth-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:.5rem; }
+html[data-shared-stage=true][data-demo=no-roads] :is(.no-roads-interaction,.no-roads-controls) { padding:.5rem; }
+html[data-shared-stage=true][data-demo=no-roads] .charts-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+html[data-shared-stage=true][data-demo=no-roads] .stat-value { font-size:1.25rem; }
+html[data-shared-stage=true][data-demo=no-roads] .stat-card { padding:.4rem; }
+html[data-shared-stage=true][data-demo=loans] .loan-entry-grid { height:auto; min-height:0; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.6rem; }
+html[data-shared-stage=true][data-demo=loans] .loan-entry-grid .form-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+html[data-shared-stage=true][data-demo=loans] .profile-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+html[data-shared-stage=true][data-demo=loans] :is(.screen,#screen-1) { padding:.5rem; }
+html[data-shared-stage=true][data-demo=loans] .hero-sub { margin:.3rem 0 .5rem !important; }
+html[data-shared-stage=true][data-demo=loans] .bulk-button-row { flex-direction:row; flex-wrap:wrap; }
+/* Travel Agent is not virtually fitted: it fills the frame and its conversation scrolls inside. */
+html[data-shared-stage=true][data-demo=travel-agent] .app { height:100dvh; min-height:0; padding:.5rem; gap:.5rem; }
+html[data-shared-stage=true][data-demo=travel-agent] .workspace { grid-template-columns:repeat(2,minmax(0,1fr)); gap:.5rem; }
+html[data-shared-stage=true][data-demo=travel-agent] .workspace > .travel { grid-column:2; grid-row:1; }
+html[data-shared-stage=true][data-demo=travel-agent] .travel > :is(.map,.route-map,.departures) { min-height:7rem; }
+/* The route map takes whatever height the board and settings leave, rather than a thin strip. */
+html[data-shared-stage=true][data-demo=travel-agent] .travel > .map { flex-grow:1; }
+html[data-shared-stage=true][data-demo=agentic-sdlc] .shell { height:auto; min-height:var(--booth-canvas-height); padding:.5rem; grid-template-columns:minmax(0,1fr) minmax(14rem,.6fr); grid-template-rows:auto minmax(0,1fr); }
+html[data-shared-stage=true][data-demo=agentic-sdlc] .presenter-bar { grid-column:2; max-height:none; padding:.5rem; }
+/* Holodeck overlays fit their actual upper iframe; live canvases keep native coordinates. */
+html[data-shared-stage=true][data-demo=flightsim] .fd-screen { padding:1rem; gap:.7rem; overflow:visible; }
+html[data-shared-stage=true][data-demo=flightsim] .fd-title { font-size:clamp(2rem,8vh,5rem); }
+html[data-shared-stage=true][data-demo=flightsim] .fd-howto { grid-template-columns:repeat(4,minmax(0,1fr)); gap:.5rem; }
+html[data-shared-stage=true][data-demo=flightsim] .fd-howto > div { padding:.6rem; font-size:.75rem; }
+html[data-shared-stage=true][data-demo=flightsim] .fd-howto b { font-size:.85rem; }
+html[data-shared-stage=true][data-demo=flightsim] .fd-howto .big { font-size:1.5rem; }
+html[data-shared-stage=true][data-demo=photobooth] .screen { padding:.75rem; gap:.6rem; overflow:visible; }
+html[data-shared-stage=true][data-demo=photobooth] .screen > div:first-child { gap:.3rem !important; flex:none; }
+html[data-shared-stage=true][data-demo=photobooth] h1 { font-size:clamp(1.5rem,5vh,2.5rem); margin:.2rem 0; }
+html[data-shared-stage=true][data-demo=photobooth] .pb-split { min-height:0; gap:.75rem; }
+html[data-shared-stage=true][data-demo=photobooth] .pb-viewfinder { height:min(58vh,60vw); }
+html[data-shared-stage=true][data-demo=photobooth] .pb-side { gap:.65rem; }
+html[data-shared-stage=true][data-demo=photobooth] .panel { padding:.7rem; }
+html[data-shared-stage=true][data-demo=flightsim] .fd-screen:has(.fd-howto) .fd-lb tbody { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 .75rem; }
+html[data-shared-stage=true][data-demo=flightsim] .fd-screen:has(.fd-howto) .fd-lb tr { display:grid; grid-template-columns:2rem minmax(0,1fr) auto; }
+html[data-shared-stage=true][data-demo=flightsim] .fd-screen:has(.fd-howto) .fd-lb td { padding:.2rem .3rem; width:auto; min-width:0; font-size:.7rem; overflow-wrap:anywhere; }
+/* A translated full-height screen temporarily extends the document during entry. */
+@keyframes booth-screen-enter { from { opacity:0; } to { opacity:1; } }
+html[data-shared-stage=true]:is([data-demo=flightsim],[data-demo=photobooth]) .fade-in { animation-name:booth-screen-enter; }
+
+/* Photo Booth follows the same square controls and semantic colors as the missions. */
+html[data-booth=true][data-demo=photobooth] { --radius:0px; --tap:48px; --u:clamp(6px,min(.85vw,.85vh),16px); }
+html[data-booth=true][data-demo=photobooth] :is(button,select,.field,.panel,.panel-tab,.pb-viewfinder,.osk,.osk-key,.wf-step,.temporal-badge) { border-radius:0; box-shadow:none; }
+html[data-booth=true][data-demo=photobooth] .btn { border:1px solid var(--border-default); background:var(--surface-overlay); color:var(--text-primary); font:400 clamp(14px,2.1vh,24px)/1.3 var(--font-mono); letter-spacing:0; padding:.6rem 1rem; min-height:48px; }
+html[data-booth=true][data-demo=photobooth] .btn.mint { background:var(--brand-highlight); border-color:var(--brand-highlight); color:var(--surface-page); }
+html[data-booth=true][data-demo=photobooth] .btn.amber { background:var(--status-waiting); color:var(--surface-page); }
+html[data-booth=true][data-demo=photobooth] .panel-tab { position:static; display:block; width:fit-content; padding:0 0 .4rem; background:transparent; color:var(--text-muted); font:400 .65rem/1.3 var(--font-mono); }
+html[data-booth=true][data-demo=photobooth] .panel { border:1px solid var(--border-default); background:var(--surface-overlay); }
+html[data-booth=true][data-demo=photobooth] .temporal-badge { background:transparent; border:0; color:var(--text-muted); }
+html[data-booth=true][data-demo=photobooth] .pb-camera-controls { display:flex; flex-wrap:wrap; gap:.4rem; align-items:end; }
+html[data-booth=true][data-demo=photobooth] .pb-camera-controls label { display:flex; flex:1; min-width:0; flex-direction:column; gap:.25rem; font:.7rem var(--font-mono); }
+html[data-booth=true][data-demo=photobooth] .pb-camera-controls select { width:100%; padding:.4rem; color:var(--text-primary); background:var(--surface-page); border:1px solid var(--border-default); font:.7rem var(--font-sans); }
+html[data-booth=true][data-demo=photobooth] .pb-camera-controls p { flex-basis:100%; margin:0; font-size:.65rem; }
+html[data-booth=true][data-demo=photobooth] .pb-camera-controls p:empty { display:none; }
+html[data-booth=true][data-demo=photobooth] .screen { overflow:hidden; }
+
+html[data-shared-stage=true][data-demo=dejavutacos] .mobile-device { flex:1; min-height:0; margin:.4rem auto; width:calc(100% - .8rem); }
+html[data-shared-stage=true][data-demo=dejavutacos] .mobile-device .customer-app { overflow:hidden; }
+html[data-shared-stage=true][data-demo=dejavutacos] .mobile-device .taqueria-menu-items { overflow-y:auto; }
+html[data-shared-stage=true][data-demo=dejavutacos] .mobile-device .taqueria-cart-items { min-height:0; overflow-y:auto; }
+
+/* Banking actions use the same solid lime fill as the rest of the booth. */
+html[data-booth=true][data-demo=banking] .button.primary:is(.ultraviolet,.green) { background:var(--brand-highlight); color:var(--surface-page); border:1px solid var(--brand-highlight); box-shadow:none; font-family:var(--font-mono); }
+html[data-booth=true][data-demo=banking] .button.primary:disabled { opacity:.45; }
+
+/* SDLC keeps readable type and real panel boundaries instead of zooming a whole page. */
+html[data-shared-stage=true][data-demo=agentic-sdlc] {font-size:clamp(16px,min(1.55vw,3.4vh),40px);}
+html[data-shared-stage=true][data-demo=agentic-sdlc] body {height:100dvh;overflow:hidden;}
+html[data-shared-stage=true][data-demo=agentic-sdlc] .shell {height:100dvh;min-height:0;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);padding:.5rem;gap:.6rem;}
+html[data-shared-stage=true][data-demo=agentic-sdlc] .acts {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%;gap:.3rem;}
+html[data-shared-stage=true][data-demo=agentic-sdlc] .acts button {font-size:.85rem;min-height:48px;white-space:normal;}
+html[data-shared-stage=true][data-demo=agentic-sdlc] .stage {display:flex;flex-direction:column;gap:.7rem;min-width:0;}
+html[data-shared-stage=true][data-demo=agentic-sdlc] .stage>.act {min-height:0;}
+html[data-shared-stage=true][data-demo=agentic-sdlc] .presenter-bar {gap:.7rem;padding:.75rem;}
+html[data-shared-stage=true][data-demo=agentic-sdlc] .presenter-controls-group {min-width:0;display:flex;flex-direction:column;gap:.8rem;padding:0;border:0;}
+html[data-shared-stage=true][data-demo=agentic-sdlc] .presenter-title {font:700 1.2rem var(--font-mono);margin:0;}
+html[data-shared-stage=true][data-demo=agentic-sdlc] .failure-options {border:1px solid var(--border-default);padding:.6rem;}
+html[data-shared-stage=true][data-demo=agentic-sdlc] .failure-options summary {cursor:pointer;min-height:48px;display:flex;align-items:center;font:1rem var(--font-mono);}
+html[data-shared-stage=true][data-demo=agentic-sdlc] .failure-options summary::before {content:'＋';margin-right:.5rem;}
+html[data-shared-stage=true][data-demo=agentic-sdlc] .failure-options[open] summary::before {content:'−';}
+html[data-shared-stage=true][data-demo=agentic-sdlc] :is(.button,button,select) {font-size:.9rem;min-height:48px;border-radius:0;box-shadow:none;}
+html[data-shared-stage=true][data-demo=agentic-sdlc] .button.primary {background:var(--brand-highlight);border:1px solid var(--brand-highlight);color:var(--surface-page);}
+html[data-shared-stage=true][data-demo=agentic-sdlc] .button.secondary {background:var(--surface-page);border:1px solid var(--border-default);color:var(--text-primary);}
+html[data-shared-stage=true][data-demo=agentic-sdlc] .button::before,html[data-shared-stage=true][data-demo=agentic-sdlc] .button::after {display:none;}
+
+/* AgentCore uses the same bounded upper-left / upper-right application layout. */
+html[data-shared-stage=true][data-demo=agentcore-oncall] {font-size:clamp(16px,min(1.4vw,3vh),36px);}
+html[data-shared-stage=true][data-demo=agentcore-oncall] body {height:100dvh;overflow:hidden;}
+html[data-shared-stage=true][data-demo=agentcore-oncall] .app {height:100dvh;min-height:0;padding:.5rem;gap:.5rem;max-width:none;}
+html[data-shared-stage=true][data-demo=agentcore-oncall] .topbar .brand {display:none;}
+html[data-shared-stage=true][data-demo=agentcore-oncall] .columns {flex:1;min-height:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:minmax(0,1fr);gap:.6rem;align-items:stretch;}
+html[data-shared-stage=true][data-demo=agentcore-oncall] .incident {grid-column:1;grid-row:1;min-width:0;min-height:0;overflow:auto;}
+html[data-shared-stage=true][data-demo=agentcore-oncall] .side {grid-column:2;grid-row:1;min-width:0;min-height:0;grid-template-rows:auto minmax(0,1fr);gap:.6rem;}
+html[data-shared-stage=true][data-demo=agentcore-oncall] .side>.card {min-height:0;overflow:auto;}
+html[data-shared-stage=true][data-demo=agentcore-oncall] .card {padding:.65rem;gap:.5rem;}
+html[data-shared-stage=true][data-demo=agentcore-oncall] .tiles {grid-template-columns:repeat(2,minmax(0,1fr));}
+html[data-shared-stage=true][data-demo=agentcore-oncall] .scenario-grid {grid-template-columns:minmax(0,1fr);}
+html[data-shared-stage=true][data-demo=agentcore-oncall] .button {border-radius:0;box-shadow:none;min-height:48px;white-space:normal;}
+html[data-shared-stage=true][data-demo=agentcore-oncall] .button.primary {background:var(--brand-highlight);border:1px solid var(--brand-highlight);color:var(--surface-page);}
+html[data-shared-stage=true][data-demo=agentcore-oncall] .button.secondary {background:var(--surface-page);border:1px solid var(--border-default);color:var(--text-primary);}

@@ -2,9 +2,13 @@
 
 The deployment definition is deploy/reinvent-2026.yaml. It is one DemoProject with all application builds/components. It is not deployment-ready. No AWS, Cloud, catalog, or cluster resources have been provisioned by this migration.
 
-## Confirmed platform blocker
+## Platform support for Lambda with spec.aws
 
-Validated against Fieldkit main commit 69e7fa0f4faa3a08e25cb8462269ef215efe4544. The real validator rejects spec.aws when any component uses aws-lambda: the Lambda component would not receive the managed resource role. This affects the combined No Roads/Loan Lambda workers with Agent Harness/Photo Booth S3 and Bedrock declarations. It is independent of ingress routing. Keep the requirements together and resolve this with Michael; do not silently switch serverless demos to always-on workers or delete their AWS requirements.
+Resolved in temporal-fieldkit-platform #151 (main 77037f86, November 21, 2026): spec.aws now accepts aws-lambda components. The project's Lambda exec role gets the bucket, table and model grants, usable only from inside the project's functions (lambda:SourceFunctionArn), and each selected function gets the resource and model env (not AWS_REGION, which Lambda sets). The manifest validates against that commit. Live needs the platform promotion that includes it.
+
+The loan model is Claude Sonnet 5.5 through its US inference profile, us.anthropic.claude-sonnet-5-5. AWS's model card lists us-west-1 (live's region) as a source Region for that profile, routing to us-east-1, us-east-2, us-west-1 and us-west-2; the model has no in-Region endpoint in us-west-1, so the profile ID is required (https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-anthropic-claude-sonnet-5-5.md). Model access in the live account was checked on November 21, 2026 (`aws bedrock get-foundation-model-availability --region us-west-1 --model-id anthropic.claude-sonnet-5-5`): authorization AUTHORIZED, agreement, entitlement and region AVAILABLE. Nothing to enable.
+
+AgentCore: since platform a1e2bf3b, spec.aws also accepts aws-agentcore components. The on-call agent (`oncall-agent`) runs on Bedrock AgentCore Runtime with the same Claude Sonnet 5.5 inference profile, granted through spec.aws without a perimeter.
 
 Run scripts/validate-fieldkit.sh with access to the pinned platform checkout. scripts/validate.py checks repository structure and credential patterns only; a passing structural check is not deployment readiness.
 
@@ -15,9 +19,18 @@ Run scripts/validate-fieldkit.sh with access to the pinned platform checkout. sc
 - Loan has no matching live demo YAML in the supplied platform snapshot. Its new Lambda image and injected queue/deployment settings require an actual serverless run and verified Bedrock model/permission alignment.
 - Agentic SDLC remains disabled in the launchpad until the booth sandbox GitHub repository, scoped token, signed webhook, runtime secret, and provider account are configured. The manifest references a project-owned sandbox setting rather than the live SA storefront repository.
 - Each build and every app's prefixed asset/API/stream route must pass. Only the tested builds and checks in VERIFICATION.md count.
-- The proposed ingress host label is reinvent-booth. Michael must confirm the base domain/availability and hosted kiosk access mode. Initial ingress requires SSO. Anonymous operation on rental Macs needs an explicitly reviewed access arrangement; no personal login or secret export is installed by these scripts.
-- publicUI remains false until workflow payload visibility and station-scoped reader access are approved.
-- Secrets live under the new project's Secrets Manager scope. No SA live provider keys or credentials are copied. The platform provisions Cloud credentials; do not install AWS IAM keys on the browser-only stations.
+- Ingress (decided November 21, 2026): host reinvent-booth on live, `auth: public`, so attendees and the kiosks reach every demo without signing in. Only booth settings need a Fieldkit sign-in: `/config` and the control hub's writes (`/control-api`, `auth: required`). Kiosks poll `/control-api/state`, a public route. Every paid or outbound action (image generation, SDLC runs, Photo Booth email) is reachable by anyone who finds the host; provider spend caps are the limit, and the project is removed after re:Invent.
+- publicUI is on (decided November 21, 2026). Every workflow history in the namespace is readable by anyone at `/_temporal/primary/`, and the hosted launchpad embeds that route (`apps/launchpad/public/runtime-config.json`). Photo Booth and Flight Simulator, which take attendee emails, keep every payload (inputs, results, activity data, query answers) in the `payloads` S3 bucket through Temporal's external storage (`holodeck/temporal_client.py`: the SDK's `S3StorageDriver`, threshold 0), so their histories show only storage references; the UI's reader cannot read the bucket. Their event types, activity names, timings, retries and failure messages stay visible. Other demos' payloads are public; anything an attendee types into Travel Agent or Agentic SDLC is readable there.
+- Buckets keep objects 30 days (`expirationDays`), past the namespace's 7-day retention, so stored payloads and photos can be retrieved after their workflows expire. The project and its buckets are deleted after re:Invent.
+- Secrets: see "Secrets" below. The platform provisions Temporal Cloud credentials; do not install AWS IAM keys on the browser-only stations.
+
+## Secrets
+
+Decided November 21, 2026, for testing the hosted deployment on live:
+
+- `openai` and `gemini` read the platform's shared keys (`shared: openai`, `shared: gemini`, at `fieldkit/platform/shared/`). Nothing to create.
+- `runtime` is generated by the operator on first reconcile (`REDIS_PASSWORD`, `GITHUB_WEBHOOK_SECRET`). Copy `GITHUB_WEBHOOK_SECRET` from `fieldkit/reinvent-2026/runtime` into the sandbox repo's webhook when Agentic SDLC is enabled. `GITHUB_SANDBOX_REPO` is no longer a secret: it is a plain env value, `set-me/reinvent-sdlc-sandbox` until a booth-owned sandbox repo is chosen.
+- `github` (`GITHUB_TOKEN`) and `email` (`SENDGRID_API_KEY`, `HOLODECK_EMAIL_FROM`) exist in us-west-1 with the value `TODO` (seeded with `infra/scripts/seed-demo-secret.sh`, tag `managed-by=fieldkit-seed`), so the demo deploys. Agentic SDLC and Photo Booth email fail until the real values are written with `aws secretsmanager put-secret-value`; a changed value rolls the pods that read it.
 
 ## Embedded Temporal UI
 
@@ -25,7 +38,7 @@ Reference: [Michael’s public Tacos viewscreen example](https://dejavu-tacos.tm
 
 Michael confirmed that the live catalog can expose a self-hosted temporalio/ui pod backed by Temporal Cloud through a proxy sidecar with a separate read-only service account. Credentials stay inside the pods, so the booth can embed the UI without attendee Cloud logins. Fieldkit exposes this through temporal.publicUI, with per-namespace UI routes where supported.
 
-Read-only access still exposes workflow payloads and histories. The combined project keeps publicUI false until attendee photo/email data is protected or placed outside the public demo namespace. The feature is available; safe publication of this project is not yet verified.
+Read-only access still exposes workflow payloads and histories. publicUI is on for this project (see "Other required gates"): Photo Booth and Flight Simulator payloads are in S3, and everything else an attendee types into a workflow is public.
 
 ## Catalog workflow
 

@@ -30,7 +30,7 @@ func (a *Activities) ProcessSubmission(ctx context.Context, input workflows.Demo
 
 // Each of the three SimulateWork activities below holds a worker slot for its
 // duration. Chaining three of them means each workflow occupies worker capacity
-// for ~36 seconds total, which causes activity tasks to queue up behind busy
+// for ~12 seconds total, which causes activity tasks to queue up behind busy
 // workers under load — making backlog depth and sync match rate visible on the
 // dashboard and triggering Temporal to invoke additional Lambda instances.
 //
@@ -40,9 +40,9 @@ func (a *Activities) ProcessSubmission(ctx context.Context, input workflows.Demo
 //
 // Tune individual durations by adjusting the constants below.
 const (
-	WorkDuration1 = 12 * time.Second
-	WorkDuration2 = 12 * time.Second
-	WorkDuration3 = 12 * time.Second
+	WorkDuration1 = 4 * time.Second
+	WorkDuration2 = 4 * time.Second
+	WorkDuration3 = 4 * time.Second
 )
 
 func (a *Activities) SimulateWork1(ctx context.Context, input workflows.DemoInput) (string, error) {

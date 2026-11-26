@@ -68,7 +68,7 @@ SETTINGS_KEY = "run-settings:{}"  # per slot queue
 
 
 def runs_prefix(queue: str) -> str:
-    return f"{queue}.gh."
+    return config.runs_prefix(queue)
 
 
 def environments_id(queue: str) -> str:
@@ -195,7 +195,7 @@ def run_workflow_id(queue: str, run_id: str) -> str:
 
 def require_ours(queue: str, workflow_id: str) -> str:
     # 404 rather than 403, so other sessions' IDs aren't confirmed to exist.
-    if not workflow_id.startswith(runs_prefix(queue)):
+    if not workflow_id.startswith((runs_prefix(queue), f"{queue}.gh.")):
         raise HTTPException(404, "Not found")
     return workflow_id
 
@@ -258,7 +258,7 @@ async def _canary_fault(queue: str, env: EnvState) -> dict | None:
 async def _list_runs(lease: sessions.Lease) -> list[dict]:
     # Reset can't delete finished runs from Visibility. Whatever started before the slot's current
     # lease belongs to a previous session, so it isn't listed: the scorecard starts from nothing.
-    query = f"WorkflowType IN {RUN_TYPES} AND WorkflowId STARTS_WITH '{runs_prefix(lease.queue)}'"
+    query = f"WorkflowType IN {RUN_TYPES} AND {config.runs_query(lease.queue)}"
     runs = []
     async for execution in state.temporal.list_workflows(query, limit=20):
         memo = await execution.memo_value("run", default=None)
@@ -293,6 +293,8 @@ async def _run_view(queue: str, workflow_id: str) -> dict | None:
         description = await state.temporal.get_workflow_handle(workflow_id).describe()
     except RPCError as err:
         if err.status == RPCStatusCode.NOT_FOUND:
+            if workflow_id.startswith(runs_prefix(queue)):
+                return await _run_view(queue, workflow_id.removeprefix("agenticsdlc-"))
             return None
         raise
     memo = await description.memo_value("run", default=None)
@@ -304,7 +306,7 @@ async def _run_view(queue: str, workflow_id: str) -> dict | None:
     agent_ids = [a.workflow_id for a in run.agents]
     agent_descriptions, env, workers, armed = await asyncio.gather(
         asyncio.gather(*(_describe_quietly(a) for a in agent_ids)),
-        _environments(queue), _workers(queue), faults.armed(queue, [workflow_id, *agent_ids]),
+        _environments(queue, legacy=not workflow_id.startswith(runs_prefix(queue))), _workers(queue), faults.armed(queue, [workflow_id, *agent_ids]),
     )
     retries = [*_retries(workflow_id, description)]
     for agent_id, agent_description in zip(agent_ids, agent_descriptions):
@@ -354,13 +356,15 @@ def _retries(workflow_id: str, description) -> list[dict]:
     return found
 
 
-async def _environments(queue: str) -> EnvState:
-    wf_id = environments_id(queue)
+async def _environments(queue: str, legacy: bool = False) -> EnvState:
+    wf_id = f"{queue}.gh.environments" if legacy else environments_id(queue)
     cached = state.env_cache.get(wf_id)
     if cached and time.monotonic() - cached[0] < ENV_CACHE_SECONDS:
         return cached[1]
     env = EnvState()
     description = await _describe_quietly(wf_id)
+    if description is None and not legacy:
+        return await _environments(queue, legacy=True)
     if description is not None and description.status == WorkflowExecutionStatus.RUNNING:
         env = EnvState.model_validate(await description.memo_value("environments", default={}))
     state.env_cache[wf_id] = (time.monotonic(), env)
@@ -543,6 +547,9 @@ async def stop_run(run_id: str, ctx: Ctx = Depends(context)):
     """Cancel a run. It stops its agents and leaves its issue or PR on GitHub as it is."""
     lease = await act(ctx)
     workflow_id = run_workflow_id(lease.queue, run_id)
+    view = await _run_view(lease.queue, workflow_id)
+    if view is not None:
+        workflow_id = view["workflow_id"]
     try:
         await state.temporal.get_workflow_handle(workflow_id).cancel()
     except RPCError as err:

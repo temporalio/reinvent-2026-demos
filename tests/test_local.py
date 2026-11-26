@@ -16,6 +16,9 @@ class ControlLocalGenerationTests(unittest.TestCase):
         self.assertEqual(hub['environment']['CONTROL_DB'], '/data/control.sqlite3')
         self.assertEqual(hub['environment']['CONTROL_TIMEZONE'], 'America/Denver')
         self.assertEqual(hub['volumes'], ['control-data:/data'])
+        # Hosted, the hub uses the spec.aws DynamoDB table; locally it stays on SQLite.
+        self.assertNotIn('CONTROL_TABLE', hub['environment'])
+        self.assertNotIn('AWS_ENDPOINT_URL_DYNAMODB', hub['environment'])
         self.assertNotIn('ports', hub)
         self.assertIn('control-data', config['volumes'])
         self.assertEqual(config['services']['gateway']['environment']['CONTROL_HUB_URL'], 'http://control-hub:8090')
