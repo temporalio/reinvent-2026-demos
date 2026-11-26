@@ -74,6 +74,9 @@ curl --max-time 5 http://192.168.86.108:15101/control-api/healthz
 ./scripts/local.sh status
 ```
 
+If macOS briefly reports `Bootstrap failed: 5`, the installer now waits and retries
+the station service. A persistent failure still stops setup and prints the error.
+
 Expected health response: `{"ok":true}`. No new code is needed after normal reboot.
 To re-pair, run `./scripts/fetch-booth-config.sh 192.168.86.108 3` with a fresh
 code, then run `./scripts/local.sh` again.
