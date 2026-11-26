@@ -27,7 +27,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - run: docker build -t reinvent-control apps/booth-control
-      - run: docker run --rm --network none --entrypoint python reinvent-control -m unittest discover -s tests -v
+      - run: docker run --rm --network none -v "$PWD/scripts/local/fetch_config.py:/fetch_config.py:ro" --entrypoint python reinvent-control -m unittest discover -s tests -v
 
   photo-booth:
     runs-on: ubuntu-latest

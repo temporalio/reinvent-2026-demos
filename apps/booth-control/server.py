@@ -512,6 +512,20 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         try:
             url = urlsplit(self.path)
+            if re.fullmatch(r'/control-api/booth-config/[a-f0-9]{64}', url.path):
+                from machines import MachineError
+                service = getattr(self.server, 'machines', None)
+                if service is None:
+                    raise ApiError(404, 'not_enabled', 'Pairing is available on the laptop controller only.')
+                query = parse_qs(url.query, keep_blank_values=True)
+                if set(query) != {'station'} or len(query['station']) != 1:
+                    raise ApiError(422, 'invalid_station', 'Provide one station ID.')
+                try:
+                    result = service.download(url.path.rsplit('/',1)[1], query['station'][0], self.headers.get('X-Booth-Nonce',''), self.headers.get('X-Booth-Proof',''), self.server.clock())
+                except MachineError as error:
+                    raise ApiError(error.status,'pairing',error.message) from None
+                self.json_response(200, result)
+                return
             if url.path in ('/healthz', '/control-api/healthz') and not url.query:
                 self.json_response(200, {'ok': True})
                 return
@@ -523,7 +537,11 @@ class Handler(BaseHTTPRequestHandler):
             station = query.get('station', [None])[0]
             if station is not None and station not in STATION_IDS:
                 raise ApiError(422, 'invalid_station', 'Station must be 1, 2, 3, or 4.')
-            self.json_response(200, self.server.store.state(self.session_token(), self.server.clock(), station))
+            state = self.server.store.state(self.session_token(), self.server.clock(), station)
+            if self.headers.get('X-Booth-Read-Only') == '1':
+                state['authenticated'] = False
+                state['device_read_only'] = True
+            self.json_response(200, state)
         except ApiError as error:
             self.fail(error)
         except (OSError, sqlite3.Error):

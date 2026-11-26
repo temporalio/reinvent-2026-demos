@@ -96,5 +96,74 @@ class MachineTests(unittest.TestCase):
         self.assertNotEqual(pair['key'], self.service.key)
 
 
+class NetworkPairingTests(MachineTests):
+    def issue(self, station='3', hub='http://127.0.0.1:15101'):
+        return self.request('operator', {'action':'download','station':station,'hub':hub})
+
+    def redeem(self, issued, station=None, proof=None):
+        import hashlib
+        import hmac
+        secret=bytes.fromhex(issued['code'])
+        ticket=hashlib.sha256(secret).hexdigest()
+        station=station or issued['station']
+        nonce='b'*32
+        proof=proof or hmac.new(secret,f'CONFIG-REQUEST\n{station}\n{nonce}\n{ticket}'.encode(),hashlib.sha256).hexdigest()
+        reply=self.service.download(ticket,station,nonce,proof,self.now)
+        return reply,secret,nonce
+
+    def test_download_is_single_use_and_never_transmits_key(self):
+        import hashlib
+        import hmac
+        old=self.service.station_key('3')
+        issued=self.issue()
+        reply,secret,nonce=self.redeem(issued)
+        self.assertEqual(set(json.loads(reply['payload'])),{'station','hub'})
+        expected=hmac.new(secret,f'STATION-KEY\n3\n{nonce}'.encode(),hashlib.sha256).hexdigest()
+        self.assertEqual(self.service.station_key('3'),expected)
+        self.assertNotEqual(old,expected)
+        self.assertNotIn(expected,json.dumps(reply))
+        self.assertNotIn(issued['code'],json.dumps(reply))
+        self.assertEqual(reply['signature'],hmac.new(secret,f"CONFIG-REPLY\n{nonce}\n{reply['payload']}".encode(),hashlib.sha256).hexdigest())
+        with self.assertRaises(MachineError):self.redeem(issued)
+        with self.assertRaises(MachineError):self.request('3',{},key=old)
+        self.assertIsNone(self.request('3',{},key=expected)['command'])
+
+    def test_wrong_proof_and_station_do_not_consume_download(self):
+        issued=self.issue()
+        with self.assertRaises(MachineError):self.redeem(issued,proof='0'*64)
+        with self.assertRaises(MachineError):self.redeem(issued,station='2')
+        self.redeem(issued)
+
+    def test_expired_and_replaced_codes_are_rejected(self):
+        old=self.issue();new=self.issue()
+        with self.assertRaises(MachineError):self.redeem(old)
+        self.now+=601
+        with self.assertRaises(MachineError):self.redeem(new)
+
+    def test_real_fetch_client_derives_the_same_key(self):
+        import importlib.util
+        import threading
+        from server import ControlServer,Store
+        server=ControlServer(('127.0.0.1',0),Store(Path(self.temp.name)/'control.sqlite3'),clock=lambda:self.now)
+        server.machines=self.service
+        thread=threading.Thread(target=server.serve_forever,kwargs={'poll_interval':.01},daemon=True);thread.start()
+        # CI's hub image mounts this one standard-library client explicitly.
+        candidate=Path('/fetch_config.py')
+        if not candidate.is_file():
+            candidate=next((parent/'scripts/local/fetch_config.py' for parent in Path(__file__).resolve().parents if (parent/'scripts/local/fetch_config.py').is_file()),candidate)
+        if not candidate.is_file():
+            server.shutdown();server.server_close();thread.join();self.fail('Mount scripts/local/fetch_config.py at /fetch_config.py for this integration test.')
+        spec=importlib.util.spec_from_file_location('fetch_config',candidate)
+        client=importlib.util.module_from_spec(spec);spec.loader.exec_module(client)
+        try:
+            hub=f'http://127.0.0.1:{server.server_address[1]}'
+            issued=self.issue(hub=hub)
+            config=client.fetch_pairing(hub,'3',issued['code'])
+            self.assertEqual(config,{'station':'3','hub':hub,'key':self.service.station_key('3')})
+            with self.assertRaises(Exception):client.fetch_pairing(hub,'3',issued['code'])
+        finally:
+            server.shutdown();server.server_close();thread.join()
+
+
 if __name__ == '__main__':
     unittest.main()

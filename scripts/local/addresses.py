@@ -57,9 +57,12 @@ def lan_addresses(system=None):
     return list(dict.fromkeys(rows))
 
 
-def startup_lines(binding, addresses=None):
+def startup_lines(binding, addresses=None, admin_binding=None):
     host, port, _ = binding.split(':')
     lines = [f'Local booth: http://localhost:{port}', f'Laptop controls: http://localhost:{port}/config']
+    if admin_binding:
+        admin_port = admin_binding.split(':')[1]
+        lines = [f'Laptop controls (localhost only): http://localhost:{admin_port}/config', f'Station endpoint port: {port}']
     if host != '0.0.0.0':
         return [*lines, 'LAN access is disabled. Use BOOTH_BIND_ADDRESS=0.0.0.0 to connect other stations.']
     rows = lan_addresses() if addresses is None else addresses
@@ -74,4 +77,5 @@ def startup_lines(binding, addresses=None):
 if __name__ == '__main__':
     import yaml
     config = yaml.safe_load(Path(sys.argv[1]).read_text())
-    print('\n'.join(startup_lines(config['services']['gateway']['ports'][0])))
+    ports = config['services']['gateway']['ports']
+    print('\n'.join(startup_lines(ports[0], admin_binding=ports[1] if len(ports)>1 else None)))

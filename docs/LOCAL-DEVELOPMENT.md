@@ -1,5 +1,7 @@
 # Local booth preview
 
+**Setting up a machine?** Use [control setup](control-setup.md) or [booth setup](booth-setup.md). This document is reference material.
+
 Run from the monorepo root with Docker Desktop running and Python 3 available:
 
 ```bash

@@ -61,7 +61,10 @@ def control_hub_url(value):
     return value.rstrip('/')
 
 
-def render(apps, port=15101, bind_address='127.0.0.1', hub_url=DEFAULT_CONTROL_HUB_URL):
+def render(apps, port=15101, bind_address='127.0.0.1', hub_url=DEFAULT_CONTROL_HUB_URL, controller=False, admin_port=15102):
+    lan_controller = controller or bind_address == '0.0.0.0'
+    if controller:
+        apps = []
     if bind_address not in {'127.0.0.1', '0.0.0.0'}:
         raise ValueError('BOOTH_BIND_ADDRESS must be 127.0.0.1 or 0.0.0.0')
     hub_url = control_hub_url(hub_url)
@@ -132,6 +135,10 @@ def render(apps, port=15101, bind_address='127.0.0.1', hub_url=DEFAULT_CONTROL_H
         elif 'args' in component: service['command'] = component['args']
         if name == 'gateway':
             service['ports'] = [f'{bind_address}:{port}:8080']
+            if lan_controller:
+                if port == admin_port:
+                    raise ValueError('Controller admin port must differ from the station port.')
+                service['ports'].append(f'127.0.0.1:{admin_port}:8082')
             env['CONTROL_HUB_URL'] = hub_url
             service['volumes'] = [str(ROOT / 'tmp/local/gateway.conf.template') + ':/etc/nginx/templates/default.conf.template:ro']
             service['depends_on'] = {'launchpad': {'condition': 'service_started'}, 'aws-seed': {'condition': 'service_completed_successfully'}, 'temporal-init': {'condition': 'service_completed_successfully'}, 'control-hub': {'condition': 'service_healthy'}}
@@ -153,30 +160,43 @@ def render(apps, port=15101, bind_address='127.0.0.1', hub_url=DEFAULT_CONTROL_H
     for name, service in services.items():
         if name not in {'aws-seed', 'temporal-init', 'no-roads-deployment-init'}:
             service.setdefault('restart', 'unless-stopped')
-    volumes = {'temporal-data': {}, 'control-data': {}}
+    if controller:
+        services = {name:services[name] for name in ('gateway','launchpad','control-hub')}
+        services['gateway']['depends_on'] = {'launchpad':{'condition':'service_started'},'control-hub':{'condition':'service_healthy'}}
+        for name, service in services.items():
+            service['mem_limit'] = '256m' if name=='control-hub' else '128m'
+            service['cpus'] = 1 if name=='control-hub' else 0.5
+    volumes = {'control-data': {}} if controller else {'temporal-data': {}, 'control-data': {}}
     volumes.update({name+'-data': {} for name in ['flightsim-web','photobooth-web'] if name in services})
     return {'name': 'reinvent-2026-local', 'services': services, 'volumes': volumes}
 
-def write(apps, port, bind_address='127.0.0.1', hub_url=DEFAULT_CONTROL_HUB_URL):
+def write(apps, port, bind_address='127.0.0.1', hub_url=DEFAULT_CONTROL_HUB_URL, controller=False, admin_port=15102):
+    lan_controller = controller or bind_address == '0.0.0.0'
+    if controller:
+        apps = []
     target = ROOT / 'tmp/local'
     target.mkdir(parents=True, exist_ok=True)
-    config = render(apps, port, bind_address, hub_url)
+    config = render(apps, port, bind_address, hub_url, controller, admin_port)
     (target / 'compose.yaml').write_text(yaml.safe_dump(config, sort_keys=False))
     gateway = (ROOT / 'apps/gateway/default.conf.template').read_text()
     gateway = gateway.replace('  location / {', '  location /_temporal/primary/ {\n    set $ui temporal:8233;\n    proxy_pass http://$ui;\n    proxy_set_header Host $http_host;\n  }\n  location / {')
+    if lan_controller:
+        gateway = gateway.replace('listen 8080;', 'listen 8082;') + '\n' + (ROOT/'scripts/local/controller.conf.template').read_text()
     (target / 'gateway.conf.template').write_text(gateway)
     (target / 'runtime-config.json').write_text(json.dumps({'mode': 'local', 'availableDemos': apps, 'demoNotices': {key: value for key, value in NOTICES.items() if key in apps}, 'temporalUi': '/_temporal/primary/namespaces/default/workflows', 'notice': 'Local preview: Photo Booth uses mock images and saves email to a local outbox. AWS storage is emulated; Bedrock and Lambda are not.'}))
     print(target / 'compose.yaml')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+    parser.add_argument('--controller', action='store_true')
+    parser.add_argument('--admin-port', type=int, default=15102)
     parser.add_argument('--apps', default=','.join(GROUPS))
     parser.add_argument('--port', type=int, default=15101)
     parser.add_argument('--bind-address', choices=['127.0.0.1', '0.0.0.0'], default='127.0.0.1')
     parser.add_argument('--control-hub-url', default=DEFAULT_CONTROL_HUB_URL)
     options = parser.parse_args()
     try:
-        write(options.apps.split(','), options.port, options.bind_address, options.control_hub_url)
+        write(options.apps.split(','), options.port, options.bind_address, options.control_hub_url, options.controller, options.admin_port)
     except ValueError as error:
         message = str(error)
         if 'CONTROL_HUB_URL' in message:

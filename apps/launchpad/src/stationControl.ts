@@ -11,6 +11,7 @@ export type ControlState = {
   global:{demo_enabled:Record<string,boolean>;network_mode:NetworkMode;display:DisplaySettings}
   stations:Record<StationId,StationRecord>
   authenticated:boolean
+  device_read_only?:boolean
   server_time:string
 }
 export type GlobalPatch = {demo_enabled?:Record<string,boolean|null>;network_mode?:NetworkMode;display?:Partial<DisplaySettings>}
@@ -65,7 +66,7 @@ function decodeState(value:unknown):ControlState {
     if(!partialDisplay(inherited))throw new Error('Invalid display overrides')
     stations[id]={label:row.label,display:{...globalDisplay,...inherited},display_overrides:{...inherited},overrides:{demo_enabled:flags(row.overrides.demo_enabled),...(mode(row.overrides.network_mode)?{network_mode:row.overrides.network_mode}:{})},last_seen:typeof row.last_seen==='string'&&Number.isFinite(Date.parse(row.last_seen))?row.last_seen:null}
   }
-  return {revision:Number(value.revision),global:{demo_enabled:flags(value.global.demo_enabled),network_mode:value.global.network_mode,display:globalDisplay},stations,authenticated:value.authenticated===true,server_time:typeof value.server_time==='string'?value.server_time:new Date().toISOString()}
+  return {...(value.device_read_only===true?{device_read_only:true}:{}),revision:Number(value.revision),global:{demo_enabled:flags(value.global.demo_enabled),network_mode:value.global.network_mode,display:globalDisplay},stations,authenticated:value.authenticated===true,server_time:typeof value.server_time==='string'?value.server_time:new Date().toISOString()}
 }
 function defaultState():ControlState {
   return {revision:0,global:{demo_enabled:{},network_mode:'online',display:{...DEFAULT_DISPLAY}},stations:Object.fromEntries(STATION_IDS.map(id=>[id,{label:`Mac Mini ${id}`,display:{...DEFAULT_DISPLAY},display_overrides:{},overrides:{demo_enabled:{}},last_seen:null}])) as Record<StationId,StationRecord>,authenticated:false,server_time:new Date().toISOString()}

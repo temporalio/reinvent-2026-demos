@@ -23,9 +23,16 @@ class ControlLocalGenerationTests(unittest.TestCase):
         self.assertIn('control-data', config['volumes'])
         self.assertEqual(config['services']['gateway']['environment']['CONTROL_HUB_URL'], 'http://control-hub:8090')
 
+    def test_controller_has_no_demo_workers_or_host_services(self):
+        config = local.render([],bind_address='0.0.0.0',controller=True)
+        self.assertEqual(set(config['services']), {'gateway','launchpad','control-hub'})
+        self.assertEqual(set(config['volumes']), {'control-data'})
+        self.assertIn('127.0.0.1:15102:8082',config['services']['gateway']['ports'])
+        self.assertEqual(config['services']['control-hub']['mem_limit'],'256m')
+
     def test_only_gateway_can_opt_into_lan(self):
         config = local.render(['tacos'], port=15119, bind_address='0.0.0.0')
-        self.assertEqual(config['services']['gateway']['ports'], ['0.0.0.0:15119:8080'])
+        self.assertEqual(config['services']['gateway']['ports'], ['0.0.0.0:15119:8080', '127.0.0.1:15102:8082'])
         self.assertEqual(config['services']['temporal']['ports'], ['127.0.0.1:17234:7233'])
         self.assertEqual(config['services']['moto']['ports'], ['127.0.0.1:15001:5000'])
         default = local.render(['tacos'])

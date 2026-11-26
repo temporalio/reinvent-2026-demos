@@ -1,36 +1,34 @@
 # Booth station controls
 
+**Setting up a machine?** Use [control setup](control-setup.md) or [booth setup](booth-setup.md). This document is reference material.
+
 For native browser restart and actual online/local runtime switching, use the [macOS station supervisor](STATION-SUPERVISOR.md). The settings-only browser client described below does not perform that switch.
 
 The laptop runs the shared control hub. Each station uses its own local demo gateway and proxies `/control-api/` to that hub. The browser keeps a station ID from 1 through 4; the laptop's `/config` view can manage any station or the global policy. Tap Ziggy to enter the touch PIN screen. The daily PIN is the month and day in the hub's configured timezone, `America/Denver` by default, such as `1130` on November 30.
 
 ## Laptop and four Mac Minis
 
-Use the same reviewed checkout and Docker Desktop on each machine. Start the laptop's gateway with deliberate LAN access:
+Use the command lists in [control setup](control-setup.md) and
+[booth setup](booth-setup.md). The laptop's admin view is
+`http://localhost:15102/config`; its LAN port 15101 accepts only pairing,
+read-only settings and signed station requests. Each booth opens the native
+supervisor at localhost port 15103, with its saved station identity.
 
-```bash
-BOOTH_BIND_ADDRESS=0.0.0.0 ./scripts/local.sh up
-```
-
-Find the laptop's private LAN IP in macOS network settings and allow inbound access to the gateway port when macOS requests it. The default port is 15101. Open http://localhost:15101/config on the laptop.
-
-On each Mac Mini, point its gateway to that laptop IP, for example:
-
-```bash
-CONTROL_HUB_URL=http://192.168.50.10:15101 ./scripts/local.sh up
-```
-
-Open http://localhost:15101/?station=1 on station 1, and use `station=2`, `station=3`, and `station=4` for the other stations. The station gateway stays bound to loopback. The laptop gateway binds all network interfaces only because `BOOTH_BIND_ADDRESS=0.0.0.0` was supplied. Temporal and Moto ports remain loopback-only on every machine.
-
-`CONTROL_HUB_URL` accepts a base HTTP(S) origin with an optional port, not a path, query, credentials, or arbitrary nginx syntax. Use a reachable private IP for the laptop rather than assuming Docker can resolve a `.local` mDNS hostname. HTTPS upstreams use SNI and verify their certificates against the gateway image's CA bundle; self-signed HTTPS is not silently accepted. The documented private-LAN example uses HTTP.
-
-Re-run the command with the same environment when rebuilding a station. The generated Compose file remembers the chosen address until the next `up` or `render`. Running `up` without `CONTROL_HUB_URL` reconnects that machine's gateway to its own local hub.
+The repo-root `.env` selects the role and booth number. Pairing generates the
+station key separately; no controller key belongs in that file. Existing explicit
+`CONTROL_HUB_URL` configuration remains supported for developer `up` commands.
+It accepts an HTTP(S) origin with an optional port, without credentials or a path.
+Use a reachable private IP; do not assume Docker resolves `.local` names.
+HTTPS upstreams verify certificates; private-LAN HTTP is supported.
 
 ## Saved settings and hub outages
 
 The local stack always includes `control-hub` and a named `control-data` Docker volume mounted at `/data`; the SQLite database is `/data/control.sqlite3`. Ordinary container replacement and `./scripts/local.sh down` preserve the named volume. Do not remove the volume when preserving booth settings. The local hub on each Mac is independent; it is not a database replica of the laptop.
 
-The proxy preserves the full `/control-api/...` URI, browser Host and Origin, and original HTTP/HTTPS scheme across the station-to-laptop hop. This lets the backend enforce same-origin writes while the browser uses an HttpOnly, SameSite session cookie. There is no browser bearer token or provider key in this setup.
+The booth proxy preserves `/control-api/...` URIs. The laptop LAN listener strips
+cookies and permits read-only browser settings. Configuration writes and operator
+commands are available through the laptop localhost admin listener. Native station
+polls use station-scoped HMAC signatures. No provider credentials are sent to browsers.
 
 When the selected hub is unavailable, the launchpad catches connection failures, retains its cached configuration and current demo, and retries in the background. A fresh browser without a cache uses built-in defaults. A control-hub outage does not automatically change network policy or disable cloud demos; those demos still require their own backend and internet connections. Device-only fallback edits are explicitly local to that browser; reconnecting restores the saved hub configuration. There is no automatic leader election, database replication, or silent switch to an independent station hub.
 
@@ -56,7 +54,11 @@ On a station tab, only that station's lower workflow panel changes. The All stat
 
 The setting persists with each station's configuration, including browser cache during a hub outage. Older saved configurations default to 100% without changing their geometry. Each station must already have its own station ID and use the same control hub as the laptop.
 
-## Hosted booth
+## Direct hosted browser access
+
+The native supervisor proxies hosted demos through a local origin while retaining
+its laptop control connection. The following applies to opening the hosted URL
+directly, without that supervisor.
 
 The hosted deployment is a different setup from the LAN one above: the stations' browsers load `https://reinvent-booth.tmprl-demo.cloud`, and nothing in the cloud can reach a laptop on the booth LAN (the gateway runs in EKS, and the HTTPS page cannot call an `http://` LAN address). The hub is the hosted `control-hub` component.
 
