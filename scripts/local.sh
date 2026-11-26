@@ -56,6 +56,7 @@ prepare_tools() {
     python3 -m venv tmp/tools
   fi
   if ! "$PYTHON" -c 'import spake2, yaml, jsonschema' >/dev/null 2>&1;then
+    if ! "$PYTHON" -m pip --version >/dev/null 2>&1;then "$PYTHON" -m ensurepip --upgrade;fi
     "$PYTHON" -m pip install -r requirements-tooling.txt
   fi
 }
