@@ -57,6 +57,15 @@ Before unplugging the setup keyboard:
 - With the owner's approval, configure automatic login and power-failure recovery.
 - Test an actual reboot. FileVault or management policy may require manual login.
 
+## Load the laptop's iframe preset
+
+Tap Ziggy, unlock the booth's display controls and choose
+**Load control iframe default**. It keeps a local copy for use when the laptop is
+offline. Local adjustments briefly show a red outline; save them on that browser.
+
+After pulling updates, run `./scripts/local.sh` again. This refreshes the local
+launchpad and supervisor as well as the demo containers; saved pairing remains.
+
 ## Check a connection or container problem
 
 ```bash

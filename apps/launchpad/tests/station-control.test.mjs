@@ -195,3 +195,40 @@ test('first startup without laptop or cache becomes ready with built-in defaults
  assert.equal(client.get().effective.display.width,90)
  assert.equal(client.get().effective.display.temporal_ui_zoom,100)
 })
+
+test('remote previews do not become cached saved layouts',async()=>{
+ const live=state();live.display_previews={'1':{...display,temporal_ui_zoom:100,width:61}}
+ const storage=new Map();const client=load({storage,fetch:async()=>response(live)})
+ await client.get().refresh()
+ assert.equal(client.get().effective.display.width,61)
+ assert.equal(client.get().state.stations['1'].display.width,90)
+ const rebooted=load({storage})
+ assert.equal(rebooted.get().effective.display.width,90)
+ live.display_previews={};await client.get().refresh()
+ assert.equal(client.get().effective.display.width,90)
+})
+
+test('loaded controller defaults survive refresh and offline load; remote commit wins',async()=>{
+ const profile={...display,temporal_ui_zoom:90,width:73,x:40}
+ const saved=state();saved.iframe_defaults=profile;saved.device_read_only=true
+ const storage=new Map();let online=true
+ const fetch=async path=>{if(!online)throw Error('Laptop offline');return response(path.includes('iframe-defaults')?{display:profile}:saved)}
+ const client=load({storage,fetch});await client.get().refresh()
+ assert.equal(await client.get().loadIframeDefaults(),false)
+ assert.equal(client.get().effective.display.width,73)
+ await client.get().refresh();assert.equal(client.get().effective.display.width,73)
+ online=false
+ const rebooted=load({storage,fetch});await rebooted.get().refresh()
+ assert.equal(await rebooted.get().loadIframeDefaults(),true)
+ assert.equal(rebooted.get().effective.display.x,40)
+ online=true;saved.display_generations={'1':1};saved.stations['1'].display_overrides={width:81}
+ await rebooted.get().refresh()
+ assert.equal(rebooted.get().effective.display.width,81)
+})
+
+test('controller and managed booth roles remain distinct',async()=>{
+ const controller=load({url:'http://localhost:15102/config'})
+ assert.equal(controller.get().isController,true)
+ const booth=load({url:'http://localhost:15103/config?station=2&managed=1'})
+ assert.equal(booth.get().isController,false)
+})

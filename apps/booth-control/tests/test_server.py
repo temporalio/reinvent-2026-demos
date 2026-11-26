@@ -361,8 +361,53 @@ class ControlHttpTests(unittest.TestCase):
         self.assertEqual(self.request('OPTIONS', '/control-api/login')[0], 405)
 
 
-if __name__ == '__main__':
-    unittest.main()
+    def test_live_preview_is_ephemeral_scoped_and_ordered(self):
+        cookie=self.login()
+        saved=self.request('GET','/control-api/state')[1]
+        body=dict(target='2',editor='test-editor',sequence=1,revision=saved['revision'],display={**DEFAULT_DISPLAY,'width':72,'x':40})
+        self.assertEqual(self.request('POST','/control-api/display-preview',body)[0],401)
+        self.assertEqual(self.request('POST','/control-api/display-preview',body,cookie=cookie,origin=False)[0],403)
+        self.assertEqual(self.request('POST','/control-api/display-preview',body,cookie=cookie)[0],200)
+        live=self.request('GET','/control-api/state')[1]
+        self.assertEqual(live['revision'],saved['revision'])
+        self.assertEqual(live['stations']['2']['display'],saved['stations']['2']['display'])
+        self.assertEqual(set(live['display_previews']),{'2'})
+        self.assertEqual(live['display_previews']['2']['width'],72)
+        clear={**body,'sequence':3,'display':None}
+        self.assertEqual(self.request('POST','/control-api/display-preview',clear,cookie=cookie)[0],200)
+        self.request('POST','/control-api/display-preview',{**body,'sequence':2},cookie=cookie)
+        self.assertNotIn('display_previews',self.request('GET','/control-api/state')[1])
+        self.request('POST','/control-api/display-preview',{**body,'sequence':4},cookie=cookie)
+        self.clock.value+=9
+        self.assertNotIn('display_previews',self.request('GET','/control-api/state')[1])
+
+    def test_controller_defaults_and_display_commits_survive_restart(self):
+        cookie=self.login();state=self.request('GET','/control-api/state')[1]
+        profile={**DEFAULT_DISPLAY,'width':75,'height':65,'x':30,'zoom':110}
+        body=dict(revision=state['revision'],display=profile,iframe_defaults=profile,commit_display=True)
+        status,saved,_=self.request('PATCH','/control-api/stations/2',body,cookie=cookie)
+        self.assertEqual(status,200,saved)
+        self.assertEqual(saved['display_generations'],{'2':1})
+        self.assertEqual(self.request('GET','/control-api/iframe-defaults')[1],{'display':profile})
+        self.stop_server();self.start_server()
+        state=self.request('GET','/control-api/state')[1]
+        self.assertEqual(state['iframe_defaults'],profile)
+        self.assertEqual(state['stations']['2']['display'],profile)
+        bad={**body,'revision':state['revision'],'iframe_defaults':{'width':2}}
+        self.assertEqual(self.request('PATCH','/control-api/stations/2',bad,cookie=cookie)[0],422)
+
+    def test_global_preview_respects_station_overrides_and_save_invalidates_it(self):
+        cookie=self.login();state=self.request('GET','/control-api/state')[1]
+        status,state,_=self.request('PATCH','/control-api/stations/2',dict(revision=state['revision'],display={'width':61}),cookie=cookie)
+        body=dict(target='global',editor='test-editor',sequence=1,revision=state['revision'],display={**DEFAULT_DISPLAY,'width':77})
+        self.request('POST','/control-api/display-preview',body,cookie=cookie)
+        live=self.request('GET','/control-api/state')[1]
+        self.assertEqual(live['display_previews']['1']['width'],77)
+        self.assertEqual(live['display_previews']['2']['width'],61)
+        self.request('PATCH','/control-api/global',dict(revision=state['revision'],settings={'display':{'width':77}},commit_display=True),cookie=cookie)
+        live=self.request('GET','/control-api/state')[1]
+        self.assertNotIn('display_previews',live)
+        self.assertEqual(live['display_generations'],dict.fromkeys(('1','2','3','4'),1))
 
 
 class FakeDynamo:
@@ -450,3 +495,7 @@ class DynamoControlHttpTests(ControlHttpTests):
         with self.assertRaises(StorageUnavailable) as raised:
             DynamoStore('control', self.dynamo)
         self.assertIn('control', str(raised.exception))
+
+
+if __name__ == '__main__':
+    unittest.main()

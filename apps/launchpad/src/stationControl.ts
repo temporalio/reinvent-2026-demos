@@ -8,6 +8,9 @@ export type StationOverrides = {demo_enabled:Record<string,boolean>;network_mode
 export type StationRecord = {label:string;overrides:StationOverrides;display:DisplaySettings;display_overrides:Partial<DisplaySettings>;last_seen:string|null}
 export type ControlState = {
   revision:number
+  iframe_defaults?:DisplaySettings
+  display_generations?:Partial<Record<StationId,number>>
+  display_previews?:Partial<Record<StationId,DisplaySettings>>
   global:{demo_enabled:Record<string,boolean>;network_mode:NetworkMode;display:DisplaySettings}
   stations:Record<StationId,StationRecord>
   authenticated:boolean
@@ -26,6 +29,8 @@ export const DEFAULT_DISPLAY: DisplaySettings = Object.freeze({width:90,height:7
 export const DISPLAY_LIMITS = {width:[40,100],height:[30,100],zoom:[50,150],temporal_ui_zoom:[70,130],x:[-7680,7680],y:[-7680,7680]} as const
 const CACHE_KEY = 'reinvent-control-cache-v1'
 const FALLBACK_KEY = 'reinvent-control-device-only-v1'
+const LOCAL_DISPLAY_KEY='reinvent-local-display-v1'
+const IFRAME_DEFAULTS_KEY='reinvent-iframe-defaults-v1'
 const STATION_KEY = 'reinvent-station-id'
 const browser = typeof window !== 'undefined'
 const demoIds = new Set(catalog.map(demo=>demo.id))
@@ -66,7 +71,13 @@ function decodeState(value:unknown):ControlState {
     if(!partialDisplay(inherited))throw new Error('Invalid display overrides')
     stations[id]={label:row.label,display:{...globalDisplay,...inherited},display_overrides:{...inherited},overrides:{demo_enabled:flags(row.overrides.demo_enabled),...(mode(row.overrides.network_mode)?{network_mode:row.overrides.network_mode}:{})},last_seen:typeof row.last_seen==='string'&&Number.isFinite(Date.parse(row.last_seen))?row.last_seen:null}
   }
-  return {...(value.device_read_only===true?{device_read_only:true}:{}),revision:Number(value.revision),global:{demo_enabled:flags(value.global.demo_enabled),network_mode:value.global.network_mode,display:globalDisplay},stations,authenticated:value.authenticated===true,server_time:typeof value.server_time==='string'?value.server_time:new Date().toISOString()}
+  const extras:Pick<ControlState,'iframe_defaults'|'display_generations'|'display_previews'>={}
+  if(value.iframe_defaults!==undefined){if(!display(value.iframe_defaults))throw new Error('Invalid controller defaults');extras.iframe_defaults={...DEFAULT_DISPLAY,...value.iframe_defaults}}
+  const generations=value.display_generations
+  if(isRecord(generations))extras.display_generations=Object.fromEntries(STATION_IDS.map(id=>[id,Number.isSafeInteger(generations[id])?Number(generations[id]):0]))
+  const previews=value.display_previews
+  if(isRecord(previews))extras.display_previews=Object.fromEntries(STATION_IDS.filter(id=>display(previews[id])).map(id=>[id,{...DEFAULT_DISPLAY,...previews[id] as DisplaySettings}]))
+  return {...extras,...(value.device_read_only===true?{device_read_only:true}:{}),revision:Number(value.revision),global:{demo_enabled:flags(value.global.demo_enabled),network_mode:value.global.network_mode,display:globalDisplay},stations,authenticated:value.authenticated===true,server_time:typeof value.server_time==='string'?value.server_time:new Date().toISOString()}
 }
 function defaultState():ControlState {
   return {revision:0,global:{demo_enabled:{},network_mode:'online',display:{...DEFAULT_DISPLAY}},stations:Object.fromEntries(STATION_IDS.map(id=>[id,{label:`Mac Mini ${id}`,display:{...DEFAULT_DISPLAY},display_overrides:{},overrides:{demo_enabled:{}},last_seen:null}])) as Record<StationId,StationRecord>,authenticated:false,server_time:new Date().toISOString()}
@@ -94,6 +105,11 @@ if(isRecord(storedPatches))for(const id of STATION_IDS){
     try{const inherited=patch.display_overrides===undefined?legacyDisplayOverrides(patch.display):patch.display_overrides;if(!partialDisplay(inherited))continue;devicePatches[id]={display:{...baseState.global.display,...inherited},display_overrides:{...inherited},label:typeof patch.label==='string'&&patch.label.trim()&&patch.label.length<=64?patch.label:baseState.stations[id].label,overrides:{demo_enabled:flags(patch.overrides.demo_enabled),...(mode(patch.overrides.network_mode)?{network_mode:patch.overrides.network_mode}:{})}}}catch{/* Ignore invalid device-only recovery data. */}
   }
 }
+type LocalDisplay={display:DisplaySettings;generation:number}
+const localDisplays:Partial<Record<StationId,LocalDisplay>>={}
+const storedDisplays=readStorage(LOCAL_DISPLAY_KEY)
+if(isRecord(storedDisplays))for(const id of STATION_IDS){const row=storedDisplays[id];if(isRecord(row)&&display(row.display)&&Number.isSafeInteger(row.generation))localDisplays[id]={display:{...DEFAULT_DISPLAY,...row.display},generation:Number(row.generation)}}
+
 function patchStation(row:StationRecord,patch:StationPatch):StationRecord {
   const inherited={...row.display_overrides}
   for(const [key,value] of Object.entries(patch.display??{})){
@@ -131,7 +147,11 @@ function acceptState(state:ControlState,token:number){
   hasCache=true
   devicePatches={}
   clearStorage(FALLBACK_KEY)
-  storeStorage(CACHE_KEY,{...state,authenticated:false})
+  for(const id of STATION_IDS)if(localDisplays[id]&&localDisplays[id].generation!==(state.display_generations?.[id]??0))delete localDisplays[id]
+  storeStorage(LOCAL_DISPLAY_KEY,localDisplays)
+  if(state.iframe_defaults)storeStorage(IFRAME_DEFAULTS_KEY,state.iframe_defaults)
+  const {display_previews:_temporary,...durable}=state
+  storeStorage(CACHE_KEY,{...durable,authenticated:false})
   publish({source:'hub',state:baseState,ready:true,error:null})
 }
 export class ControlConflictError extends Error {
@@ -176,7 +196,7 @@ async function refresh():Promise<void>{
 }
 function subscribe(listener:()=>void){
   listeners.add(listener)
-  if(!timer){void refresh();timer=setInterval(()=>void refresh(),2000)}
+  if(!timer){void refresh();timer=setInterval(()=>void refresh(),500)}
   return ()=>{listeners.delete(listener);if(!listeners.size&&timer){clearInterval(timer);timer=null}}
 }
 function setStationId(id:StationId){
@@ -220,15 +240,38 @@ function saveDeviceFallback(id:StationId,patch:StationPatch){
   publish()
 }
 function clearDeviceFallback(id:StationId){delete devicePatches[id];storeStorage(FALLBACK_KEY,devicePatches);publish()}
+function saveLocalDisplay(value:DisplaySettings){
+  if(!display(value))throw new Error('Invalid local display settings.')
+  const next={...localDisplays,[snapshot.stationId]:{display:{...value},generation:baseState.display_generations?.[snapshot.stationId]??0}}
+  try{if(!browser)throw Error();window.localStorage.setItem(LOCAL_DISPLAY_KEY,JSON.stringify(next))}catch{throw new Error('Browser storage is unavailable. The layout could not be saved locally.')}
+  Object.assign(localDisplays,next);publish()
+}
+async function loadIframeDefaults(){
+  let value:unknown,fromCache=false
+  try{const reply=await call('/iframe-defaults');if(!isRecord(reply)||!display(reply.display))throw new Error('The controller has no saved iframe defaults.');value=reply.display}
+  catch(error){value=readStorage(IFRAME_DEFAULTS_KEY);if(!display(value))throw error;fromCache=true}
+  if(!display(value))throw new Error('No saved controller defaults are available.')
+  const normalized={...DEFAULT_DISPLAY,...value}
+  try{if(!browser)throw Error();window.localStorage.setItem(IFRAME_DEFAULTS_KEY,JSON.stringify(normalized))}catch{throw new Error('Browser storage is unavailable. Defaults could not be kept locally.')}
+  saveLocalDisplay(normalized)
+  return fromCache
+}
+function localDisplayFor(state:ControlState,id:StationId){return localDisplays[id]?.display??resolveStationSettings(state,id).display}
+
 export function resolveStationSettings(state:ControlState,id:StationId):EffectiveStationSettings {
   const row=state.stations[id]
   return {label:row.label,display:{...DEFAULT_DISPLAY,...state.global.display,...(row.display_overrides??legacyDisplayOverrides(row.display))},network_mode:row.overrides.network_mode??state.global.network_mode,demo_enabled:Object.fromEntries(catalog.map(demo=>[demo.id,row.overrides.demo_enabled[demo.id]??state.global.demo_enabled[demo.id]??true]))}
 }
 export function useStationControl(){
   const current=useSyncExternalStore(subscribe,()=>snapshot,()=>serverSnapshot)
-  const effective=resolveStationSettings(current.state,current.stationId)
-  return {...current,station:current.stationId,effective,settings:effective,status:current.source==='hub'?'online' as const:current.source,reachable:current.source==='hub',authenticated:!pendingLogout&&current.source==='hub'&&current.state.authenticated,setStationId,refresh,login,logout,
-    saveGlobal:(settings:GlobalPatch,revision:number)=>write('/global',{revision,settings},'PATCH'),
-    saveStation:(id:StationId,patch:StationPatch,revision:number)=>write('/stations/'+id,{revision,...patch},'PATCH'),
+  const resolved=resolveStationSettings(current.state,current.stationId)
+  const effective={...resolved,display:current.source==='hub'&&current.state.display_previews?.[current.stationId]||localDisplayFor(current.state,current.stationId)}
+  const params=browser?new URLSearchParams(window.location.search):new URLSearchParams()
+  const isController=browser&&window.location.pathname==='/config'&&!params.has('station')&&params.get('managed')!=='1'&&!current.state.device_read_only
+  return {...current,isController,station:current.stationId,effective,settings:effective,status:current.source==='hub'?'online' as const:current.source,reachable:current.source==='hub',authenticated:!pendingLogout&&current.source==='hub'&&current.state.authenticated,setStationId,refresh,login,logout,
+    saveGlobal:(settings:GlobalPatch,revision:number,defaults?:DisplaySettings,commitDisplay=true)=>write('/global',{revision,settings,commit_display:commitDisplay,...(defaults?{iframe_defaults:defaults}:{})},'PATCH'),
+    saveStation:(id:StationId,patch:StationPatch,revision:number,defaults?:DisplaySettings,commitDisplay=true)=>write('/stations/'+id,{revision,...patch,commit_display:commitDisplay,...(defaults?{iframe_defaults:defaults}:{})},'PATCH'),
+    previewDisplay:(body:{target:'global'|StationId;editor:string;sequence:number;display:DisplaySettings|null;revision:number})=>call('/display-preview',{method:'POST',body:JSON.stringify(body)}),
+    saveLocalDisplay,loadIframeDefaults,
     saveDeviceFallback,clearDeviceFallback}
 }
