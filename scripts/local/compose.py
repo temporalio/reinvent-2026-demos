@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Render a local Compose preview from the single production DemoProject."""
 import argparse
+import hashlib
 import importlib.util
 import json
 from pathlib import Path
@@ -59,6 +60,14 @@ def control_hub_url(value):
     except ValueError as error:
         raise ValueError('CONTROL_HUB_URL has an invalid port') from error
     return value.rstrip('/')
+
+
+def gateway_template(lan_controller):
+    gateway = (ROOT / 'apps/gateway/default.conf.template').read_text()
+    gateway = gateway.replace('  location / {', '  location /_temporal/primary/ {\n    set $ui temporal:8233;\n    proxy_pass http://$ui;\n    proxy_set_header Host $http_host;\n  }\n  location / {')
+    if lan_controller:
+        gateway = gateway.replace('listen 8080;', 'listen 8082;') + '\n' + (ROOT/'scripts/local/controller.conf.template').read_text()
+    return gateway
 
 
 def render(apps, port=15101, bind_address='127.0.0.1', hub_url=DEFAULT_CONTROL_HUB_URL, controller=False, admin_port=15102):
@@ -140,6 +149,8 @@ def render(apps, port=15101, bind_address='127.0.0.1', hub_url=DEFAULT_CONTROL_H
                     raise ValueError('Controller admin port must differ from the station port.')
                 service['ports'].append(f'127.0.0.1:{admin_port}:8082')
             env['CONTROL_HUB_URL'] = hub_url
+            # Compose does not notice changes inside bind-mounted template files.
+            env['LOCAL_GATEWAY_CONFIG_SHA256'] = hashlib.sha256(gateway_template(lan_controller).encode()).hexdigest()
             service['volumes'] = [str(ROOT / 'tmp/local/gateway.conf.template') + ':/etc/nginx/templates/default.conf.template:ro']
             service['depends_on'] = {'launchpad': {'condition': 'service_started'}, 'aws-seed': {'condition': 'service_completed_successfully'}, 'temporal-init': {'condition': 'service_completed_successfully'}, 'control-hub': {'condition': 'service_healthy'}}
         if name == 'control-hub':
@@ -178,10 +189,7 @@ def write(apps, port, bind_address='127.0.0.1', hub_url=DEFAULT_CONTROL_HUB_URL,
     target.mkdir(parents=True, exist_ok=True)
     config = render(apps, port, bind_address, hub_url, controller, admin_port)
     (target / 'compose.yaml').write_text(yaml.safe_dump(config, sort_keys=False))
-    gateway = (ROOT / 'apps/gateway/default.conf.template').read_text()
-    gateway = gateway.replace('  location / {', '  location /_temporal/primary/ {\n    set $ui temporal:8233;\n    proxy_pass http://$ui;\n    proxy_set_header Host $http_host;\n  }\n  location / {')
-    if lan_controller:
-        gateway = gateway.replace('listen 8080;', 'listen 8082;') + '\n' + (ROOT/'scripts/local/controller.conf.template').read_text()
+    gateway = gateway_template(lan_controller)
     (target / 'gateway.conf.template').write_text(gateway)
     (target / 'runtime-config.json').write_text(json.dumps({'mode': 'local', 'availableDemos': apps, 'demoNotices': {key: value for key, value in NOTICES.items() if key in apps}, 'temporalUi': '/_temporal/primary/namespaces/default/workflows', 'notice': 'Local preview: Photo Booth uses mock images and saves email to a local outbox. AWS storage is emulated; Bedrock and Lambda are not.'}))
     print(target / 'compose.yaml')
