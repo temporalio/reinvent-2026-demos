@@ -77,6 +77,16 @@ def fetch_pairing(hub, station, code):
             'key':hmac.new(key,f'STATION-KEY\n{station}\n{session}'.encode(),hashlib.sha256).hexdigest()}
 
 
+def http_error_message(status):
+    if status == 403:
+        return 'Pairing blocked by the controller gateway (403). On the controller, update main and run ./scripts/local.sh control, then retry.'
+    if status == 429:
+        return 'Five pairing attempts used (429). Generate a fresh code on the controller.'
+    if status == 404:
+        return 'Pairing code expired or was used (404). Generate a fresh code on the controller; both machines must use current main.'
+    return f'Controller rejected pairing ({status}). Check the controller service before retrying.'
+
+
 def main():
     parser = argparse.ArgumentParser(description='Download station configuration from the control laptop; no file sharing or USB.')
     parser.add_argument('controller', nargs='?', default=os.environ.get('CONTROL_HUB_URL'), help='Control laptop IP, such as 192.168.86.108')
@@ -101,7 +111,7 @@ def main():
         print(f'For this MacBook rehearsal: ./scripts/local.sh booth --station {station} --test')
         print(f'For an event Mini with login startup: ./scripts/local.sh booth --station {station}')
     except urllib.error.HTTPError as error:
-        print(f'Pairing failed ({error.code}). Code expired, was used, or reached its five-attempt limit. Generate a fresh code on the controller.',file=sys.stderr)
+        print(http_error_message(error.code),file=sys.stderr)
         return 1
     except (OSError,ValueError,EOFError) as error:
         print(f'Pairing failed: {error}',file=sys.stderr)

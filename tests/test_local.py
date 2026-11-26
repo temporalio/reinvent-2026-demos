@@ -55,3 +55,15 @@ class ControlLocalGenerationTests(unittest.TestCase):
                 local.control_hub_url(value)
         self.assertEqual(local.control_hub_url('https://hub.example:443'), 'https://hub.example:443')
         self.assertEqual(local.control_hub_url('http://[::1]:15101/'), 'http://[::1]:15101')
+
+    def test_gateway_template_change_recreates_only_gateway(self):
+        from unittest.mock import patch
+        first=local.render([],bind_address='0.0.0.0',controller=True)
+        again=local.render([],bind_address='0.0.0.0',controller=True)
+        self.assertEqual(first,again)
+        template=local.gateway_template(True)
+        with patch.object(local,'gateway_template',return_value=template+'\n# changed route'):
+            updated=local.render([],bind_address='0.0.0.0',controller=True)
+        self.assertNotEqual(first['services']['gateway']['environment']['LOCAL_GATEWAY_CONFIG_SHA256'],updated['services']['gateway']['environment']['LOCAL_GATEWAY_CONFIG_SHA256'])
+        for name in ('control-hub','launchpad'):
+            self.assertEqual(first['services'][name],updated['services'][name])

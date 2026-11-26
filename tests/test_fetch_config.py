@@ -25,3 +25,10 @@ class FetchConfigTests(unittest.TestCase):
             def open(self,*_,**__):return Response()
         with patch.object(client.urllib.request,'build_opener',return_value=Opener()):
             with self.assertRaises(ValueError):client.fetch_pairing('192.168.86.108','3','123456')
+
+    def test_gateway_rejection_is_not_reported_as_expired_code(self):
+        self.assertIn('controller gateway',client.http_error_message(403))
+        self.assertNotIn('expired',client.http_error_message(403))
+        self.assertIn('Five pairing attempts',client.http_error_message(429))
+        self.assertIn('expired or was used',client.http_error_message(404))
+        self.assertNotIn('expired',client.http_error_message(500))
