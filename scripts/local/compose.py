@@ -175,4 +175,10 @@ if __name__ == '__main__':
     parser.add_argument('--bind-address', choices=['127.0.0.1', '0.0.0.0'], default='127.0.0.1')
     parser.add_argument('--control-hub-url', default=DEFAULT_CONTROL_HUB_URL)
     options = parser.parse_args()
-    write(options.apps.split(','), options.port, options.bind_address, options.control_hub_url)
+    try:
+        write(options.apps.split(','), options.port, options.bind_address, options.control_hub_url)
+    except ValueError as error:
+        message = str(error)
+        if 'CONTROL_HUB_URL' in message:
+            message += '\nExample: CONTROL_HUB_URL=http://192.168.50.10:15101 ./scripts/local.sh up'
+        parser.error(message)
