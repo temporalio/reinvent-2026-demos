@@ -6,8 +6,9 @@ Use its assigned station number: **1, 2, 3 or 4**. Examples below use **3**.
 ## First checkout
 
 ```bash
-git clone https://github.com/temporalio/reinvent-2026-demos.git "$HOME/reinvent-2026-demos"
-cd "$HOME/reinvent-2026-demos"
+mkdir -p "$HOME/riv"
+git clone https://github.com/temporalio/reinvent-2026-demos.git "$HOME/riv/reinvent-2026-demos"
+cd "$HOME/riv/reinvent-2026-demos"
 ```
 
 For an existing checkout, open Terminal in that repo, then:
@@ -66,6 +67,36 @@ offline. Local adjustments briefly show a red outline; save them on that browser
 
 After pulling updates, run `./scripts/local.sh` again. This refreshes the local
 launchpad and supervisor as well as the demo containers; saved pairing remains.
+
+## Update or recover without plugging in a keyboard
+
+Normal installation creates **Update & Restart Booth.command** on the Desktop.
+Approve macOS Desktop-folder access during setup if prompted. Double-tap the icon
+with the stylus to open a new Terminal window. It fetches `main`, fast-forwards the
+checkout, runs the booth's `local.sh` startup, and reopens its dedicated Chrome
+kiosk. The launcher remembers the actual checkout path, including
+`~/riv/reinvent-2026-demos`. Test it before removing the setup keyboard.
+
+It refuses tracked local edits, another branch or local commits absent from
+GitHub. It never resets your checkout or deletes Docker data volumes. If a pull,
+build or startup fails, it attempts the installed kiosk using cached images,
+without another pull/build; the Terminal and laptop panel report failure. This
+recovery attempt does not roll back a checkout or partially updated containers.
+
+A Chrome process crash normally recovers automatically within about five seconds.
+For a manual browser restart, use the laptop's **Station supervisor → Restart booth
+Chrome**. This works over the booth LAN without GitHub.
+
+For a code update from the laptop, open **Mission control → Station 1/2/3/4 →
+Station supervisor**, unlock with the laptop-only operator key, then choose
+**Update from main & restart** and confirm. Wait for the reported completion
+before updating the next station. Update commands require Internet and supervisor
+version 5 or newer; they cannot target all four stations at once. The update's Terminal
+opens on that station, and progress returns to the laptop.
+
+Existing stations need one manual `git pull --ff-only` and `./scripts/local.sh`
+to install this updater. Refresh the controller checkout and run its `local.sh`
+too. `--test` creates neither the Desktop icon nor a login item.
 
 ## Check a connection or container problem
 

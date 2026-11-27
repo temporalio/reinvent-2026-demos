@@ -89,5 +89,6 @@ s=Path(os.environ['BOOTH_SUPPORT_DIR'])
 p={'Label':'io.temporal.reinvent-station','ProgramArguments':[str(s/'station-agent'),'--config',str(s/'config.json')],'RunAtLoad':True,'KeepAlive':True,'ThrottleInterval':10,'StandardOutPath':'/dev/null','StandardErrorPath':'/dev/null'}
 path=Path(os.environ['BOOTH_PLIST_FILE']);path.write_bytes(plistlib.dumps(p));path.chmod(0o600)
 PY
+python3 "$booth_root/scripts/setup/update_mac_station.py" --install --config "$booth_config"
 bash "$booth_root/scripts/setup/reload-mac-service.sh" "$booth_domain" io.temporal.reinvent-station "$booth_plist"
 printf 'Station supervisor installed. Kiosk starts now and at login. Profile: %s/browser\n' "$booth_support"

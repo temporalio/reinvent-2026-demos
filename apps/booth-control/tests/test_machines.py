@@ -63,6 +63,29 @@ class MachineTests(unittest.TestCase):
         self.request('operator', {'action':'command','target':'all','kind':'restart'})
         self.assertTrue(all(self.request(s,{})['command']['kind']=='restart' for s in ('1','2','3','4')))
 
+    def test_update_requires_new_supervisor_and_one_station_at_a_time(self):
+        with self.assertRaises(MachineError):
+            self.request('operator', {'action':'command','target':'all','kind':'update'})
+        self.request('1', {'version':'4'})
+        with self.assertRaises(MachineError):
+            self.request('operator', {'action':'command','target':'1','kind':'update'})
+        self.request('1', {'version':'5'})
+        self.request('2', {'version':'6'})
+        self.request('operator', {'action':'command','target':'1','kind':'update'})
+        first = self.request('1', {'version':'5'})['command']
+        self.assertEqual(first['kind'], 'update')
+        with self.assertRaises(MachineError):
+            self.request('operator', {'action':'command','target':'2','kind':'update'})
+        self.request('1', {'version':'5','ack':first['id'],'update_id':first['id'],'update_state':'updating'})
+        self.now += 121
+        self.request('1', {'version':'5','ack':first['id'],'update_id':first['id'],'update_state':'updating'})
+        self.request('2', {'version':'6'})
+        with self.assertRaises(MachineError):
+            self.request('operator', {'action':'command','target':'2','kind':'update'})
+        self.request('1', {'version':'5','ack':first['id'],'update_id':first['id'],'update_state':'complete'})
+        self.request('operator', {'action':'command','target':'2','kind':'update'})
+        self.assertEqual(self.request('2', {'version':'6'})['command']['kind'], 'update')
+
     def test_http_requires_signed_native_access_and_same_origin_operator(self):
         import http.client
         import os

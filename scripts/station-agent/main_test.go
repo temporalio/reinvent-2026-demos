@@ -6,7 +6,10 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -123,5 +126,35 @@ func TestOnlineBootChecksLocalLauncher(t *testing.T) {
 	}
 	if !a.snapshot().LocalReady || a.snapshot().Mode != "online" {
 		t.Fatal("online mode did not prepare the local launcher")
+	}
+}
+
+func TestUpdateRequiresInstalledLauncher(t *testing.T) {
+	a := &Agent{cfg: Config{Support: t.TempDir()}}
+	if err := a.startUpdate(strings.Repeat("ab", 16)); err == nil {
+		t.Fatal("accepted missing fixed updater")
+	}
+}
+
+func TestUpdateProgressTracksTheRealUpdaterLock(t *testing.T) {
+	support := t.TempDir()
+	a := &Agent{cfg: Config{Support: support}}
+	lock, err := os.OpenFile(filepath.Join(support, "update.lock"), os.O_CREATE|os.O_RDWR, 0600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lock.Close()
+	if err := syscall.Flock(int(lock.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+		t.Fatal(err)
+	}
+	if err := atomicJSON(filepath.Join(support, "update-status.json"), map[string]string{"update_state": "updating", "update_message": "Building", "update_id": strings.Repeat("ab", 16)}); err != nil {
+		t.Fatal(err)
+	}
+	if got := a.snapshot(); got.UpdateState != "updating" || got.UpdateMessage != "Building" {
+		t.Fatalf("lost update status: %+v", got)
+	}
+	syscall.Flock(int(lock.Fd()), syscall.LOCK_UN)
+	if got := a.snapshot(); got.UpdateState != "failed" {
+		t.Fatalf("did not detect interrupted updater: %+v", got)
 	}
 }

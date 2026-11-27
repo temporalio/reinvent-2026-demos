@@ -122,8 +122,27 @@ class Machines:
             return {'station': station, 'key': self.station_key(station)}
         if action == 'command':
             target, kind = request.get('target'), request.get('kind')
-            if target not in ('all', '1', '2', '3', '4') or kind not in ('online', 'offline', 'auto', 'restart'):
+            if target not in ('all', '1', '2', '3', '4') or kind not in ('online', 'offline', 'auto', 'restart', 'update'):
                 raise MachineError(422, 'Choose a station and a supported machine action.')
+            if kind == 'update':
+                if target == 'all':
+                    raise MachineError(422, 'Update one selected station at a time.')
+                row = db.execute('SELECT status,last_seen FROM machines WHERE station=?', (target,)).fetchone()
+                state = json.loads(row[0]) if row and row[0] else {}
+                try:
+                    version = int(state.get('version', '0'))
+                except (ValueError, TypeError):
+                    version = 0
+                if not row or not row[1] or now-row[1] >= 12 or version < 5:
+                    raise MachineError(409, 'Install the latest booth supervisor on this station and reconnect first.')
+                for raw, seen, queued in db.execute('SELECT status,last_seen,command FROM machines'):
+                    current = json.loads(raw) if raw else {}
+                    command = json.loads(queued) if queued else {}
+                    active = current.get('update_state') == 'updating' and seen and now-seen < 12
+                    pending = command.get('kind') == 'update' and command.get('expires', 0) > now
+                    finished = current.get('update_id') == command.get('id') and current.get('update_state') in ('complete', 'failed')
+                    if active or (pending and not finished):
+                        raise MachineError(409, 'Wait for the current station update to finish before starting another.')
             for station in ('1', '2', '3', '4') if target == 'all' else (target,):
                 command = {'id': secrets.token_hex(16), 'kind': kind, 'expires': int(now)+120}
                 db.execute('INSERT INTO machines(station,command) VALUES (?,?) ON CONFLICT(station) DO UPDATE SET command=excluded.command', (station, json.dumps(command)))
@@ -190,7 +209,7 @@ class Machines:
     def poll(self, db, station, request, now):
         # Keep a small, typed status record. Never persist arbitrary host details.
         status = {}
-        for key in ('mode', 'preference', 'ack', 'error', 'version'):
+        for key in ('mode', 'preference', 'ack', 'error', 'version', 'update_state', 'update_message', 'update_revision', 'update_id'):
             value = request.get(key)
             if isinstance(value, str):
                 status[key] = value[:240]
