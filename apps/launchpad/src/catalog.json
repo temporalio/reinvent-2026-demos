@@ -43,10 +43,10 @@
   },
   {
     "id": "agentic-sdlc",
-    "title": "Agentic SDLC (tentative)",
+    "title": "Agentic SDLC",
     "path": "/agentic-sdlc/",
     "internet": "required",
-    "tentative": true
+    "tentative": false
   },
   {
     "id": "flight-simulator",
