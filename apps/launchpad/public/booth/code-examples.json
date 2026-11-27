@@ -481,8 +481,8 @@
       "source": {
         "path": "apps/photo-booth/backend/holodeck/photobooth/workflows.py",
         "symbol": "PhotoBoothWorkflow.run",
-        "startLine": 195,
-        "endLine": 223
+        "startLine": 200,
+        "endLine": 228
       },
       "examples": {
         "go": {

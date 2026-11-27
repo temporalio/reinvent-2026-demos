@@ -31,7 +31,8 @@ async def temporal_client():
 
 
 @pytest.mark.parametrize('email_first', [False, True])
-async def test_rendering_and_recipient_join_before_delivery(email_first, temporal_client):
+@pytest.mark.parametrize('reserved', [False, True], ids=['legacy','reserved'])
+async def test_rendering_and_recipient_join_before_delivery(email_first, reserved, temporal_client):
     calls = []
     gate = asyncio.Event()
 
@@ -42,6 +43,7 @@ async def test_rendering_and_recipient_join_before_delivery(email_first, tempora
     @activity.defn(name='render_scene')
     async def render(inp: RenderSceneInput) -> RenderResult:
         calls.append('render')
+        calls.append(('scene',inp.index,inp.scene_id))
         await gate.wait()
         return RenderResult(f'frame{inp.index}.jpg', f'/media/frame{inp.index}.jpg', 'mock')
 
@@ -73,13 +75,15 @@ async def test_rendering_and_recipient_join_before_delivery(email_first, tempora
     sid = uuid.uuid4().hex[:10]
     queue = 'capture-test-' + sid
     inp = PhotoBoothInput(sid, 'test', 'capture/photo.jpg', '', wait_for_email=True)
+    if reserved:
+        inp.scene_ids=['pet_salon','fossil_excavation','zero_g_juggler','creature_moth']
     async with Worker(client, task_queue=queue, workflows=[PhotoBoothWorkflow],
                       activities=[analyze, render, compose, animate, lead, email]):
         handle = await client.start_workflow(PhotoBoothWorkflow.run, inp, id='photobooth-'+sid, task_queue=queue)
         async def renders_started():
             return calls.count('render') == 4
         await until(renders_started)
-        assert not any(isinstance(x, tuple) for x in calls)
+        assert not any(isinstance(x, tuple) and x[0] in ('lead','email') for x in calls)
         if email_first:
             await handle.signal(PhotoBoothWorkflow.set_recipient, 'visitor@example.com')
         gate.set()
@@ -88,9 +92,11 @@ async def test_rendering_and_recipient_join_before_delivery(email_first, tempora
                 return (await handle.query(PhotoBoothWorkflow.status)).stage == 'awaiting_email'
             await until(waiting)
             assert 'compose' in calls
-            assert not any(isinstance(x, tuple) for x in calls)
+            assert not any(isinstance(x, tuple) and x[0] in ('lead','email') for x in calls)
             await handle.signal(PhotoBoothWorkflow.set_recipient, 'visitor@example.com')
         result = await handle.result(rpc_timeout=timedelta(seconds=15))
+        if reserved:
+            assert [x[2] for x in sorted(x for x in calls if isinstance(x,tuple) and x[0]=='scene')]==inp.scene_ids
         assert result.stage == 'done'
         assert result.email == 'visitor@example.com'
         assert calls[-2:] == [('lead', 'visitor@example.com'), ('email', 'visitor@example.com', ['strip.jpg'])]

@@ -121,7 +121,7 @@ async def start_session(req: StartRequest, x_station: str | None = Header(defaul
         style=settings.photobooth_style if settings.photobooth_style in ("inspired", "photo") else "inspired",
         public_base_url=settings.public_base_url, captured_at=datetime.now(timezone.utc).isoformat())
     workflow_id = wf_id("photobooth", session_id, station)
-    spool.add(workflow_id, inp)
+    inp = await asyncio.to_thread(spool.add, workflow_id, inp)
 
     # 2. Then try the network. Failure is fine: the spool drainer keeps trying.
     row = spool.get(session_id)

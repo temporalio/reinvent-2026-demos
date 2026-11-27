@@ -21,6 +21,8 @@ from typing import Awaitable, Callable
 from temporalio.exceptions import WorkflowAlreadyStartedError
 
 from .workflows import PhotoBoothInput
+from .rotation import next_strip
+from .deck_store import configured_decks, DynamoDecks
 
 log = logging.getLogger(__name__)
 
@@ -39,8 +41,9 @@ class SpoolRow:
 
 
 class Spool:
-    def __init__(self, db_path: Path) -> None:
+    def __init__(self, db_path: Path, remote_decks: DynamoDecks | None = None) -> None:
         self.db_path = db_path
+        self.remote_decks = remote_decks or configured_decks()
         with self._conn() as c:
             c.execute(
                 """CREATE TABLE IF NOT EXISTS photobooth_spool (
@@ -51,6 +54,9 @@ class Spool:
 
             c.execute("""CREATE TABLE IF NOT EXISTS photobooth_recipients (
                 session_id TEXT PRIMARY KEY, email TEXT NOT NULL, delivered INTEGER NOT NULL DEFAULT 0)""")
+
+            c.execute("""CREATE TABLE IF NOT EXISTS photobooth_scene_decks (
+                station TEXT PRIMARY KEY, state TEXT NOT NULL)""")
 
     def set_recipient(self, session_id: str, email: str) -> None:
         """Persist delivery before signalling; reject changing an accepted address."""
@@ -81,13 +87,26 @@ class Spool:
         conn.execute("PRAGMA journal_mode=WAL")
         return conn
 
-    def add(self, workflow_id: str, inp: PhotoBoothInput) -> None:
+    def add(self, workflow_id: str, inp: PhotoBoothInput) -> PhotoBoothInput:
+        """Reserve scenes with the capture, once per session, even across retries."""
         with self._conn() as c:
-            c.execute(
-                "INSERT OR IGNORE INTO photobooth_spool (session_id, workflow_id, input, created_at) VALUES (?, ?, ?, ?)",
-                (inp.session_id, workflow_id, json.dumps(dataclasses.asdict(inp)),
-                 datetime.now(timezone.utc).isoformat()),
-            )
+            c.execute("BEGIN IMMEDIATE")
+            row = c.execute("SELECT input FROM photobooth_spool WHERE session_id=?", (inp.session_id,)).fetchone()
+            if row:
+                return PhotoBoothInput(**json.loads(row[0]))
+            deck = c.execute("SELECT state FROM photobooth_scene_decks WHERE station=?", (inp.station,)).fetchone()
+            if self.remote_decks:
+                selected, state = self.remote_decks.reserve(inp.station, inp.session_id), None
+            else:
+                selected, state = next_strip(json.loads(deck[0]) if deck else None)
+            reserved = dataclasses.replace(inp, scene_ids=selected)
+            c.execute("INSERT INTO photobooth_spool(session_id,workflow_id,input,created_at) VALUES (?,?,?,?)",
+                      (inp.session_id, workflow_id, json.dumps(dataclasses.asdict(reserved)),
+                       datetime.now(timezone.utc).isoformat()))
+            if state is not None:
+                c.execute("INSERT INTO photobooth_scene_decks(station,state) VALUES (?,?) "
+                          "ON CONFLICT(station) DO UPDATE SET state=excluded.state", (inp.station, json.dumps(state)))
+        return reserved
 
     def get(self, session_id: str) -> SpoolRow | None:
         with self._conn() as c:

@@ -66,6 +66,7 @@ class PhotoBoothInput:
     style: str = "inspired"  # prompt style, fixed at capture time
     public_base_url: str = "http://localhost:8000"  # for links in the email
     wait_for_email: bool = False  # render first; delivery waits for the recipient Signal
+    scene_ids: list[str] = field(default_factory=list)  # station deck choices recorded with capture
     captured_at: str = ""  # ISO timestamp from the booth (may be long before the workflow starts)
 
 
@@ -123,7 +124,11 @@ class PhotoBoothWorkflow:
     async def run(self, inp: PhotoBoothInput) -> PhotoBoothStatus:
         session_dir = inp.photo_path.rsplit("/", 1)[0]
         # Preserve the original choices when replaying pre-change histories.
-        if workflow.patched("photobooth-playful-adventures-v2"):
+        if inp.scene_ids:
+            scene_ids = list(inp.scene_ids)
+            if len(scene_ids) != 4 or len(set(scene_ids)) != 4 or any(sid not in BY_ID for sid in scene_ids):
+                raise ApplicationError("invalid reserved photo scenes", non_retryable=True)
+        elif workflow.patched("photobooth-playful-adventures-v2"):
             scene_ids = pick_playful_four(workflow.random())
         elif workflow.patched("photobooth-eight-adventures-v1"):
             scene_ids = pick_featured_four(workflow.random())
