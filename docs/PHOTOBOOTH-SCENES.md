@@ -74,6 +74,28 @@ when the portrait is accepted, even if the visitor later abandons email entry.
 A catalog version change starts a fresh deck. Existing Workflow inputs without
 reserved scenes retain the older deterministic pickers for replay.
 
+## Visual variety within a scene
+
+The render Activity derives art direction from the opaque capture directory and
+frame index. Each strip uses four distinct outfit silhouettes, suit palettes,
+environment palettes and lighting treatments drawn from eight choices in each
+pool. Those choices vary between captures and stay stable on retry. Fixed
+scene costumes are removed before the new wardrobe is inserted; reference-photo
+clothing does not determine the costume. The model is asked to avoid brown
+leather, default orange/brown suits, fingerless gloves and generic pale-blue skies.
+Likeness and recognizable eyewear are retained.
+
+The jungle concept also varies its action and camera staging: vine swing,
+stepping over a log, ducking under a branch, hopping between rocks, balancing
+on a root, or parting giant leaves to discover a tiny alien village. Six jungle
+biomes vary plants, terrain and color. These are variations of one deck concept,
+so the equally weighted 24-concept rotation remains unchanged.
+
+This changes render prompts without changing Workflow commands or Activity
+inputs. Existing completed images are not regenerated. Art direction is
+reproducible; image-model output remains probabilistic. The pillow-based offline
+mock does not implement these generated wardrobe and scenery changes.
+
 ## Validation limits
 
 Automated checks use fake providers and a fake DynamoDB client. Live pod-role

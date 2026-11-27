@@ -123,7 +123,8 @@ async def render_scene(inp: RenderSceneInput) -> RenderResult:
         await asyncio.sleep(random.uniform(1.0, 3.0))
     provider = get_provider(inp.provider)
     a = inp.analysis
-    prompt = scene_prompt(scene, a.framing, a.face_count, a.usable, a.appearance, inp.soft, inp.style)
+    prompt = scene_prompt(scene, a.framing, a.face_count, a.usable, a.appearance, inp.soft, inp.style,
+                          capture_key=inp.session_dir, frame_index=inp.index)
     photo = media_path(inp.photo_path).read_bytes()
     t0 = time.monotonic()
     try:

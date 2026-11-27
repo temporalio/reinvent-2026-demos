@@ -281,7 +281,7 @@ def _inspired(scene: Scene, crew: bool, appearance: str, usable: bool) -> str:
         body += f" Keep visible details from the photo: {appearance.strip().rstrip('.')}."
     body += (" Invent a new pose, camera angle, lighting and costume that suit the scene; do not copy the photo's"
              " pose, background or clothing.")
-    composition = SCENE_COMPOSITIONS.get(scene.id)
+    composition = scene.extras.get("composition") or SCENE_COMPOSITIONS.get(scene.id)
     if composition:
         body += (f" Camera and staging: {composition}. Show the defining body pose, both hands when visible, "
                  "and the complete distinguishing prop or creature; do not reduce this to a head-and-shoulders portrait. "
@@ -317,11 +317,17 @@ def soft_prompt(scene: Scene, crew: bool = False) -> str:
 
 
 def scene_prompt(scene: Scene, framing: str = "head_shoulders", face_count: int = 1, usable: bool = True,
-                 appearance: str = "", soft: bool = False, style: str = "inspired") -> str:
+                 appearance: str = "", soft: bool = False, style: str = "inspired", *, capture_key: str = "", frame_index: int = 0) -> str:
     """The prompt actually sent to the image model."""
+    art = ""
+    if capture_key:
+        from .art_direction import varied_scene
+        scene, art = varied_scene(scene, capture_key, frame_index)
     crew = face_count > 1
     if soft:
-        return soft_prompt(scene, crew)
-    if style == "photo":
-        return _photo(scene, framing, crew, appearance, usable)
-    return _inspired(scene, crew, appearance, usable)
+        prompt = soft_prompt(scene, crew)
+    elif style == "photo":
+        prompt = _photo(scene, framing, crew, appearance, usable)
+    else:
+        prompt = _inspired(scene, crew, appearance, usable)
+    return f"{prompt} {art}".strip()
