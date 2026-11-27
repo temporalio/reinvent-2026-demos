@@ -248,7 +248,7 @@ function legacyRecipient(message=''):void {
     onSubmit:value=>{email=value;void submitWithRecipient();}});
   screen(header('Your photo is ready', 'Add your email to start developing your four adventures.'),
     h('div',{class:'pb-split even'},viewfinder(h('img',{src:photo,alt:'Your captured portrait'})),
-      h('div',{class:'pb-side'},kb.el,consentNote(),message?h('p',{class:'pb-error',role:'alert'},message):null,
+      h('div',{class:'pb-side pb-recipient'},kb.el,consentNote(),message?h('p',{class:'pb-error',role:'alert'},message):null,
         h('button',{class:'btn ghost',onclick:reset},'Cancel'))));
   cleanups.push(kb.destroy);
 }

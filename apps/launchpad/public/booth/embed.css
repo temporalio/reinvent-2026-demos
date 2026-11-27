@@ -411,3 +411,24 @@ html[data-shared-stage=true][data-demo=agentcore-oncall] .button.secondary {back
 html[data-shared-stage=true][data-demo=photobooth] .pb-result {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:center;width:100%;}
 html[data-shared-stage=true][data-demo=photobooth] .pb-result .pb-strip {max-height:60vh;max-width:100%;justify-self:center;}
 html[data-shared-stage=true][data-demo=photobooth] .pb-recipient {min-width:0;}
+
+/* Keep the complete email keyboard beside processing, including symbols/TLDs.
+   Stacking these panels in portrait mode pushed the final keyboard row offscreen. */
+html[data-shared-stage=true][data-demo=photobooth] .screen:has(.pb-recipient) { overflow:hidden; }
+html[data-shared-stage=true][data-demo=photobooth] .pb-split.even:has(.pb-recipient) {
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  grid-template-rows:minmax(0,1fr);
+  align-items:stretch;
+  overflow:hidden;
+}
+html[data-shared-stage=true][data-demo=photobooth] .pb-split.even:has(.pb-recipient) > .pb-side {
+  min-width:0; min-height:0; max-width:none; overflow:auto; padding:.25rem;
+}
+@media (max-width:759px) {
+  html[data-shared-stage=true][data-demo=photobooth] .pb-split.even:has(.pb-recipient) {
+    grid-template-columns:minmax(0,1fr); grid-template-rows:max-content max-content; overflow:auto;
+  }
+  html[data-shared-stage=true][data-demo=photobooth] .pb-split.even:has(.pb-recipient) > .pb-side { overflow:visible; }
+  html[data-shared-stage=true][data-demo=photobooth] .pb-recipient { grid-row:1; }
+}
+html[data-shared-stage=true][data-demo=photobooth] .pb-recipient .osk-field-row { flex-direction:column; }
