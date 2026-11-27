@@ -85,3 +85,5 @@ Video surround and station border are transparent; the MP4 is byte-for-byte iden
 Direct planet launches select the default Captain information view and still pass through the usual station availability/readiness policy. Launching a Holodeck planet retains its manual timeout exemption; the video retains its playback exemption.
 
 Main mission cards shuffle eight edge-anchored asteroid poses and vary starfield crop/flip on each visit. Artwork stays steady during the visit; a dark title backing preserves contrast.
+
+Cornelia’s video has seven timestamp links beneath the player. Each full entry seeks within the video and preserves its playing or paused state. The list scrolls on shorter screens; keyboard focus and touch targets remain available.
