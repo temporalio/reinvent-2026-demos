@@ -24,6 +24,8 @@ from pydantic import BaseModel
 from ..config import settings
 from ..temporal_client import get_client, wf_id, workflow_ui_url
 from .analysis import analyze, resolve_analysis_provider
+from .activities import CAPTION_H, PAD, PREVIEW_FRAME, SPROCKET
+from .providers import OUTPUT_FRAME_H, OUTPUT_FRAME_W
 from .providers import resolve_provider_name
 from .spool import Spool
 from .workflows import PhotoBoothInput, PhotoBoothWorkflow
@@ -57,6 +59,19 @@ async def lifespan(_app):
 
 
 router = APIRouter(prefix="/photobooth", tags=["photobooth"], lifespan=lifespan)
+
+
+@router.get("/capabilities")
+async def capabilities():
+    """Public output dimensions for client compatibility and release checks."""
+    return {
+        "frame": {"width": OUTPUT_FRAME_W, "height": OUTPUT_FRAME_H},
+        "strip": {"width": OUTPUT_FRAME_W + 2 * (PAD + SPROCKET),
+                  "height": 4 * OUTPUT_FRAME_H + 5 * PAD + CAPTION_H},
+        "animated_preview": {"width": (PREVIEW_FRAME[0] + 2 * (PAD + SPROCKET)) // 2,
+                             "height": (4 * PREVIEW_FRAME[1] + 5 * PAD + CAPTION_H) // 2},
+    }
+
 
 _SID = re.compile(r"^[a-f0-9]{10}$")
 _EMAIL = re.compile(r"[^\s@]+@[^\s@]+\.[^\s@]{2,}")

@@ -45,3 +45,28 @@ curl -fsS https://reinvent-booth.tmprl-demo.cloud/flightsim/api/flight/capabilit
 Both photo checks must be `True`. Flight must report `touch_flight` and
 `cargo_score_loss` as `true`; an older API returns 404. The API and worker must
 come from the same reviewed release before the new flight is started.
+
+## Photo and strip resolution
+
+New OpenAI renders request 1920×1088 at the existing medium quality setting.
+The API requires dimensions divisible by 16; the renderer trims four pixels
+from the top and bottom to produce each 1920×1080 landscape photo. It does not
+stretch or upscale that output. The full-resolution JPEG strip stacks four
+photos vertically, retaining the film border and gaps: **2060×4700** including
+the Temporal mark, caption, visible `temporal.io` address and date footer.
+The email includes that JPEG as an attachment and a clickable Temporal website
+link, while keeping the Replay invitation and contact footer. JPEG attachments
+cannot carry clickable hyperlinks inside the image.
+
+The animated preview uses 800×450 source frames and produces a 470×1090 GIF.
+It never builds ten full-resolution animation canvases. Its smaller resolution
+does not affect the emailed still. The offline illustration renderer remains
+800×600 internally; offline illustrations and already-rendered legacy frames
+can be normalized into the new strip, but that cannot invent native detail.
+`GET /photobooth/capabilities` reports the frame, strip and animated-preview
+dimensions without starting a session. A synthetic provider check returned
+1920×1088 natively, then produced the expected Full HD frame and 2060×4700 strip.
+Completed strips are not regenerated. A real new capture is needed to assess
+provider latency, attachment size and final visual quality after deployment.
+
+OpenAI sizing: https://developers.openai.com/api/docs/guides/image-generation#size-and-quality-options

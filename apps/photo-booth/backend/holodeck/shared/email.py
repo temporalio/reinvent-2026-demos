@@ -43,7 +43,7 @@ def branded_html(body: str, logo_src: str, subject: str = "Temporal Photo Booth"
             .replace("{{ subject }}", html.escape(subject))
             .replace("{{ logo_src }}", html.escape(logo_src, quote=True))
             .replace("{{ content }}", body)
-            .replace("{{ footer }}", '<p style="margin:0 0 8px;color:#aaa397;font-family:Helvetica, Arial, sans-serif;font-size:12px;line-height:1.6;">If you have questions about Replay, contact us at <a href="mailto:replay@temporal.io" style="color:#f47c54;text-decoration:underline;">replay@temporal.io</a>.</p>'))
+            .replace("{{ footer }}", '<p style="margin:0 0 8px;color:#aaa397;font-family:Helvetica, Arial, sans-serif;font-size:12px;line-height:1.6;">If you have questions about Replay, contact us at <a href="mailto:replay@temporal.io" style="color:#f47c54;text-decoration:underline;">replay@temporal.io</a>.</p><p style="margin:0;color:#aaa397;font-family:Helvetica, Arial, sans-serif;font-size:12px;line-height:1.6;"><a href="https://temporal.io/" style="color:#f47c54;text-decoration:underline;">Visit temporal.io</a></p>'))
 
 
 def _logo_b64() -> str:

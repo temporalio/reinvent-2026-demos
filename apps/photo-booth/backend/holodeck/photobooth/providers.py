@@ -26,7 +26,8 @@ from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont, ImageOps
 from .analysis import PhotoAnalysis
 from .scenes import Scene
 
-FRAME_W, FRAME_H = 800, 600
+FRAME_W, FRAME_H = 800, 600  # offline illustration canvas; coordinates below use this size
+OUTPUT_FRAME_W, OUTPUT_FRAME_H = 1920, 1080
 log = logging.getLogger(__name__)
 
 
@@ -90,7 +91,8 @@ def _font(size: int) -> ImageFont.ImageFont:
 
 def fit_frame(img_bytes: bytes) -> Image.Image:
     """Normalise any provider output to the strip's frame size (crop, never stretch)."""
-    return ImageOps.fit(Image.open(io.BytesIO(img_bytes)).convert("RGB"), (FRAME_W, FRAME_H), Image.LANCZOS)
+    with Image.open(io.BytesIO(img_bytes)) as source:
+        return ImageOps.fit(source.convert("RGB"), (OUTPUT_FRAME_W, OUTPUT_FRAME_H), Image.LANCZOS)
 
 
 # --------------------------------------------------------------------------
@@ -673,11 +675,11 @@ class OpenAIImageProvider:
             res = self._client.images.edit(
                 model=s.openai_image_model,
                 image=("photo.jpg", photo_jpg, "image/jpeg"),
-                prompt=prompt + " Wide landscape composition.",
+                prompt=prompt + " Wide 16:9 landscape composition; keep faces and defining props clear of the outermost image edges.",
                 quality=s.openai_image_quality,
                 size=s.openai_image_size,
                 output_format="jpeg",
-                output_compression=90,
+                output_compression=95,
                 n=1,
                 extra_body=extra,
                 **kw,

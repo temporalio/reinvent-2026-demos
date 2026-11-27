@@ -258,7 +258,7 @@ def pick_four(rand) -> list[str]:
 # ---------------------------------------------------------------------------
 
 _TAIL = ("Casual, funny, welcoming and family-friendly; any scares are mild cartoon slapstick, never horror, injury or gore. "
-         "Cinematic lighting, saturated jewel colors, rich detail, wide 3:2 landscape composition. "
+         "Cinematic lighting, saturated jewel colors, rich detail, wide 16:9 landscape composition. "
          "Build an immersive environment with distinct foreground, midground and distant scenery; "
          "the environment should fill most of the image around the recognizable character. "
          "Use a dynamic three-quarter or medium-wide camera angle, expressive movement and depth. "
