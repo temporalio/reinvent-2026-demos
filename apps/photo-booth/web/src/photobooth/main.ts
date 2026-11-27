@@ -2,6 +2,7 @@ import '../shared/theme.css';
 import './photobooth.css';
 import { h, mount, sleep } from '../shared/dom';
 import { api, poll, withBase } from '../shared/api';
+import { ApiError, requiresEmailAtCapture } from '../shared/httpError';
 import { installChrome } from '../shared/chrome';
 import { onScreenKeyboard } from '../shared/keyboard';
 import { CONSENT_TEXT_VERSION, consentNote } from '../shared/consent';
@@ -234,8 +235,30 @@ async function submit(): Promise<void> {
     camera?.stop(); camera=null; photo='';
     processing(s);
   } catch (e) {
-    failure(e);
+    if(requiresEmailAtCapture(e))legacyRecipient();
+    else failure(e);
   }
+}
+
+/** Earlier hosted APIs require the recipient with the capture. Keep the portrait
+ * and collect it here; never pretend images are rendering before that request. */
+function legacyRecipient(message=''):void {
+  camera?.stop();camera=null;
+  const kb=onScreenKeyboard({mode:'email',initial:email,placeholder:'you@company.com',submitLabel:'Create my strip',
+    onSubmit:value=>{email=value;void submitWithRecipient();}});
+  screen(header('Your photo is ready', 'Add your email to start developing your four adventures.'),
+    h('div',{class:'pb-split even'},viewfinder(h('img',{src:photo,alt:'Your captured portrait'})),
+      h('div',{class:'pb-side'},kb.el,consentNote(),message?h('p',{class:'pb-error',role:'alert'},message):null,
+        h('button',{class:'btn ghost',onclick:reset},'Cancel'))));
+  cleanups.push(kb.destroy);
+}
+async function submitWithRecipient():Promise<void> {
+  screen(header('Starting your adventures', 'Saving your photo and email.'));
+  try {
+    const started=await api<Started>('/photobooth/sessions',{image:photo,email,consent_text_version:CONSENT_TEXT_VERSION});
+    photo='';
+    if(started.spooled)saved();else processing(started,true);
+  }catch{legacyRecipient('We couldn’t connect to the photo service. Please try again; your portrait is still here.');}
 }
 
 // ---------- 6a. Saved (offline / stalled): the email comes later; Done starts over ----------
@@ -277,37 +300,44 @@ function stepRow(s: Step): HTMLElement {
     s.state === 'retrying' && s.detail ? h('span', { class: 'why' }, `⚠ ${s.detail.replace(/^[\w[\]-]+: /, '').slice(0, 120)}`) : null);
 }
 
-function processing(s: Started): void {
+function processing(s: Started, recipientAccepted=false): void {
   const steps = h('div', { class: 'wf-steps pb-steps' });
   const thumbs = h('div', { class: 'pb-thumbs' }, ...[0, 1, 2, 3].map(() => h('div', { class: 'pb-thumb' })));
   const recipient = h('div', { class:'pb-side pb-recipient' });
   const network = h('p', {class:'dim',role:'status'});
   const error = h('p', {class:'dim',role:'alert'});
-  let accepted=false, saving=false, active=true;
+  let accepted=recipientAccepted, saving=false, active=true;
   let latest:Status|null=null;
   screen(
-    header('Your adventures are developing', 'Add your email while we create your four-picture strip.'),
+    header('Your adventures are developing', recipientAccepted ? 'We’re creating your four-picture strip. Your email is saved.' : 'Add your email while we create your four-picture strip.'),
     h('div', { class: 'pb-split even' },
       h('div', { class: 'pb-side' }, thumbs, network,
         h('div', { class: 'panel' }, h('span', { class: 'panel-tab' }, 'Live workflow'), steps)),
       recipient),
   );
   cleanups.push(()=>{active=false;});
-  const kb=onScreenKeyboard({mode:'email',initial:email,placeholder:'you@company.com',submitLabel:'Send my strip',
-    onSubmit:value=>{void saveRecipient(value);}});
-  recipient.append(h('h2',{},'Where should we send your strip?'),kb.el,consentNote(),error,
-    h('button',{class:'btn ghost',onclick:reset},'Cancel'));
-  cleanups.push(kb.destroy);
+  let kb:ReturnType<typeof onScreenKeyboard>|null=null;
+  function recipientSaved():void {
+    recipient.replaceChildren(h('h2',{},'You’re on the crew list!'),h('p',{},`We’ll send your strip to ${email}.`),
+      h('p',{class:'dim'},'Stay to see your finished adventures, or let Temporal finish and email them.'),
+      h('button',{class:'btn mint big',onclick:reset},'Done — we’ll email it'));
+  }
+  if(accepted)recipientSaved();
+  else {
+    kb=onScreenKeyboard({mode:'email',initial:email,placeholder:'you@company.com',submitLabel:'Send my strip',
+      onSubmit:value=>{void saveRecipient(value);}});
+    recipient.append(h('h2',{},'Where should we send your strip?'),kb.el,consentNote(),error,
+      h('button',{class:'btn ghost',onclick:reset},'Cancel'));
+    cleanups.push(kb.destroy);
+  }
   async function saveRecipient(value:string):Promise<void> {
     if(saving||accepted)return;
     saving=true; error.textContent='Saving your email…';
     try {
       await api(`/photobooth/sessions/${s.session_id}/recipient`,{email:value});
       if(!active)return;
-      email=value;accepted=true;kb.destroy();
-      recipient.replaceChildren(h('h2',{},'You’re on the crew list!'),h('p',{},`We’ll send your strip to ${email}.`),
-        h('p',{class:'dim'},'Stay to see your finished adventures, or let Temporal finish and email them.'),
-        h('button',{class:'btn mint big',onclick:reset},'Done — we’ll email it'));
+      email=value;accepted=true;kb?.destroy();
+      recipientSaved();
       if(latest)update(latest);
     }catch{if(active)error.textContent='We couldn’t save your email yet. Please try again; your photos are still processing.';}
     finally{saving=false;}
@@ -367,7 +397,8 @@ function failure(e: unknown): void {
   console.error(e);
   screen(
     header('Transporter malfunction', 'We couldn’t save your photo. Please ask a crew member for help.'),
-    h('p', { class: 'dim' }, String(e)),
+    h('p', { class: 'pb-error', role:'alert' }, e instanceof ApiError ? e.message : 'The photo service could not be reached. Please try again.'),
+    photo ? h('button',{class:'btn mint big',onclick:()=>void submit()},'Try again') : null,
     h('button', { class: 'btn amber big', onclick: reset }, 'Start over'),
   );
 }
