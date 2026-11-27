@@ -324,10 +324,17 @@ func (a *Agent) apply(preference string, boot bool) error {
 
 // Updates open a fixed installed command in Terminal, outside this LaunchAgent.
 // Reinstallation can then reload the supervisor without killing its updater.
-func (a *Agent) startUpdate(id string) error {
+func (a *Agent) startUpdate(id string) (err error) {
 	if a.simulate {
 		return nil
 	}
+	defer func() {
+		if err != nil {
+			_ = atomicJSON(filepath.Join(a.cfg.Support, "update-status.json"), map[string]string{
+				"update_state": "failed", "update_message": "Could not start updater: " + err.Error(), "update_id": id,
+			})
+		}
+	}()
 	path := filepath.Join(a.cfg.Support, "Update & Restart Booth.command")
 	info, err := os.Stat(path)
 	if err != nil || !info.Mode().IsRegular() || info.Mode()&0100 == 0 {
