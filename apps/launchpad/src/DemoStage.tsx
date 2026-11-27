@@ -13,6 +13,16 @@ import { ArchitecturePanel } from './ArchitecturePanel'
 import { workflowTarget } from './workflowNavigation'
 import { preferDarkTemporalUi, showInTemporalFrame, styleTemporalFrame } from './temporalFrame'
 
+const videoChapters = [
+  {seconds:6,time:'0:06',text:'Starting a new workflow and AgentCore Runtime session'},
+  {seconds:14,time:'0:14',text:'Subagent is created, creating another new workflow and AgentCore Runtime session'},
+  {seconds:28,time:'0:28',text:'Waiting for a human to respond'},
+  {seconds:37,time:'0:37',text:'Workers are idle, stop polling, and drain'},
+  {seconds:44,time:'0:44',text:'AgentCore sessions are shut down, freeing capacity'},
+  {seconds:55,time:'0:55',text:'Human finally responds, and we see AgentCore sessions come on line, starts orchestrating'},
+  {seconds:60,time:'1:00',text:'AgentCore session and worker come online and finish agent interaction'},
+]
+
 type Tab = 'business' | 'architecture' | 'code' | 'temporal'
 const tabs: { id: Tab; label: string }[] = [
   {id:'business',label:'Business impact'}, {id:'architecture',label:'Architecture'},
@@ -34,6 +44,7 @@ export function DemoStage({ demo, persona, temporalUi, temporalZoom=100, station
   const [workflowOverlay,setWorkflowOverlay]=useState<string|null>(null)
   const initialTab: Tab = persona.toLowerCase() === 'mech' ? 'code' : persona.toLowerCase() === 'envoy' ? 'architecture' : 'business'
   const [tab,setTab] = useState<Tab>(initialTab)
+  const videoPlayer = useRef<HTMLVideoElement>(null)
   const appFrame = useRef<HTMLIFrameElement>(null)
   const temporalFrame = useRef<HTMLIFrameElement>(null)
   const lastWorkflow = useRef<string|null>(null)
@@ -132,12 +143,19 @@ export function DemoStage({ demo, persona, temporalUi, temporalZoom=100, station
     event.preventDefault(); setTab(tabs[index].id); buttons.current[index]?.focus()
   }
   if(demo.kind==='video')return <section className="video-stage" aria-label="Cornelia Davis AgentCore video">
-    <video controls autoPlay muted playsInline preload="metadata" poster="/agentcore-video/poster.jpg" controlsList="nodownload noremoteplayback" disablePictureInPicture
+    <video ref={videoPlayer} controls autoPlay muted playsInline preload="metadata" poster="/agentcore-video/poster.jpg" controlsList="nodownload noremoteplayback" disablePictureInPicture
       onPlay={()=>onPlaybackChange?.(true)} onPause={()=>onPlaybackChange?.(false)} onEnded={()=>onPlaybackChange?.(false)} onError={()=>onPlaybackChange?.(false)}
       onVolumeChange={event=>{if(!event.currentTarget.muted)event.currentTarget.muted=true;if(event.currentTarget.volume!==0)event.currentTarget.volume=0}}>
       <source src="/agentcore-video/CD_AgentCoreDemo.mp4" type="video/mp4" />
       Your browser cannot play this video.
     </video>
+    <ul className="video-chapters" aria-label="Video timestamps">
+      {videoChapters.map(chapter=><li key={chapter.seconds}><a href={`/agentcore-video/CD_AgentCoreDemo.mp4#t=${chapter.seconds}`} onClick={event=>{
+        if(!videoPlayer.current)return
+        event.preventDefault()
+        videoPlayer.current.currentTime=chapter.seconds
+      }}><span className="video-chapter-time">{chapter.time}</span>{' '}{chapter.text}</a></li>)}
+    </ul>
   </section>
   return <div className={`demo-stage${holodeck?' demo-stage-holodeck':''}`}>
     <section className="stage-application" aria-label="Live demo interaction and controls" inert={!!workflowOverlay} aria-hidden={workflowOverlay?true:undefined}>
