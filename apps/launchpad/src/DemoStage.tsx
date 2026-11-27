@@ -1,5 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
 import catalog from './catalog.json'
+import {businessStories as stories} from './businessImpact'
 import './stage.css'
 import {demoWorkflowList} from './demoWorkflowList'
 import {historyCursor,workflowApi,type LiveCursor,type HistoryEvent} from './workflowHistory'
@@ -17,18 +18,7 @@ const tabs: { id: Tab; label: string }[] = [
   {id:'business',label:'Business impact'}, {id:'architecture',label:'Architecture'},
   {id:'code',label:'Workflow code'}, {id:'temporal',label:'Temporal UI'},
 ]
-const stories: Record<string, [string,string,string]> = {
-  tacos: ['Deliver every order, even through a failure.', 'Temporal keeps the order progressing across payment, preparation, and delivery.', 'Try a failure, restore the service, and follow recovery in the Workflow history.'],
-  'money-transfer': ['Move credits with confidence.', 'A transfer coordinates account changes through a durable Workflow.', 'Compare the configured failure scenarios and follow recovery in the Workflow history.'],
-  'data-pipeline': ['Keep the cargo pipeline moving.', 'A Workflow tracks a multi-step data job and its progress.', 'Try the signal, update, or failure scenarios to explore recovery without starting the story over.'],
-  loan: ['Coordinate a decision from application to review.', 'Loan underwriting combines agent work, specialist tools, and human decisions.', 'Follow the specialist assessments, then approve or reject the recommendation.'],
-  'no-roads': ['Absorb work when demand changes.', 'Temporal queues durable work while workers process the backlog.', 'Compare the backlog and concurrency as workers process durable tasks.'],
-  'agent-harness': ['Keep an agent’s journey durable.', 'Temporal coordinates agent execution and tool calls.', 'Review the trip plan, approve tool calls, and follow the agent’s progress.'],
-  'agentic-sdlc': ['Carry a change through the delivery process.', 'Durable orchestration coordinates the coding and review pipeline.', 'Follow planning, code review, and the human decisions that gate delivery.'],
-  'flight-simulator': ['Your flight survives a worker restart.', 'The browser runs the real-time flight. Workflow Updates send game events and score snapshots to one durable session Workflow.', 'The Workflow records repair and flight Activities, retries failures, and submits the result to the leaderboard. Inspect the last flight’s Updates and Activities below.'],
-  'agentcore-research': ['Let the worker stop while the agent waits.', 'AgentCore supplies on-demand compute; Temporal retains the agent’s state and completed model/tool results.', 'Investigate an alarm, wait for the worker to drain, then approve the repair. A new worker resumes the same Workflow from its recorded history.'],
-  'photo-booth': ['Four adventures. One durable Workflow.', 'Temporal records the portrait analysis, runs four image-generation Activities in parallel, and waits durably for the email address.', 'Failed provider calls retry individually. The Workflow composes the strip and delivers the attachment without restarting completed work.'],
-}
+
 
 export function DemoStage({ demo, persona, temporalUi, temporalZoom=100, stationId, notice, onPlaybackChange }: {demo:(typeof catalog)[number];persona:string;temporalUi:string|null;temporalZoom?:number;stationId?:string;notice?:string;onPlaybackChange?:(playing:boolean)=>void}) {
   const [photoResult,setPhotoResult]=useState(false)
@@ -162,7 +152,7 @@ export function DemoStage({ demo, persona, temporalUi, temporalZoom=100, station
       <div role="tablist" aria-label="Demo information" className="stage-tabs" onKeyDown={navigate}>{tabs.map((t,index)=><button key={t.id} ref={element=>{buttons.current[index]=element}} id={`${id}-${t.id}`} role="tab" aria-selected={tab===t.id} aria-controls={`${id}-panel-${t.id}`} tabIndex={tab===t.id?0:-1} onClick={()=>setTab(t.id)}>{t.label}</button>)}</div>
       {demo.id==='tacos' && (tab==='architecture' || tab==='code') && <ExecutionProgress run={tacoRun} phase={phase} following={following} onSelect={phase=>setPhaseSelection({orderId:tacoRun?.orderId || null,phase})} onFollow={()=>setPhaseSelection(null)} />}
       {tabs.map(t=><div key={t.id} id={`${id}-panel-${t.id}`} role="tabpanel" aria-labelledby={`${id}-${t.id}`} tabIndex={0} hidden={tab!==t.id} className="stage-tab-content">
-        {t.id==='business' && <div className="business-story"><h2>{story?.[0]}</h2><p>{story?.[1]}</p><p className="business-detail">{notice || story?.[2]}</p>{demo.id==='agentcore-research'&&<ul className="agentcore-talking-points"><li>Each model and tool call is a recorded Activity.</li><li>The approval Signal is durable even when no worker is polling.</li><li>Describe, memo, and history reads show progress without waking compute.</li></ul>}</div>}
+        {t.id==='business' && <div className="business-story"><h2>{story?.headline}</h2><p>{story?.summary}</p><ul className="business-use-cases">{story?.bullets.map(point=><li key={point}>{point}</li>)}</ul><p className="business-detail">{notice || story?.detail}</p></div>}
         {t.id==='architecture' && tab==='architecture' && <ArchitecturePanel demoId={demo.id} execution={tacoRun} phase={phase} cursor={liveCursor} />}
         {t.id==='code' && <CodeSamples demoId={demo.id} execution={tacoRun} phase={phase} money={moneyRun} cursor={liveCursor} />}
         {t.id==='temporal' && (temporalUi ? <div className="temporal-viewport"><iframe ref={temporalFrame} title={`${demo.title}: Temporal workflow history`} src={workflowUrl || demoWorkflowList(temporalUi,demo.id,location.origin)} onLoad={event=>styleTemporalFrame(event.currentTarget)} className="stage-temporal" style={{zoom:temporalZoom/100}} /></div> : <p>The hosted Temporal UI route has not been enabled for this project. Local preview connects this tab to Temporal OSS.</p>)}
