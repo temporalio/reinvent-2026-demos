@@ -80,9 +80,12 @@ in the console. Run two stations concurrently and reset one; the other station's
 run must continue unaffected. Keep protected `main` and `baseline` unchanged;
 scenario merges belong on their per-run branches.
 
-## 4. Enable the booth card after rehearsal passes
+## 4. Control station availability
 
-Remove the Agentic SDLC card's fixed `tentative` launch flag only after the hosted
-checks above pass. Merge that change into this monorepo's `main`, fast-forward
-`fieldkit/onboarding-agent/suggested-changes` to the same commit, and verify the
-hosted rollout. The flag is not an automatic readiness check.
+The Agentic SDLC card uses the control panel's normal On/Off setting. The fixed
+`tentative` launch block has been removed at Ian's request. Set the demo Off on
+stations where it should not be offered, and On where staff should be able to
+launch and rehearse it. Agentic SDLC still requires an online connection.
+
+Turning the card On does not configure the token, webhook or providers. Complete
+the hosted checks above before treating the demo as ready for attendees.

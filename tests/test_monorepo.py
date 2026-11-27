@@ -25,7 +25,7 @@ class MonorepoTests(unittest.TestCase):
         for demo in catalog:
             self.assertTrue(demo['path'].startswith('/'))
             self.assertIn('location '+demo['path'],gateway)
-        self.assertTrue(next(d for d in catalog if d['id']=='agentic-sdlc')['tentative'])
+        self.assertFalse(next(d for d in catalog if d['id']=='agentic-sdlc')['tentative'])
     def test_screensaver_has_opposite_directions_and_all_local_logos(self):
         page=(ROOT/'apps/launchpad/public/screensaver/index.html').read_text()
         self.assertIn('.marquee-track.is-running { animation: marquee-left',page)
