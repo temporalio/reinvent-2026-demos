@@ -63,7 +63,8 @@ It never builds ten full-resolution animation canvases. Its smaller resolution
 does not affect the emailed still. The offline illustration renderer remains
 800×600 internally; offline illustrations and already-rendered legacy frames
 can be normalized into the new strip, but that cannot invent native detail.
-`GET /photobooth/capabilities` reports the frame, strip and animated-preview
+`GET /api/photobooth/capabilities` (hosted at
+`/photobooth/api/photobooth/capabilities`) reports the frame, strip and animated-preview
 dimensions without starting a session. A synthetic provider check returned
 1920×1088 natively, then produced the expected Full HD frame and 2060×4700 strip.
 Completed strips are not regenerated. A real new capture is needed to assess
