@@ -41,3 +41,10 @@ def test_default_omits_input_fidelity():
 
 def test_configured_input_fidelity_is_sent():
     assert render("high")["input_fidelity"] == "high"
+
+
+def test_full_hd_request_uses_valid_native_size_and_landscape_prompt():
+    request = render(None)
+    assert request["size"] == "1920x1088"
+    assert "16:9 landscape" in request["prompt"]
+    assert request["output_compression"] == 95

@@ -90,6 +90,7 @@ def test_photobooth_delivery_matches_replay_layout_and_copy():
     assert "Marriott" not in rendered and "Hyatt" not in rendered
     assert "If you have questions about Replay, contact us at" in rendered
     assert 'href="mailto:replay@temporal.io"' in rendered
+    assert 'href="https://temporal.io/"' in rendered
     assert "{{" not in rendered
     # The attendee image is an attachment, not an external image fetch on open.
     assert "<img" not in body

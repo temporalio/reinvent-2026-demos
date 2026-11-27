@@ -48,7 +48,8 @@ class Settings:
     # 2.6-sunburst, its precision model). Set HOLODECK_OPENAI_IMAGE_MODEL to go back to 2.5-flare.
     openai_image_model: str = os.getenv("HOLODECK_OPENAI_IMAGE_MODEL", "gpt-image-2.6-flare")
     openai_image_quality: str = os.getenv("HOLODECK_OPENAI_IMAGE_QUALITY", "medium")
-    openai_image_size: str = os.getenv("HOLODECK_OPENAI_IMAGE_SIZE", "1536x1024")
+    # OpenAI dimensions must be multiples of 16; trim four rows per edge for Full HD.
+    openai_image_size: str = os.getenv("HOLODECK_OPENAI_IMAGE_SIZE", "1920x1088")
     # Likeness to the reference photo: "high" | "low" | unset or "" to omit (the default).
     # Only for a model that accepts it: OpenAI answers 400 "does not support the
     # 'input_fidelity' parameter" for gpt-image-2.5-flare, and OpenAI documents it only for
