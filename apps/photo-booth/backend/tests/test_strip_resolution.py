@@ -107,9 +107,9 @@ async def test_public_output_dimensions_match_delivery_contract():
     from fastapi import FastAPI
     from holodeck.photobooth.api import router
     app = FastAPI()
-    app.include_router(router)
+    app.include_router(router, prefix="/api")
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url='http://test') as client:
-        response = await client.get('/photobooth/capabilities')
+        response = await client.get('/api/photobooth/capabilities')
     assert response.status_code == 200
     assert response.json() == {
         'frame': {'width': 1920, 'height': 1080},
