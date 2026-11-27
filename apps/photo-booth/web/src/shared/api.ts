@@ -1,4 +1,5 @@
 import { stationId } from './station';
+import { ApiError } from './httpError';
 
 /**
  * A server-relative URL under the path the app is served at (Vite's `base`,
@@ -22,7 +23,7 @@ export async function api<T = unknown>(path: string, body?: unknown, method?: st
     headers: { 'content-type': 'application/json', 'x-station': stationId() },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+  if (!res.ok) throw new ApiError(res.status,await res.json().catch(()=>null));
   return (await res.json()) as T;
 }
 

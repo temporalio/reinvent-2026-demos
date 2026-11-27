@@ -106,3 +106,5 @@
 
 .pb-hint { border-color: var(--amber); }
 .pb-hint > .panel-tab { background: var(--coral); }
+
+.pb-error { box-sizing:border-box;max-width:100%;min-width:0;white-space:normal;overflow-wrap:anywhere;word-break:break-word;color:var(--coral); }
