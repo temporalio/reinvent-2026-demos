@@ -28,7 +28,7 @@ import (
 	"time"
 )
 
-const version = "4"
+const version = "5"
 
 type Config struct {
 	Station string `json:"station"`
@@ -43,14 +43,18 @@ type Config struct {
 	Listen  string `json:"listen"`
 }
 type Status struct {
-	Mode       string `json:"mode"`
-	Preference string `json:"preference"`
-	Ack        string `json:"ack"`
-	Error      string `json:"error"`
-	Version    string `json:"version"`
-	Browser    bool   `json:"browser_running"`
-	Internet   bool   `json:"internet"`
-	LocalReady bool   `json:"local_ready"`
+	Mode           string `json:"mode"`
+	Preference     string `json:"preference"`
+	Ack            string `json:"ack"`
+	Error          string `json:"error"`
+	Version        string `json:"version"`
+	UpdateState    string `json:"update_state"`
+	UpdateMessage  string `json:"update_message"`
+	UpdateRevision string `json:"update_revision"`
+	UpdateID       string `json:"update_id"`
+	Browser        bool   `json:"browser_running"`
+	Internet       bool   `json:"internet"`
+	LocalReady     bool   `json:"local_ready"`
 }
 type diskState struct {
 	Preference string `json:"preference"`
@@ -119,7 +123,35 @@ func validate(c Config) error {
 	}
 	return nil
 }
-func (a *Agent) snapshot() Status { a.mu.RLock(); defer a.mu.RUnlock(); return a.status }
+func (a *Agent) snapshot() Status {
+	a.mu.RLock()
+	status := a.status
+	a.mu.RUnlock()
+	raw, err := os.ReadFile(filepath.Join(a.cfg.Support, "update-status.json"))
+	if err == nil && len(raw) <= 4096 {
+		var update struct {
+			State    string `json:"update_state"`
+			Message  string `json:"update_message"`
+			Revision string `json:"update_revision"`
+			ID       string `json:"update_id"`
+		}
+		if json.Unmarshal(raw, &update) == nil {
+			status.UpdateState, status.UpdateMessage = update.State, update.Message
+			status.UpdateRevision, status.UpdateID = update.Revision, update.ID
+			if update.State == "updating" {
+				lock, e := os.OpenFile(filepath.Join(a.cfg.Support, "update.lock"), os.O_RDWR, 0)
+				if e == nil {
+					if syscall.Flock(int(lock.Fd()), syscall.LOCK_EX|syscall.LOCK_NB) == nil {
+						status.UpdateState, status.UpdateMessage = "failed", "Update was interrupted; try Update from main again."
+						syscall.Flock(int(lock.Fd()), syscall.LOCK_UN)
+					}
+					lock.Close()
+				}
+			}
+		}
+	}
+	return status
+}
 func atomicJSON(path string, value any) error {
 	b, err := json.Marshal(value)
 	if err != nil {
@@ -289,6 +321,24 @@ func (a *Agent) apply(preference string, boot bool) error {
 	// Restart the dedicated profile on a mode change so no iframe retains its old backend.
 	return a.startBrowser()
 }
+
+// Updates open a fixed installed command in Terminal, outside this LaunchAgent.
+// Reinstallation can then reload the supervisor without killing its updater.
+func (a *Agent) startUpdate(id string) error {
+	if a.simulate {
+		return nil
+	}
+	path := filepath.Join(a.cfg.Support, "Update & Restart Booth.command")
+	info, err := os.Stat(path)
+	if err != nil || !info.Mode().IsRegular() || info.Mode()&0100 == 0 {
+		return errors.New("install the updated booth setup before requesting an update")
+	}
+	if err := atomicJSON(filepath.Join(a.cfg.Support, "update-request.json"), map[string]string{"id": id}); err != nil {
+		return err
+	}
+	return a.run(10*time.Second, "/usr/bin/open", "-a", "Terminal", path)
+}
+
 func (a *Agent) stopBrowser() {
 	if a.browser == nil {
 		return
@@ -505,6 +555,9 @@ func composeServices(output []byte) ([]composeService, error) {
 	}
 }
 func (a *Agent) maintain() {
+	if a.snapshot().UpdateState == "updating" {
+		return
+	}
 	// Docker's restart policy handles exits; check health too, because Docker
 	// doesn't restart a container merely for becoming unhealthy.
 	if a.simulate {
@@ -653,12 +706,12 @@ func main() {
 			if cmd.Expires < time.Now().Unix() || cmd.ID == a.snapshot().Ack {
 				continue
 			}
-			if cmd.Kind != "restart" && cmd.Kind != "auto" && cmd.Kind != "online" && cmd.Kind != "offline" {
+			if cmd.Kind != "restart" && cmd.Kind != "auto" && cmd.Kind != "online" && cmd.Kind != "offline" && cmd.Kind != "update" {
 				continue
 			}
 			a.mu.Lock()
 			a.status.Ack = cmd.ID
-			if cmd.Kind != "restart" {
+			if cmd.Kind != "restart" && cmd.Kind != "update" {
 				a.status.Preference = cmd.Kind
 			}
 			a.mu.Unlock()
@@ -666,7 +719,9 @@ func main() {
 				a.setError("Could not save station mode; command not executed")
 				continue
 			}
-			if cmd.Kind == "restart" {
+			if cmd.Kind == "update" {
+				err = a.startUpdate(cmd.ID)
+			} else if cmd.Kind == "restart" {
 				err = a.startBrowser()
 			} else {
 				err = a.apply(cmd.Kind, false)

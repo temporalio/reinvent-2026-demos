@@ -147,3 +147,25 @@ unavailable-hosted startup. Fullscreen visual behavior, camera permissions, phys
 Mini reboot/power recovery and multi-day stability remain hardware acceptance work.
 Network-pairing and listener isolation have separate tests; a successful build does
 not establish those physical checks.
+
+## Explicit updates from main
+
+The desktop launcher and the signed per-station `update` command use one installed
+helper. The command accepts no shell text, paths, URLs or branch names. It opens a
+fixed `.command` in Terminal outside the supervisor's LaunchAgent, so rebuilding
+and reloading that supervisor does not kill its own updater. Supervisor version 5 and newer
+report update state, revision and completion separately from command receipt.
+
+The controller permits one update at a time, requires a connected compatible
+supervisor, and rejects updates targeting all stations. The helper locks out
+duplicate Desktop launches too. It fetches only the expected public repository's
+`main`, requires a clean tracked checkout and a fast-forward, then runs the same
+station startup and installer. Pairing, saved mode, browser profile and named
+Docker volumes are retained. Health repairs pause while the updater holds its
+lock; browser crash recovery continues.
+
+Failure attempts a cached installed-supervisor restart without network or builds;
+it is reported as failure, not a successful update. It does not roll back Git or
+partially updated containers. A lost updater lock is reported as an interrupted
+update so another attempt can be made. macOS Terminal/Desktop permission prompts,
+actual Mini updates and physical stylus use still need station acceptance testing.
