@@ -22,7 +22,7 @@ FROM runtime AS python-tests
 COPY backend/tests/ tests/
 RUN uv sync --frozen --no-install-project --extra aws --extra openai
 RUN HOLODECK_DATA_DIR=/tmp/photobooth-tests uv run --no-sync pytest -q \
-    tests/test_email.py tests/test_openai_params.py tests/test_api_links.py tests/test_capture_first.py \
+    tests/test_email.py tests/test_openai_params.py tests/test_api_links.py tests/test_capture_first.py tests/test_scene_rotation.py \
     tests/test_photobooth.py::test_pick_four_rules_over_many_seeds \
     tests/test_photobooth.py::test_inspired_prompts \
     tests/test_photobooth.py::test_photo_style_prompts \

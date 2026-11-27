@@ -1,9 +1,11 @@
 # Photo Booth flow
 
 Camera → countdown → review/retake → processing with email entry → finished strip.
-Generation starts after the visitor accepts the captured photo. Four distinct
-scenes are selected from 17 adventures, including nine playful alien encounters.
-Costumes, colors, settings and camera angles vary; faces remain recognizable.
+Generation starts after the visitor accepts the captured photo. Each booth uses
+a persistent shuffled deck of 24 scene concepts: four per capture, six strips
+before reshuffling. The creature slot cycles through six different species.
+[Scene catalog and persistence](PHOTOBOOTH-SCENES.md) describe the rotation.
+Costumes, body poses, camera angles and props vary; faces remain recognizable.
 
 The recipient is saved locally before its Signal is delivered to the same
 Workflow. A network outage queues both the capture and recipient for retry.

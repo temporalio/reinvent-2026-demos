@@ -1,6 +1,6 @@
 """Scene catalog and prompt templates for the Holo-Booth.
 
-New strips draw four distinct scenes from a varied cinematic adventure pool.
+New captures use 24 equally used scene concepts in a persistent per-station deck.
 The full 18-scene catalog and original picker stay available for old Workflow
 histories. Both pickers use ``workflow.random()`` so replay preserves the choice.
 
@@ -105,7 +105,7 @@ PLAYFUL_SCENES: list[Scene] = [
           'a laughing astronaut in a cobalt and sunflower-yellow suit floating on a safety tether outside an enormous space station, their recognizable face clearly visible inside a transparent spherical bubble helmet; a ring of curious friendly alien visitors in colorful little space pods examines their boots and copies their wave, one holding a tiny camera; station gardens, docking ships, a turquoise ringed planet, violet nebulae and a sunrise fill the vast background',
           'station_exterior', 'visor', ('#051631', '#9657b7')),
     Scene('street_food', 'orbital_street_food', 'One Small Bite for Humanity',
-          'an adventurous visitor in a magenta bomber jacket and teal trousers sampling a floating alien noodle with comic surprise at an orbital night-market stall; a smiling alien vendor demonstrates with four chopsticks while a tiny hovering pet begs for a bite; steam, glowing lanterns, colorful ingredient jars, crowded balconies, passing spacecraft and a giant planet behind the glass roof fill the richly detailed scene',
+          'an adventurous visitor in a magenta bomber jacket and teal trousers balancing a comically tall stack of glowing dumpling baskets on one hand at an orbital night-market stall, knees bent and the other arm stretched out for balance; a smiling alien vendor adds one last tiny basket while a hovering pet tries to steal a dumpling; steam, glowing lanterns, colorful ingredient jars, crowded balconies, passing spacecraft and a giant planet behind the glass roof fill the richly detailed scene',
           'cantina', 'poster', ('#311b40', '#da8c55')),
     Scene('zero_g_laundry', 'orbital_laundromat', 'Spin Cycle in Zero-G',
           'a laughing visitor in a lime-green utility suit with lilac patches floating inside a zero-gravity laundromat, trying to catch an escaped sock while friendly round aliens chase floating laundry; transparent washer bubbles, swirling rainbow socks, copper machinery, potted alien plants and enormous windows onto an orbital city create a funny everyday space adventure with sweeping depth',
@@ -119,12 +119,64 @@ PLAYFUL_SCENES: list[Scene] = [
 
 ]
 
+
+EXPANDED_SCENES: list[Scene] = [
+    Scene('pet_salon', 'pet_salon', 'Alien Pet Salon',
+          'brushing the wildly springy fur of a friendly many-eyed alien pet in an orbital grooming salon, wearing teal overalls and a coral apron; rainbow soap bubbles escape, little grooming robots hold oversized combs and amused alien customers watch beside windows onto a jewel-colored moonport',
+          'lab', 'poster'),
+    Scene('planetarium_guide', 'planetarium_guide', 'Which Way Is Earth?',
+          'acting as a delightfully confused planetarium guide in a violet uniform, holding an upside-down star chart while tiny alien schoolchildren float model planets around a spectacular domed star map; one child politely points out Earth behind the guide, with luminous constellations and a sweeping cosmic observatory in the background',
+          'bridge', 'poster'),
+    Scene('moon_bowling', 'moon_bowling', 'One Small Roll',
+          'bowling in low gravity on a sparkling lunar bowling lane, wearing a lime-and-magenta leisure uniform; the glowing bowling ball drifts above the lane while friendly alien teammates gasp and the pins gently float apart; panoramic windows reveal a ringed planet, distant domes and a glittering crater city',
+          'station_exterior', 'poster'),
+    Scene('robot_orchestra', 'robot_orchestra', 'More Cowbell, Earthling',
+          'conducting a tiny robot orchestra with two glowing batons while wearing a red-and-gold tailcoat on an alien garden stage; a kettle-shaped drummer enthusiastically overplays, little brass robots dance and luminous plants surround an audience of smiling extraterrestrials beneath a huge moon',
+          'cantina', 'poster'),
+    Scene('orbital_gardener', 'orbital_gardener', 'Houston, We Have Tomatoes',
+          'tending a wildly overgrown orbital greenhouse in sunflower-yellow overalls, holding a watering can while a friendly tentacled plant steals a gardening glove; giant translucent leaves, floating droplets, rows of odd vegetables, little maintenance bots and station windows overlooking a striped planet create lush depth',
+          'jungle', 'poster'),
+    Scene('alien_birthday', 'alien_birthday', 'Surprise, Carbon-Based Friend',
+          'being surprised at an alien birthday party in a turquoise party suit, leaning back laughing as a tiny friendly alien pops out of an absurdly tall luminous cake; party guests with whimsical silhouettes, floating confetti, star-shaped balloons and a warmly lit observation lounge overlook an orbital fireworks display',
+          'cantina', 'poster'),
+    Scene('moon_souvenirs', 'moon_souvenirs', 'It Was Smaller in the Gift Shop',
+          'trying on an absurdly oversized asteroid-shaped souvenir hat in a moon gift shop, wearing a plum jacket and amber scarf while an alien shopkeeper holds a tiny mirror; bobblehead planets, floating snow globes, quirky postcards, crowded shelves and a panoramic crater promenade fill the colorful scene',
+          'lab', 'poster'),
+    Scene('fossil_excavation', 'fossil_excavation', 'The Smallest Brush in the Galaxy',
+          'kneeling in a golden alien desert in copper and teal field gear, using a comically tiny brush to uncover an enormous spiral fossil while a curious fluffy alien assistant holds a magnifying glass backward; intricate fossil ribs, layered excavation terraces, distant sandstone ruins and two warm suns create sweeping cinematic scenery; no vehicle, saddle or handlebars',
+          'desert', 'poster'),
+    Scene('zero_g_juggler', 'zero_g_juggler', 'Gravity Was Not in the Contract',
+          'attempting a zero-gravity juggling act in a magenta and silver performance suit as glowing fruit, soft juggling clubs and one confused rubbery alien float around both outstretched hands; delighted alien spectators peek from curved balconies in a vast orbital circus atrium overlooking a luminous planet; no vehicle, steering controls or saddle',
+          'station_exterior', 'poster'),
+    Scene('creature_ride', 'creature_ride', 'Friendly Alien Safari',
+          'taking a playful ride on a gentle whimsical alien with an unusual non-equine silhouette through a richly detailed alien wilderness, wearing colorful expedition gear; no dragon, horse, cockpit, vehicle or handlebars',
+          'jungle', 'poster'),
+    Scene('creature_moth', 'creature_moth', 'Golden Moth Express',
+          'gliding gently on the back of an enormous fuzzy golden alien moth with broad stained-glass wings, wearing a plum flight jacket and transparent bubble helmet with the whole recognizable face visible; the rider spreads both arms while luminous jellyfish trees, glowing seed clouds, misty waterfalls and a giant pink moon fill the valley; not a dragon, horse or mechanical vehicle',
+          'jungle', 'visor'),
+    Scene('creature_pillow', 'creature_pillow', 'The Mossback Scenic Route',
+          'sitting sideways on a round moss-green six-legged pillow beast with huge umbrella-shaped ears, wearing a coral expedition coat; the friendly creature splashes through a violet marsh and sniffs a glowing lily, with luminous reeds, curious little amphibians, floating gardens and a ringed sunset planet behind; not a dragon, horse or mechanical vehicle',
+          'jungle', 'poster'),
+    Scene('creature_springhare', 'creature_springhare', 'One Giant Hop',
+          'bouncing across low-gravity moon boulders on a giant coral-colored fluffy springhare with long antenna-like ears and a curled feathery tail, wearing a cobalt-and-yellow exploration suit; the laughing rider holds a fluttering scarf as pebble fountains, crystal craters and distant orbital arches stretch under an emerald aurora; not a dragon, horse or mechanical vehicle',
+          'ringworld', 'poster'),
+    Scene('creature_ray', 'creature_ray', 'The Balloon-Ray Drift',
+          'drifting above a luminous canyon on a friendly pearlescent silver balloon-ray with a broad pancake body, tiny waving fins and a translucent inflated belly, wearing an orange suit and transparent bubble helmet showing the whole face; the rider lies on their stomach pointing ahead through suspended gardens, tiny drifting creatures and shimmering auroras; not a dragon, horse or mechanical vehicle',
+          'ringworld', 'visor'),
+    Scene('creature_snail', 'creature_snail', 'Express Service, Eventually',
+          'perching on the spiral glass shell of an enormous friendly orange-spotted alien snail while reading a tiny map, wearing mint-green overalls and a violet scarf; the snail takes a leisurely route through a bustling botanical market, with neon fruit stalls, friendly aliens, hanging gardens and enormous orbital-city windows; not a dragon, horse or mechanical vehicle',
+          'cantina', 'poster'),
+    Scene('creature_caterpillar', 'creature_caterpillar', 'All Aboard the Velvet Caterpillar',
+          'taking a gentle ride on a plum-colored velvety alien caterpillar with many tiny turquoise boots and little mushroom-like umbrellas along its back, wearing a sunflower-yellow raincoat; the rider laughs and reaches toward a sparkling droplet while the creature crosses an immense living root bridge between glowing mushroom towers and distant waterfalls; not a dragon, horse or mechanical vehicle',
+          'jungle', 'poster'),
+]
+
 # Used when a provider refuses a scene twice (content policy). Deliberately bland.
 FALLBACK = Scene("star_portrait", "fallback", "Starfarer Portrait",
                  "a proud space-academy graduate in a smart navy uniform, soft starfield and a distant blue planet behind",
                  "nebula", "hologram", ("#020412", "#0b1840"), {"accent": "#7b6cff", "tint_hue": None, "feature": ""})
 
-BY_ID = {s.id: s for s in SCENES + PLAYFUL_SCENES + [FALLBACK]}
+BY_ID = {s.id: s for s in SCENES + PLAYFUL_SCENES + EXPANDED_SCENES + [FALLBACK]}
 assert len({s.category for s in SCENES}) == len(SCENES), "categories must be unique"
 
 # Curated for scenery and motion rather than static portraits. Retain the complete
@@ -136,6 +188,38 @@ FEATURED_SCENE_IDS = (
 
 
 PLAYFUL_SCENE_IDS = ('furry_first_contact', 'snack_chase', 'city_tourist', 'diner_counter', 'curious_spacewalk', 'street_food', 'zero_g_laundry', 'moon_picnic', 'robot_market')
+
+
+
+# Retain the earlier pools and pickers unchanged for recorded Workflow histories.
+# The current deck replaces similar vehicle prompts and the fixed blue dragon.
+NEW_SCENE_IDS = ("pet_salon", "planetarium_guide", "moon_bowling", "robot_orchestra",
+                 "orbital_gardener", "alien_birthday", "moon_souvenirs")
+ROTATION_SCENE_IDS = tuple(sid for sid in FEATURED_SCENE_IDS if sid not in
+                           ("desert_nomad", "grand_prix", "ice_planet")) + PLAYFUL_SCENE_IDS + NEW_SCENE_IDS + (
+                           "fossil_excavation", "zero_g_juggler", "creature_ride")
+RIDE_SCENE_IDS = ("starfighter_ace", "creature_ride")
+CREATURE_SCENE_IDS = ("creature_moth", "creature_pillow", "creature_springhare",
+                      "creature_ray", "creature_snail", "creature_caterpillar")
+assert len(ROTATION_SCENE_IDS) == len(set(ROTATION_SCENE_IDS)) == 24
+
+SCENE_COMPOSITIONS = {'pet_salon': 'a side-on knees-up view showing both hands, the enormous fluffy pet and the complete grooming table', 'planetarium_guide': 'a low-angle group view showing the standing guide from the knees up, the star chart and the circle of alien children', 'moon_bowling': 'a full-body three-quarter view of an exaggerated bowling follow-through, with the lane extending diagonally away', 'robot_orchestra': 'a waist-up frontal conductor view with both arms stretched wide and tiny musicians filling the foreground', 'orbital_gardener': 'a side-on full-body view reaching upward toward a towering cheeky plant, with the watering can and boots visible', 'alien_birthday': 'a seated three-quarter body view with both hands raised in surprise, the full cake and surrounding party guests', 'moon_souvenirs': 'a standing knees-up mirror view with the complete oversized hat, the person adjusting it with both hands and the shopkeeper', 'fossil_excavation': 'a wide three-quarter body view showing the kneeling pose, tiny brush, hands and immense fossil spiraling across the foreground', 'zero_g_juggler': 'a full-body floating view with spread legs and both arms reaching in different directions, surrounded by widely separated juggling props', 'creature_ride': 'a wide side-on view showing the rider from the knees up and the entire creature silhouette', 'creature_moth': 'a wide upward three-quarter view with the rider’s open arms and the moth’s entire spread-wing silhouette', 'creature_pillow': 'a side-on knees-up rider view showing the sideways seated pose, all six stubby legs and enormous round ears', 'creature_springhare': 'a broad full-body side view at the peak of a hop, with the rider leaning back and the creature’s two oversized hind feet visible', 'creature_ray': 'a wide elevated three-quarter view showing the prone rider, outstretched pointing hand and broad ray body floating over the canyon', 'creature_snail': 'a broad side view showing the upright map-reading rider, complete spiral shell and slow snail’s comically extended eye stalks', 'creature_caterpillar': 'a wide low-angle three-quarter view showing the rider’s reaching arm, curled knees and the caterpillar’s many tiny booted feet'}
+SCENE_COMPOSITIONS.update({
+    "starfighter_ace": "an over-the-shoulder cockpit view with the person looking back toward camera, both hands on the controls and the full canopy visible",
+    "kepler_explorer": "a full-body airborne view showing bent knees, outstretched arms and the canyon gap beneath the explorer",
+    "asteroid_miner": "a side-on knees-up work pose braced against a rock, with both arms holding the complete oversized plasma drill",
+    "jungle_ranger": "a full-body diagonal swinging pose showing the overhead vine grip, extended legs and forest floor far below",
+    "spacewalk": "a horizontal full-body tethered repair pose, one arm reaching toward an external ship panel and boots floating free",
+    "furry_first_contact": "a crouching side view with both open hands beside the enormous nest and fluffy baby creature, rather than a riding pose",
+    "snack_chase": "a full-body mid-stride comedy chase view with the visitor looking back and holding a sandwich above one shoulder",
+    "city_tourist": "a standing knees-up tourist pose with both hands unfolding the large upside-down map and locals pointing around it",
+    "diner_counter": "a seated side-on diner-counter view with elbows on the counter and the towering pancake stack beside the visitor's face",
+    "curious_spacewalk": "an upright full-body floating group portrait with the visitor waving both hands and curious aliens gathered in a circle",
+    "street_food": "a full-body balancing pose with bent knees, one hand supporting the complete towering stack of dumpling baskets and the other arm extended sideways",
+    "zero_g_laundry": "a full-body upside-down floating pose reaching for an escaped sock among drifting laundry",
+    "moon_picnic": "a full-body seated picnic pose with crossed legs, an outstretched hand accepting fruit and a crab stealing a sandwich",
+    "robot_market": "a knees-up crouching shopping pose inspecting a tiny robot wearing a flowerpot hat, with one hand holding an odd souvenir",
+})
 
 
 def pick_playful_four(rand) -> list[str]:
@@ -197,6 +281,11 @@ def _inspired(scene: Scene, crew: bool, appearance: str, usable: bool) -> str:
         body += f" Keep visible details from the photo: {appearance.strip().rstrip('.')}."
     body += (" Invent a new pose, camera angle, lighting and costume that suit the scene; do not copy the photo's"
              " pose, background or clothing.")
+    composition = SCENE_COMPOSITIONS.get(scene.id)
+    if composition:
+        body += (f" Camera and staging: {composition}. Show the defining body pose, both hands when visible, "
+                 "and the complete distinguishing prop or creature; do not reduce this to a head-and-shoulders portrait. "
+                 "Keep the face recognizable. The activity must be obvious even with the background hidden.")
     if not usable:
         body += " If no face is clearly visible in the reference photo, invent a friendly cartoon astronaut hero instead."
     return f"{body} {_TAIL}"
