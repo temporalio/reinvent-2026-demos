@@ -61,8 +61,14 @@ export default function App() {
     else if (selected && !blocked) setAdmitted(selected.id)
   }, [screen, selected, blocked])
   const mayRun = selected && (admitted === selected.id || !blocked)
-  const missions = catalog.filter(d => missionVisible(d,filter))
-  const mainArtwork=useMemo(()=>createMissionArtwork(catalog.filter(d=>missionVisible(d,'all')).map(d=>d.id)),[screen,filter])
+  const missions = catalog.filter(d => missionVisible(d,filter,control.effective.demo_hidden))
+  const mainArtwork=useMemo(()=>createMissionArtwork(catalog.filter(d=>missionVisible(d,'all',control.effective.demo_hidden)).map(d=>d.id)),[screen,filter,JSON.stringify(control.effective.demo_hidden)])
+  const hiddenMissions=JSON.stringify(control.effective.demo_hidden??{})
+  function syncScreensaverVisibility(){
+    const frame=document.querySelector<HTMLIFrameElement>('.attract')
+    frame?.contentDocument?.dispatchEvent(new CustomEvent('screensaver:visibility',{detail:{hiddenIds:Object.entries(control.effective.demo_hidden??{}).filter(([,hidden])=>hidden).map(([id])=>id)}}))
+  }
+  useEffect(()=>{if(screen==='screensaver')syncScreensaverVisibility()},[screen,hiddenMissions])
   function showCrew() {
     setMediaPlaying(false);setSelected(null);setAdmitted(null);setFilter('all');setPersona('Captain');setScreen('crew')
     const url=new URL(window.location.href);url.pathname='/';url.searchParams.delete('demo');url.searchParams.set('screen','crew');window.history.replaceState(null,'',url)
@@ -84,6 +90,7 @@ export default function App() {
   const idleTarget=idleNavigationTarget(screen,selected?.id,!!mayRun,configurationOpen,filter)
   const idleCountdown=useIdleScreensaver({enabled:!idlePaused && idleTarget!==null && !(screen==='demo' && selected?.kind==='video' && mediaPlaying),onTimeout:idleTarget==='missions'?showMissions:showScreensaver,idleMs:idleDelayForScreen(screen),countdownMs:5_000,scope:`${screen}:${filter}:${selected?.id || ''}`})
   if (screen === 'screensaver') return <iframe className="attract" title="Temporal Crash Course interactive screensaver" src="/screensaver/index.html" onLoad={event => {
+    syncScreensaverVisibility()
     const doc = event.currentTarget.contentDocument
     doc?.addEventListener('screensaver:next', showCrew, { once: true })
     // The embedded template emits an explicit event so planet taps stay interactive.

@@ -169,3 +169,14 @@ it is reported as failure, not a successful update. It does not roll back Git or
 partially updated containers. A lost updater lock is reported as an interrupted
 update so another attempt can be made. macOS Terminal/Desktop permission prompts,
 actual Mini updates and physical stylus use still need station acceptance testing.
+
+## Demo visibility
+
+The controller's Hidden toggle is independent of On/Off. It removes a mission
+from every matching mission list and its screensaver planet, including timed
+planet previews. It does not stop a running demo or change whether it is enabled.
+Tap Hidden again to show it with its previous availability. Per-station visibility
+can override the global value; Inherit restores both global visibility and global
+availability. Saved visibility stays available from the station's cached settings
+if the laptop disconnects. Update both controller and Mini launchers to use this
+setting; older launchers do not filter hidden missions.

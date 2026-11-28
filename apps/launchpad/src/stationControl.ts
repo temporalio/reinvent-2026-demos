@@ -4,26 +4,26 @@ import catalog from './catalog.json'
 export type StationId = '1' | '2' | '3' | '4'
 export type NetworkMode = 'online' | 'offline'
 export type DisplaySettings = {width:number;height:number;x:number;y:number;zoom:number;temporal_ui_zoom:number}
-export type StationOverrides = {demo_enabled:Record<string,boolean>;network_mode?:NetworkMode}
+export type StationOverrides = {demo_enabled:Record<string,boolean>;demo_hidden?:Record<string,boolean>;network_mode?:NetworkMode}
 export type StationRecord = {label:string;overrides:StationOverrides;display:DisplaySettings;display_overrides:Partial<DisplaySettings>;last_seen:string|null}
 export type ControlState = {
   revision:number
   iframe_defaults?:DisplaySettings
   display_generations?:Partial<Record<StationId,number>>
   display_previews?:Partial<Record<StationId,DisplaySettings>>
-  global:{demo_enabled:Record<string,boolean>;network_mode:NetworkMode;display:DisplaySettings}
+  global:{demo_enabled:Record<string,boolean>;demo_hidden?:Record<string,boolean>;network_mode:NetworkMode;display:DisplaySettings}
   stations:Record<StationId,StationRecord>
   authenticated:boolean
   device_read_only?:boolean
   server_time:string
 }
-export type GlobalPatch = {demo_enabled?:Record<string,boolean|null>;network_mode?:NetworkMode;display?:Partial<DisplaySettings>}
+export type GlobalPatch = {demo_enabled?:Record<string,boolean|null>;demo_hidden?:Record<string,boolean|null>;network_mode?:NetworkMode;display?:Partial<DisplaySettings>}
 export type StationPatch = {
   label?:string
-  overrides?:{demo_enabled?:Record<string,boolean|null>;network_mode?:NetworkMode|null}
+  overrides?:{demo_enabled?:Record<string,boolean|null>;demo_hidden?:Record<string,boolean|null>;network_mode?:NetworkMode|null}
   display?:{[K in keyof DisplaySettings]?:number|null}
 }
-export type EffectiveStationSettings = {label:string;demo_enabled:Record<string,boolean>;network_mode:NetworkMode;display:DisplaySettings}
+export type EffectiveStationSettings = {label:string;demo_enabled:Record<string,boolean>;demo_hidden?:Record<string,boolean>;network_mode:NetworkMode;display:DisplaySettings}
 export const STATION_IDS: StationId[] = ['1','2','3','4']
 export const DEFAULT_DISPLAY: DisplaySettings = Object.freeze({width:90,height:78,x:0,y:0,zoom:100,temporal_ui_zoom:100})
 export const DISPLAY_LIMITS = {width:[40,100],height:[30,100],zoom:[50,150],temporal_ui_zoom:[70,130],x:[-7680,7680],y:[-7680,7680]} as const
@@ -69,7 +69,7 @@ function decodeState(value:unknown):ControlState {
     if(row.overrides.network_mode!==undefined&&!mode(row.overrides.network_mode))throw new Error('Invalid network mode')
     const inherited=row.display_overrides===undefined?legacyDisplayOverrides(row.display):row.display_overrides
     if(!partialDisplay(inherited))throw new Error('Invalid display overrides')
-    stations[id]={label:row.label,display:{...globalDisplay,...inherited},display_overrides:{...inherited},overrides:{demo_enabled:flags(row.overrides.demo_enabled),...(mode(row.overrides.network_mode)?{network_mode:row.overrides.network_mode}:{})},last_seen:typeof row.last_seen==='string'&&Number.isFinite(Date.parse(row.last_seen))?row.last_seen:null}
+    stations[id]={label:row.label,display:{...globalDisplay,...inherited},display_overrides:{...inherited},overrides:{demo_enabled:flags(row.overrides.demo_enabled),demo_hidden:flags(row.overrides.demo_hidden??{}),...(mode(row.overrides.network_mode)?{network_mode:row.overrides.network_mode}:{})},last_seen:typeof row.last_seen==='string'&&Number.isFinite(Date.parse(row.last_seen))?row.last_seen:null}
   }
   const extras:Pick<ControlState,'iframe_defaults'|'display_generations'|'display_previews'>={}
   if(value.iframe_defaults!==undefined){if(!display(value.iframe_defaults))throw new Error('Invalid controller defaults');extras.iframe_defaults={...DEFAULT_DISPLAY,...value.iframe_defaults}}
@@ -77,7 +77,7 @@ function decodeState(value:unknown):ControlState {
   if(isRecord(generations))extras.display_generations=Object.fromEntries(STATION_IDS.map(id=>[id,Number.isSafeInteger(generations[id])?Number(generations[id]):0]))
   const previews=value.display_previews
   if(isRecord(previews))extras.display_previews=Object.fromEntries(STATION_IDS.filter(id=>display(previews[id])).map(id=>[id,{...DEFAULT_DISPLAY,...previews[id] as DisplaySettings}]))
-  return {...extras,...(value.device_read_only===true?{device_read_only:true}:{}),revision:Number(value.revision),global:{demo_enabled:flags(value.global.demo_enabled),network_mode:value.global.network_mode,display:globalDisplay},stations,authenticated:value.authenticated===true,server_time:typeof value.server_time==='string'?value.server_time:new Date().toISOString()}
+  return {...extras,...(value.device_read_only===true?{device_read_only:true}:{}),revision:Number(value.revision),global:{demo_enabled:flags(value.global.demo_enabled),demo_hidden:flags(value.global.demo_hidden??{}),network_mode:value.global.network_mode,display:globalDisplay},stations,authenticated:value.authenticated===true,server_time:typeof value.server_time==='string'?value.server_time:new Date().toISOString()}
 }
 function defaultState():ControlState {
   return {revision:0,global:{demo_enabled:{},network_mode:'online',display:{...DEFAULT_DISPLAY}},stations:Object.fromEntries(STATION_IDS.map(id=>[id,{label:`Mac Mini ${id}`,display:{...DEFAULT_DISPLAY},display_overrides:{},overrides:{demo_enabled:{}},last_seen:null}])) as Record<StationId,StationRecord>,authenticated:false,server_time:new Date().toISOString()}
@@ -102,7 +102,7 @@ const storedPatches=readStorage(FALLBACK_KEY)
 if(isRecord(storedPatches))for(const id of STATION_IDS){
   const patch=storedPatches[id]
   if(isRecord(patch)&&display(patch.display)&&isRecord(patch.overrides)){
-    try{const inherited=patch.display_overrides===undefined?legacyDisplayOverrides(patch.display):patch.display_overrides;if(!partialDisplay(inherited))continue;devicePatches[id]={display:{...baseState.global.display,...inherited},display_overrides:{...inherited},label:typeof patch.label==='string'&&patch.label.trim()&&patch.label.length<=64?patch.label:baseState.stations[id].label,overrides:{demo_enabled:flags(patch.overrides.demo_enabled),...(mode(patch.overrides.network_mode)?{network_mode:patch.overrides.network_mode}:{})}}}catch{/* Ignore invalid device-only recovery data. */}
+    try{const inherited=patch.display_overrides===undefined?legacyDisplayOverrides(patch.display):patch.display_overrides;if(!partialDisplay(inherited))continue;devicePatches[id]={display:{...baseState.global.display,...inherited},display_overrides:{...inherited},label:typeof patch.label==='string'&&patch.label.trim()&&patch.label.length<=64?patch.label:baseState.stations[id].label,overrides:{demo_enabled:flags(patch.overrides.demo_enabled),demo_hidden:flags(patch.overrides.demo_hidden??{}),...(mode(patch.overrides.network_mode)?{network_mode:patch.overrides.network_mode}:{})}}}catch{/* Ignore invalid device-only recovery data. */}
   }
 }
 type LocalDisplay={display:DisplaySettings;generation:number}
@@ -116,14 +116,15 @@ function patchStation(row:StationRecord,patch:StationPatch):StationRecord {
     if(value===null)delete inherited[key as keyof DisplaySettings]
     else inherited[key as keyof DisplaySettings]=value
   }
-  const next={...row,label:patch.label??row.label,display:{...baseState.global.display,...inherited},display_overrides:inherited,overrides:{...row.overrides,demo_enabled:{...row.overrides.demo_enabled}}}
+  const next={...row,label:patch.label??row.label,display:{...baseState.global.display,...inherited},display_overrides:inherited,overrides:{...row.overrides,demo_enabled:{...row.overrides.demo_enabled},demo_hidden:{...row.overrides.demo_hidden}}}
   for(const [key,value] of Object.entries(patch.overrides?.demo_enabled??{})){if(value===null)delete next.overrides.demo_enabled[key];else next.overrides.demo_enabled[key]=value}
+  for(const [key,value] of Object.entries(patch.overrides?.demo_hidden??{})){if(value===null)delete next.overrides.demo_hidden[key];else next.overrides.demo_hidden[key]=value}
   if(patch.overrides && 'network_mode' in patch.overrides){if(patch.overrides.network_mode===null)delete next.overrides.network_mode;else next.overrides.network_mode=patch.overrides.network_mode}
   return next
 }
 function viewState(source:ControlSource):ControlState {
   if(source==='hub')return baseState
-  return {...baseState,authenticated:false,stations:Object.fromEntries(STATION_IDS.map(id=>{const device=devicePatches[id];return [id,device?{...baseState.stations[id],label:device.label,display:{...device.display},display_overrides:{...device.display_overrides},overrides:{...device.overrides,demo_enabled:{...device.overrides.demo_enabled}}}:baseState.stations[id]]})) as Record<StationId,StationRecord>}
+  return {...baseState,authenticated:false,stations:Object.fromEntries(STATION_IDS.map(id=>{const device=devicePatches[id];return [id,device?{...baseState.stations[id],label:device.label,display:{...device.display},display_overrides:{...device.display_overrides},overrides:{...device.overrides,demo_enabled:{...device.overrides.demo_enabled},demo_hidden:{...device.overrides.demo_hidden}}}:baseState.stations[id]]})) as Record<StationId,StationRecord>}
 }
 let snapshot:Snapshot={state:viewState(hasCache?'cache':'defaults'),stationId:storedStation(),source:hasCache?'cache':'defaults',ready:false,error:null,hasDeviceFallback:false}
 snapshot.hasDeviceFallback=Boolean(devicePatches[snapshot.stationId])
@@ -260,7 +261,7 @@ function localDisplayFor(state:ControlState,id:StationId){return localDisplays[i
 
 export function resolveStationSettings(state:ControlState,id:StationId):EffectiveStationSettings {
   const row=state.stations[id]
-  return {label:row.label,display:{...DEFAULT_DISPLAY,...state.global.display,...(row.display_overrides??legacyDisplayOverrides(row.display))},network_mode:row.overrides.network_mode??state.global.network_mode,demo_enabled:Object.fromEntries(catalog.map(demo=>[demo.id,row.overrides.demo_enabled[demo.id]??state.global.demo_enabled[demo.id]??true]))}
+  return {label:row.label,display:{...DEFAULT_DISPLAY,...state.global.display,...(row.display_overrides??legacyDisplayOverrides(row.display))},network_mode:row.overrides.network_mode??state.global.network_mode,demo_enabled:Object.fromEntries(catalog.map(demo=>[demo.id,row.overrides.demo_enabled[demo.id]??state.global.demo_enabled[demo.id]??true])),demo_hidden:Object.fromEntries(catalog.map(demo=>[demo.id,row.overrides.demo_hidden?.[demo.id]??state.global.demo_hidden?.[demo.id]??false]))}
 }
 export function useStationControl(){
   const current=useSyncExternalStore(subscribe,()=>snapshot,()=>serverSnapshot)

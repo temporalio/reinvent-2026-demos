@@ -549,12 +549,15 @@
     const launch = card.querySelector(".launch");
     let selected = null;
     let timer = null;
-    const previewRotation = window.createPreviewRotation({ count:planets.length, onSelect:index=>select(planets[index]) });
+    let lastPreview = null;
+    const previewRotation = window.createPreviewRotation({ count:planets.length, onSelect:()=>{const visible=planets.filter(p=>!p.hidden);if(visible.length)select(visible[(visible.indexOf(lastPreview)+1)%visible.length])} });
     previewRotation.setHidden(document.hidden);
     document.addEventListener("visibilitychange",()=>previewRotation.setHidden(document.hidden));
     addEventListener("pagehide",()=>previewRotation.stop());
 
     function select(planet) {
+      if(!planet||planet.hidden)return;
+      lastPreview = planet;
       previewRotation.selected(planets.indexOf(planet));
       selected = planet;
       const { deck } = planet;
@@ -601,6 +604,25 @@
       );
       timer.finished.then(close, () => {});
     }
+
+    document.addEventListener("screensaver:visibility", event => {
+      const hidden = new Set(Array.isArray(event.detail?.hiddenIds) ? event.detail.hiddenIds : []);
+      planets.forEach(planet => {
+        planet.hidden = hidden.has(planet.deck.id);
+        planet.g.style.display = planet.hidden ? "none" : "";
+        planet.g.setAttribute("aria-hidden", String(planet.hidden));
+        planet.g.setAttribute("tabindex", planet.hidden ? "-1" : "0");
+      });
+      if (selected?.hidden) {
+        timer?.cancel();
+        close();
+        card.classList.add("is-closed");
+      }
+      if (!selected) {
+        const next = planets.find(planet => !planet.hidden);
+        if (next) select(next);
+      }
+    });
 
     // Keep the orbits clear for five seconds, then preview a different planet.
     function close() {

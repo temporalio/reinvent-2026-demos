@@ -232,3 +232,21 @@ test('controller and managed booth roles remain distinct',async()=>{
  const booth=load({url:'http://localhost:15103/config?station=2&managed=1'})
  assert.equal(booth.get().isController,false)
 })
+
+test('visibility inherits and caches independently of On/Off',async()=>{
+ const saved=state();saved.global.demo_hidden={tacos:true};saved.stations['2'].overrides.demo_hidden={tacos:false}
+ const storage=new Map();let connected=true
+ const client=load({storage,fetch:async()=>{if(!connected)throw Error('offline');return response(saved)}})
+ await client.get().refresh()
+ assert.equal(client.get().effective.demo_hidden.tacos,true)
+ assert.equal(client.get().effective.demo_enabled.tacos,true)
+ client.get().setStationId('2')
+ assert.equal(client.get().effective.demo_hidden.tacos,false)
+ assert.equal(client.get().effective.demo_enabled.tacos,true)
+ connected=false;await client.get().refresh()
+ const reboot=load({storage,url:'http://booth.invalid/?station=2'});await reboot.get().refresh()
+ assert.equal(reboot.get().effective.demo_hidden.tacos,false)
+ reboot.get().setStationId('1')
+ assert.equal(reboot.get().effective.demo_hidden.tacos,true)
+ assert.equal(reboot.get().effective.demo_enabled.tacos,true)
+})
