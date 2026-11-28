@@ -63,10 +63,11 @@ export default function App() {
   const mayRun = selected && (admitted === selected.id || !blocked)
   const missions = catalog.filter(d => missionVisible(d,filter,control.effective.demo_hidden))
   const mainArtwork=useMemo(()=>createMissionArtwork(catalog.filter(d=>missionVisible(d,'all',control.effective.demo_hidden)).map(d=>d.id)),[screen,filter,JSON.stringify(control.effective.demo_hidden)])
-  const hiddenMissions=JSON.stringify(control.effective.demo_hidden??{})
+  const hiddenIds=Object.entries(control.effective.demo_hidden??{}).filter(([,hidden])=>hidden).map(([id])=>id)
+  const hiddenMissions=hiddenIds.join(',')
   function syncScreensaverVisibility(){
     const frame=document.querySelector<HTMLIFrameElement>('.attract')
-    frame?.contentDocument?.dispatchEvent(new CustomEvent('screensaver:visibility',{detail:{hiddenIds:Object.entries(control.effective.demo_hidden??{}).filter(([,hidden])=>hidden).map(([id])=>id)}}))
+    frame?.contentDocument?.dispatchEvent(new CustomEvent('screensaver:visibility',{detail:{hiddenIds}}))
   }
   useEffect(()=>{if(screen==='screensaver')syncScreensaverVisibility()},[screen,hiddenMissions])
   function showCrew() {
@@ -89,7 +90,8 @@ export default function App() {
   }
   const idleTarget=idleNavigationTarget(screen,selected?.id,!!mayRun,configurationOpen,filter)
   const idleCountdown=useIdleScreensaver({enabled:!idlePaused && idleTarget!==null && !(screen==='demo' && selected?.kind==='video' && mediaPlaying),onTimeout:idleTarget==='missions'?showMissions:showScreensaver,idleMs:idleDelayForScreen(screen),countdownMs:5_000,scope:`${screen}:${filter}:${selected?.id || ''}`})
-  if (screen === 'screensaver') return <iframe className="attract" title="Temporal Crash Course interactive screensaver" src="/screensaver/index.html" onLoad={event => {
+  if(screen==='screensaver'&&!control.ready)return <p role="status">Loading station settings…</p>
+  if (screen === 'screensaver') return <iframe className="attract" title="Temporal Crash Course interactive screensaver" src={`/screensaver/index.html?hidden=${encodeURIComponent(hiddenMissions)}`} onLoad={event => {
     syncScreensaverVisibility()
     const doc = event.currentTarget.contentDocument
     doc?.addEventListener('screensaver:next', showCrew, { once: true })

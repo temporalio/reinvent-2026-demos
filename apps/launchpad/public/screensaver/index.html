@@ -222,7 +222,7 @@
       <p class="tagline">No <i></i> Lost <i></i> State</p>
     </header>
 
-    <section class="card-overview" aria-live="polite">
+    <section class="card-overview is-closed" aria-live="polite">
       <div class="card-row">
         <div class="card">
           <div class="card-content">
@@ -522,6 +522,7 @@
     const stage = document.querySelector(".screensaver");
     const card = document.querySelector(".card-overview");
 
+    const initialHidden = new Set((new URLSearchParams(location.search).get("hidden") || "").split(","));
     const planets = DECKS.map(deck => {
       const g = document.createElementNS(SVG, "g");
       g.classList.add("planet");
@@ -538,8 +539,12 @@
       g.addEventListener("keydown", e => {
         if (e.key === "Enter" || e.key === " ") { e.preventDefault(); select(planet); }
       });
+      const hidden = initialHidden.has(deck.id);
+      g.style.display = hidden ? "none" : "";
+      g.setAttribute("aria-hidden", String(hidden));
+      g.setAttribute("tabindex", hidden ? "-1" : "0");
       planetLayer.append(g);
-      const planet = { deck, g, hit: g.querySelector(".hit"), front: deck.r / sizeAt(depthAt(deck.angle)), x: 0, y: 0, depth: 0 };
+      const planet = { deck, g, hidden, hit: g.querySelector(".hit"), front: deck.r / sizeAt(depthAt(deck.angle)), x: 0, y: 0, depth: 0 };
       return planet;
     });
 
@@ -680,7 +685,8 @@
       requestAnimationFrame(frame);
     }
     draw(0);
-    select(planets[0]);
+    if(!planets.some(planet=>!planet.hidden))stage.classList.add("is-idle");
+    select(planets.find(planet => !planet.hidden));
     if (!reduceMotion) requestAnimationFrame(frame);
 
     // ---------- Asteroids ----------
