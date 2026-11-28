@@ -237,6 +237,28 @@ class ControlHttpTests(unittest.TestCase):
         self.assertIn('; Secure', headers['Set-Cookie'])
         self.assertEqual(self.request('POST', '/control-api/login', {'pin': '1130'}, origin='https://station.local', headers={'Host': 'station.local', 'X-Forwarded-Proto': 'http'})[0], 403)
 
+    def test_hidden_is_persisted_without_changing_availability(self):
+        cookie = self.login()
+        status, state, _ = self.request('PATCH', '/control-api/global', {
+            'revision':0,'settings':{'demo_enabled':{'tacos':True,'loan':False},'demo_hidden':{'tacos':True,'loan':True}}}, cookie=cookie)
+        self.assertEqual(status,200)
+        self.assertEqual(state['global']['demo_enabled'],{'tacos':True,'loan':False})
+        self.assertEqual(state['global']['demo_hidden'],{'tacos':True,'loan':True})
+        status, state, _ = self.request('PATCH', '/control-api/stations/2', {
+            'revision':1,'overrides':{'demo_hidden':{'tacos':False}}}, cookie=cookie)
+        self.assertEqual(status,200)
+        self.assertEqual(state['stations']['2']['overrides']['demo_hidden'],{'tacos':False})
+        self.assertEqual(state['stations']['2']['overrides']['demo_enabled'],{})
+        status, state, _ = self.request('PATCH', '/control-api/stations/2', {
+            'revision':2,'overrides':{'demo_hidden':{'tacos':None}}}, cookie=cookie)
+        self.assertEqual(status,200)
+        self.assertEqual(state['stations']['2']['overrides']['demo_hidden'],{})
+        self.assertTrue(state['global']['demo_enabled']['tacos'])
+        self.assertFalse(state['global']['demo_enabled']['loan'])
+        status, _, _ = self.request('PATCH', '/control-api/global', {
+            'revision':3,'settings':{'demo_hidden':{'tacos':'hidden'}}},cookie=cookie)
+        self.assertEqual(status,422)
+
     def test_agentcore_availability_can_be_saved_for_each_station(self):
         cookie = self.login()
         status, state, _ = self.request('PATCH', '/control-api/global', {

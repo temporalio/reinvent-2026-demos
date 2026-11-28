@@ -35,3 +35,8 @@ test('on-call launches hosted and needs the local adapter locally',()=>{
  assert.equal(launchRestriction(demo,{mode:'local',availableDemos:[]},settings,true),'Not running on this station')
  assert.equal(launchRestriction(demo,{mode:'local',availableDemos:['agentcore-research']},settings,true),null)
 })
+
+test('Hidden does not disable an enabled demo or enable a disabled demo',()=>{
+ assert.equal(launchRestriction(demo,{mode:'hosted'},{...online,demo_enabled:{tacos:true},demo_hidden:{tacos:true}},true),null)
+ assert.equal(launchRestriction(demo,{mode:'hosted'},{...online,demo_enabled:{tacos:false},demo_hidden:{tacos:true}},true),'Disabled for this station')
+})

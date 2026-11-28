@@ -360,9 +360,10 @@ def global_mutation(body):
     validate_display_commit(body)
     revision = revision_of(body)
     settings = body.get('settings')
-    object_fields(settings, {'demo_enabled', 'network_mode', 'display'}, 'Global settings')
-    if 'demo_enabled' in settings:
-        validate_demos(settings['demo_enabled'])
+    object_fields(settings, {'demo_enabled', 'demo_hidden', 'network_mode', 'display'}, 'Global settings')
+    for field in ('demo_enabled', 'demo_hidden'):
+        if field in settings:
+            validate_demos(settings[field])
     if 'network_mode' in settings and settings['network_mode'] not in ('online', 'offline'):
         raise ApiError(422, 'invalid_settings', 'Global network mode must be online or offline.')
     if 'display' in settings:
@@ -371,8 +372,9 @@ def global_mutation(body):
         display_commit(config, body, STATION_IDS)
         target = config['global']
         target['display'].update(settings.get('display', {}))
-        if 'demo_enabled' in settings:
-            apply_demos(target['demo_enabled'], settings['demo_enabled'])
+        for field in ('demo_enabled', 'demo_hidden'):
+            if field in settings:
+                apply_demos(target.setdefault(field, {}), settings[field])
         if 'network_mode' in settings:
             target['network_mode'] = settings['network_mode']
     return revision, mutate
@@ -387,9 +389,10 @@ def station_mutation(body, station):
     if 'label' in body and (not isinstance(body['label'], str) or not 1 <= len(body['label'].strip()) <= 64):
         raise ApiError(422, 'invalid_settings', 'Station label must contain 1–64 characters.')
     overrides = body.get('overrides', {})
-    object_fields(overrides, {'demo_enabled', 'network_mode'}, 'Station overrides')
-    if 'demo_enabled' in overrides:
-        validate_demos(overrides['demo_enabled'])
+    object_fields(overrides, {'demo_enabled', 'demo_hidden', 'network_mode'}, 'Station overrides')
+    for field in ('demo_enabled', 'demo_hidden'):
+        if field in overrides:
+            validate_demos(overrides[field])
     if 'network_mode' in overrides and overrides['network_mode'] not in (None, 'online', 'offline'):
         raise ApiError(422, 'invalid_settings', 'Station network mode must be online, offline, or null to inherit.')
     display = body.get('display', {})
@@ -399,8 +402,9 @@ def station_mutation(body, station):
         target = config['stations'][station]
         if 'label' in body:
             target['label'] = body['label'].strip()
-        if 'demo_enabled' in overrides:
-            apply_demos(target['overrides']['demo_enabled'], overrides['demo_enabled'])
+        for field in ('demo_enabled', 'demo_hidden'):
+            if field in overrides:
+                apply_demos(target['overrides'].setdefault(field, {}), overrides[field])
         if 'network_mode' in overrides:
             if overrides['network_mode'] is None:
                 target['overrides'].pop('network_mode', None)
