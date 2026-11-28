@@ -134,6 +134,10 @@ func TestUpdateRequiresInstalledLauncher(t *testing.T) {
 	if err := a.startUpdate(strings.Repeat("ab", 16)); err == nil {
 		t.Fatal("accepted missing fixed updater")
 	}
+	status := a.snapshot()
+	if status.UpdateState != "failed" || status.UpdateID != strings.Repeat("ab", 16) {
+		t.Fatalf("failed start would leave controller waiting: %+v", status)
+	}
 }
 
 func TestUpdateProgressTracksTheRealUpdaterLock(t *testing.T) {
